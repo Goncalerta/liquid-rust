@@ -2,9 +2,9 @@ use std::io::Write;
 
 use liquid_error::{Result, ResultLiquidChainExt};
 
-use compiler::Element;
 use compiler::LiquidOptions;
-use compiler::Token;
+use compiler::TagBlock;
+use compiler::TagTokens;
 use interpreter::Context;
 use interpreter::Renderable;
 
@@ -22,17 +22,11 @@ impl Renderable for RawT {
 
 pub fn raw_block(
     _tag_name: &str,
-    _arguments: &[Token],
-    tokens: &[Element],
+    _arguments: TagTokens,
+    tokens: TagBlock,
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
-    let content = tokens.iter().fold("".to_owned(), |a, b| {
-        a + match *b {
-            Element::Expression(_, ref text)
-            | Element::Tag(_, ref text)
-            | Element::Raw(ref text) => text,
-        }
-    });
+    let content = tokens.to_string();
     Ok(Box::new(RawT { content }))
 }
 
@@ -50,43 +44,32 @@ mod test {
         options
     }
 
+    fn unit_parse(text: &str) -> String {
+        let options = options();
+        let template = compiler::parse(text, &options)
+            .map(interpreter::Template::new)
+            .unwrap();
+
+        let mut context = Context::new();
+
+        template.render(&mut context).unwrap()
+    }
+
     #[test]
     fn raw_text() {
-        let raw = raw_block(
-            "raw",
-            &[],
-            &vec![Element::Expression(vec![], "This is a test".to_owned())],
-            &options(),
-        ).unwrap();
-        let output = raw.render(&mut Default::default()).unwrap();
+        let output = unit_parse("{%raw%}This is a test{%endraw%}");
         assert_eq!(output, "This is a test");
     }
 
     #[test]
     fn raw_escaped() {
-        let text = "{%raw%}{%if%}{%endraw%}";
-
-        let tokens = compiler::tokenize(&text).unwrap();
-        let template = compiler::parse(&tokens, &options())
-            .map(interpreter::Template::new)
-            .unwrap();
-
-        let mut context = Context::new();
-        let output = template.render(&mut context).unwrap();
+        let output = unit_parse("{%raw%}{%if%}{%endraw%}");
         assert_eq!(output, "{%if%}");
     }
 
     #[test]
     fn raw_mixed() {
-        let text = "{%raw%}hello{%if%}world{%endraw%}";
-
-        let tokens = compiler::tokenize(&text).unwrap();
-        let template = compiler::parse(&tokens, &options())
-            .map(interpreter::Template::new)
-            .unwrap();
-
-        let mut context = Context::new();
-        let output = template.render(&mut context).unwrap();
+        let output = unit_parse("{%raw%}hello{%if%}world{%endraw%}");
         assert_eq!(output, "hello{%if%}world");
     }
 }

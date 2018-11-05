@@ -2,9 +2,9 @@ use std::io::Write;
 
 use liquid_error::Result;
 
-use compiler::Element;
 use compiler::LiquidOptions;
-use compiler::Token;
+use compiler::TagBlock;
+use compiler::TagTokens;
 use interpreter::Context;
 use interpreter::Renderable;
 
@@ -19,8 +19,8 @@ impl Renderable for Comment {
 
 pub fn comment_block(
     _tag_name: &str,
-    _arguments: &[Token],
-    _tokens: &[Element],
+    _arguments: TagTokens,
+    _tokens: TagBlock,
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     Ok(Box::new(Comment))
@@ -30,6 +30,7 @@ pub fn comment_block(
 mod test {
     use super::*;
     use compiler;
+    use interpreter;
 
     fn options() -> LiquidOptions {
         let mut options = LiquidOptions::default();
@@ -39,18 +40,20 @@ mod test {
         options
     }
 
+    fn unit_parse(text: &str) -> String {
+        let options = options();
+        let template = compiler::parse(text, &options)
+            .map(interpreter::Template::new)
+            .unwrap();
+
+        let mut context = Context::new();
+
+        template.render(&mut context).unwrap()
+    }
+
     #[test]
     fn test_comment() {
-        let options = options();
-        let comment = comment_block(
-            "comment",
-            &[],
-            &vec![Element::Expression(vec![], "This is a test".to_string())],
-            &options,
-        );
-        assert_eq!(
-            comment.unwrap().render(&mut Default::default()).unwrap(),
-            ""
-        );
+        let output = unit_parse("{% comment %} This is a test {% endcomment %}");
+        assert_eq!(output, "");
     }
 }

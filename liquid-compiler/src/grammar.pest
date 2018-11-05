@@ -1,0 +1,56 @@
+WHITESPACE = _{" "}
+LINE_OR_SPACE = _{ NEWLINE | WHITESPACE }
+LiquidFile = ${ SOI ~ Element* ~ EOI }
+
+// Element-level parsing
+Element = _{ Expression | Tag | Raw } 
+
+TagStart = _{ (LINE_OR_SPACE* ~ "{%-") | "{%" }
+TagEnd =   _{ ("-%}" ~ LINE_OR_SPACE*) | "%}" }
+ExpressionStart = _{ (LINE_OR_SPACE* ~ "{{-") | "{{" }
+ExpressionEnd =   _{ ("-}}" ~ LINE_OR_SPACE*) | "}}" }
+
+Tag = !{ TagStart ~ Identifier ~ TagToken* ~ TagEnd }
+Expression = !{ ExpressionStart ~ FilterChain ~ ExpressionEnd }
+// Not allowing Tag/Expression Start/End might become a problem 
+// for {% raw %} tag: unclosed delimiters won't be accepted
+Raw = @{ (!(TagStart | ExpressionStart | TagEnd | ExpressionEnd) ~ ANY)+ }              
+
+
+// Inner parsing        
+Identifier = @{ (ASCII_ALPHA | "_")+ }
+
+Variable = { Identifier 
+           ~ ( ("." ~ Identifier)
+             | ("[" ~ Value ~ "]")
+             )* 
+           }
+Value = { Literal | Variable }
+Filter = { Identifier ~ (":" ~ Value ~ ("," ~ Value)*)? } 
+FilterChain = { Value ~ ("|" ~ Filter)* } // Make * into + , filterchains without filters will degenerate to Value
+
+
+// Literals 
+StringLiteral = @{ ("'" ~ (!"'" ~ ANY)* ~ "'")
+				 | ("\"" ~ (!"\"" ~ ANY)* ~ "\"") }
+                 
+IntegerLiteral = @{ ASCII_DIGIT+ }
+FloatLiteral = @{ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
+
+BooleanLiteral = @{ "true" | "false" }
+
+Literal = { StringLiteral | IntegerLiteral | FloatLiteral | BooleanLiteral }
+
+
+TagToken = _{ ComparisonOperator | LogicalOperator | AssignmentOperator | Range | FilterChain }
+           
+           //| Literal 
+           //| (Variable ~ !"|") // If Variable is followed by "|", then it is a filterchain, and thus must not be consumed.
+           // On the other hand, another possibility would be to make filterchain's filters mandatory, thus any filterchain without filters degenerates to filter
+           //| FilterChain 
+           //}
+
+Range = { "(" ~ Value ~ ".." ~ Value ~ ")" }
+ComparisonOperator = { "==" | "!=" | "<>" | ">" | "<" | ">=" | "<=" | "contains" }
+LogicalOperator = { "and" | "or" }
+AssignmentOperator = { "=" }

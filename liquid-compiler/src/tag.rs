@@ -2,7 +2,7 @@ use liquid_interpreter::Renderable;
 
 use super::error::Result;
 use super::LiquidOptions;
-use super::Token;
+use super::TagTokens;
 
 /// A trait for creating custom tags. This is a simple type alias for a function.
 ///
@@ -14,7 +14,7 @@ pub trait ParseTag: Send + Sync + ParseTagClone {
     fn parse(
         &self,
         tag_name: &str,
-        arguments: &[Token],
+        arguments: TagTokens,
         options: &LiquidOptions,
     ) -> Result<Box<Renderable>>;
 }
@@ -38,7 +38,7 @@ impl Clone for Box<ParseTag> {
     }
 }
 
-pub type FnParseTag = fn(&str, &[Token], &LiquidOptions) -> Result<Box<Renderable>>;
+pub type FnParseTag = fn(&str, TagTokens, &LiquidOptions) -> Result<Box<Renderable>>;
 
 #[derive(Clone)]
 struct FnTagParser {
@@ -55,7 +55,7 @@ impl ParseTag for FnTagParser {
     fn parse(
         &self,
         tag_name: &str,
-        arguments: &[Token],
+        arguments: TagTokens,
         options: &LiquidOptions,
     ) -> Result<Box<Renderable>> {
         (self.parser)(tag_name, arguments, options)
@@ -77,7 +77,7 @@ impl ParseTag for BoxedTagParser {
     fn parse(
         &self,
         tag_name: &str,
-        arguments: &[Token],
+        arguments: TagTokens,
         options: &LiquidOptions,
     ) -> Result<Box<Renderable>> {
         match self.parser {
