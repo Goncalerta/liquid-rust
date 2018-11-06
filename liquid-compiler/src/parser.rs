@@ -20,7 +20,7 @@ use pest::Parser;
 
 #[derive(Parser)]
 #[grammar = "grammar.pest"]
-pub struct LiquidParser;
+struct LiquidParser;
 
 type Pair<'a> = ::pest::iterators::Pair<'a, Rule>;
 
