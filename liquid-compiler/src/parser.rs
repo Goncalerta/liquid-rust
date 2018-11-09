@@ -11,7 +11,7 @@ use liquid_interpreter::{FilterCall, FilterChain};
 use liquid_value::Scalar;
 use liquid_value::Value;
 
-use super::error::{/*Error,*/ Result};
+use super::error::{Error, Result};
 use super::LiquidOptions;
 use super::ParseBlock;
 use super::ParseTag;
@@ -23,6 +23,7 @@ use pest::Parser;
 struct LiquidParser;
 
 type Pair<'a> = ::pest::iterators::Pair<'a, Rule>;
+type Pairs<'a> = ::pest::iterators::Pairs<'a, Rule>;
 
 pub fn parse(text: &str, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
     let mut liquid = LiquidParser::parse(Rule::LiquidFile, text)
@@ -43,9 +44,9 @@ pub fn parse(text: &str, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>
     Ok(renderables)
 }
 
-fn parse_element(
-    element: Pair,
-    next_elements: &mut Iterator<Item = Pair>,
+fn parse_element<'a>(
+    element: Pair<'a>,
+    next_elements: &mut Iterator<Item = Pair<'a>>,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     match element.as_rule() {
@@ -57,9 +58,7 @@ fn parse_element(
 
             Ok(Box::new(parse_filter_chain(filter_chain)))
         }
-        Rule::Tag => {
-            Ok(parse_tag(element, next_elements, options)?)
-        }
+        Rule::Tag => Ok(parse_tag(element, next_elements, options)?),
         Rule::Raw => Ok(Box::new(Text::new(element.as_str()))),
         _ => panic!("Expected Expression | Tag | Raw."),
     }
@@ -126,15 +125,6 @@ fn parse_variable(variable: Pair) -> Variable {
 
     variable.extend(indexes);
     variable
-
-    /* Why does this code appear on parse_expression() from the old parser?
-     * ```
-     * Some(&Token::Identifier(ref x)) if options.tags.contains_key(x.as_str()) => {
-     *      options.tags[x.as_str()].parse(x, &tokens[1..], options)
-     * }
-     * ```
-     * Are {{ expressions }} supposed to be treated as {% tags %} just because they have a tag name?
-     */
 }
 
 fn parse_value(value: Pair) -> Expression {
@@ -179,9 +169,9 @@ fn parse_filter_chain(chain: Pair) -> FilterChain {
     FilterChain::new(entry, filters)
 }
 
-fn parse_tag(
-    tag: Pair,
-    next_elements: &mut Iterator<Item = Pair>,
+fn parse_tag<'a>(
+    tag: Pair<'a>,
+    next_elements: &mut Iterator<Item = Pair<'a>>,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     if tag.as_rule() != Rule::Tag {
@@ -198,85 +188,84 @@ fn parse_tag(
     if options.tags.contains_key(name) {
         options.tags[name].parse(name, tokens, options)
     } else if options.blocks.contains_key(name) {
-        parse_block(name, tokens, next_elements, options)
+        let mut block = TagBlock::new(name, next_elements);
+        options.blocks[name].parse(name, tokens, block, options)
+        // Might need a .close() function, to consume the remaining blocks
     } else {
         panic!("Errors not implemented. Unknown tag.")
     }
 }
 
-fn parse_block(
-    name: &str,
-    tokens: TagTokens,
-    next_elements: &mut Iterator<Item = Pair>,
-    options: &LiquidOptions,
-) -> Result<Box<Renderable>> {
-        let mut nesting_depth = 1;
-        let mut block = TagBlock::new();
-
-        while let Some(element) = next_elements.next() {
-            if element.as_rule() == Rule::EOI {
-                return panic!("Errors not implemented. Unclosed block.");
-            }
-                // First check if the element is an opening or closing
-                // tag with this block's name.
-                if element.as_rule() == Rule::Tag {
-                    let nested_tag_name = element
-                        .clone() // Maybe there is a better way?
-                        .into_inner()
-                        .next()
-                        .expect("Tags start by their name.")
-                        .as_str();
-                    if name == nested_tag_name {
-                        nesting_depth = nesting_depth + 1;
-                    } else if format!("end{}", name) == nested_tag_name {
-                        nesting_depth = nesting_depth - 1;
-                    }
-                    if nesting_depth == 0 {
-                        break;
-                    }
-                }
-
-                // Now that we know this element won't close this block,
-                // add it to the vector.
-                block.push(element);
-        }
-        options.blocks[name].parse(name, tokens, block, options)
-}
 
 /// An interface to parse elements inside blocks without exposing the Pair structures
 // TODO find if there is a better way to store the blocks instead of a vector of pairs.
-pub struct TagBlock<'a>(Vec<Pair<'a>>);
-impl<'a> TagBlock<'a> {
-    fn new() -> Self {
-        TagBlock(Vec::new())
+pub struct TagBlock<'a:'b, 'b> {
+    name: &'b str,
+    iter: &'b mut Iterator<Item = Pair<'a>>,
+    nesting_depth: u32,
+}
+
+impl<'a, 'b> TagBlock<'a, 'b> {
+    fn new(name: &'b str, next_elements: &'b mut Iterator<Item = Pair<'a>>) -> Self {
+        TagBlock {
+            name,
+            iter: next_elements,
+            nesting_depth: 1,
+        }
     }
 
-    fn push(&mut self, element: Pair<'a>) {
-        self.0.push(element);
+    fn next(&mut self) -> Result<Option<Pair<'a>>> {
+        if self.nesting_depth == 0 {
+            return Ok(None);
+        }
+
+        let element = self
+            .iter
+            .next()
+            .expect("The file must not end before an EOI.");
+        if element.as_rule() == Rule::EOI {
+            return panic!("Errors not implemented. Unclosed block.");
+        }
+        if element.as_rule() == Rule::Tag {
+            let nested_tag_name = element
+                .clone() // Maybe there is a better way?
+                .into_inner()
+                .next()
+                .expect("Tags start by their identifier.")
+                .as_str();
+            if self.name == nested_tag_name {
+                self.nesting_depth += 1;
+            } else if format!("end{}", self.name) == nested_tag_name {
+                self.nesting_depth -= 1;
+            }
+            if self.nesting_depth == 0 {
+                return Ok(None);
+            }
+        }
+        Ok(Some(element))
     }
 
-    pub fn parse(self, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
+    pub fn parse(mut self, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
         let mut renderables = Vec::new();
-        let mut pairs = self.0.into_iter();
-        while let Some(element) = pairs.next() {
-            renderables.push(parse_element(element, &mut pairs, options)?);
+        while let Some(element) = self.next()? {
+            renderables.push(parse_element(element, self.iter, options)?);
         }
         Ok(renderables)
     }
-    
+
     // Probably a to_str might be implemented by checking the start of 1st pair and end of the last.
     // Then just create a slice directly from the input text.
-    pub fn to_string(&self) -> String {
+    pub fn to_string(&mut self) -> Result<String> {
         let mut s = String::new();
-        for element in self.0.iter() {
-            s.push_str(element.as_str())
-        }
-        s
+        while let Some(element) = self.next()? {
+            s.push_str(element.as_str());
+        } 
+        Ok(s)
     }
 }
 
 /// An interface to parse tokens inside Tags without exposing the Pair structures
-// TODO maybe TagTokens wrapping an iterator over tokens instead would be better. 
+// TODO maybe TagTokens wrapping an iterator over tokens instead would be better.
 // That way, users wouldn't need to constantly move_next and unwrap before parsing the token.
 pub struct TagTokens<'a>(&'a mut Iterator<Item = Pair<'a>>);
 impl<'a> TagTokens<'a> {
@@ -289,17 +278,18 @@ impl<'a> TagTokens<'a> {
 
     // TODO other tokens such as ranges, comparisons, assignments, ...
 
-
-    // Maybe create an expect_symbol(&str) where &str is a known symbol in grammar? 
+    // Maybe create an expect_symbol(&str) where &str is a known symbol in grammar?
     pub fn expect_assignment_operator(&mut self) -> Result<()> {
         let token = self.expect_something()?;
         if token.as_rule() != Rule::AssignmentOperator {
-            return panic!("Error handling is not implemented. Expected '='. {}", token.as_str())
+            return panic!(
+                "Error handling is not implemented. Expected '='. {}",
+                token.as_str()
+            );
         }
 
         Ok(())
     }
-
 
     // TODO try to find a better approach
     // Values, Variables, Identifiers and Literals are caught by the Filterchain rule
@@ -403,7 +393,6 @@ impl<'a> TagTokens<'a> {
         Ok(Value::scalar(parse_literal(literal)))
     }
 }
-
 
 #[cfg(test)]
 mod test_parse_output {

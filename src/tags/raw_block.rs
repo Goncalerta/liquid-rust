@@ -23,10 +23,10 @@ impl Renderable for RawT {
 pub fn raw_block(
     _tag_name: &str,
     _arguments: TagTokens,
-    tokens: TagBlock,
+    mut tokens: TagBlock,
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
-    let content = tokens.to_string();
+    let content = tokens.to_string()?;
     Ok(Box::new(RawT { content }))
 }
 

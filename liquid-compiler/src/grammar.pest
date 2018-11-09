@@ -27,7 +27,7 @@ Variable = { Identifier
            }
 Value = { Literal | Variable }
 Filter = { Identifier ~ (":" ~ Value ~ ("," ~ Value)*)? } 
-FilterChain = { Value ~ ("|" ~ Filter)* } // Make * into + , filterchains without filters will degenerate to Value
+FilterChain = { Value ~ ("|" ~ Filter)* }
 
 
 // Literals 
@@ -43,12 +43,6 @@ Literal = { StringLiteral | IntegerLiteral | FloatLiteral | BooleanLiteral }
 
 
 TagToken = _{ ComparisonOperator | LogicalOperator | AssignmentOperator | Range | FilterChain }
-           
-           //| Literal 
-           //| (Variable ~ !"|") // If Variable is followed by "|", then it is a filterchain, and thus must not be consumed.
-           // On the other hand, another possibility would be to make filterchain's filters mandatory, thus any filterchain without filters degenerates to filter
-           //| FilterChain 
-           //}
 
 Range = { "(" ~ Value ~ ".." ~ Value ~ ")" }
 ComparisonOperator = { "==" | "!=" | "<>" | ">" | "<" | ">=" | "<=" | "contains" }
