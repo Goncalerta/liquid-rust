@@ -201,14 +201,17 @@ fn parse_tag<'a>(
 // TODO find if there is a better way to store the blocks instead of a vector of pairs.
 pub struct TagBlock<'a:'b, 'b> {
     name: &'b str,
+    end_name: String,
     iter: &'b mut Iterator<Item = Pair<'a>>,
     nesting_depth: u32,
 }
 
 impl<'a, 'b> TagBlock<'a, 'b> {
     fn new(name: &'b str, next_elements: &'b mut Iterator<Item = Pair<'a>>) -> Self {
+        let end_name = format!("end{}", name);
         TagBlock {
             name,
+            end_name,
             iter: next_elements,
             nesting_depth: 1,
         }
@@ -235,7 +238,7 @@ impl<'a, 'b> TagBlock<'a, 'b> {
                 .as_str();
             if self.name == nested_tag_name {
                 self.nesting_depth += 1;
-            } else if format!("end{}", self.name) == nested_tag_name {
+            } else if self.end_name == nested_tag_name {
                 self.nesting_depth -= 1;
             }
             if self.nesting_depth == 0 {
