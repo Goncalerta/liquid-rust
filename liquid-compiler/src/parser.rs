@@ -189,8 +189,9 @@ fn parse_tag<'a>(
         options.tags[name].parse(name, tokens, options)
     } else if options.blocks.contains_key(name) {
         let mut block = TagBlock::new(name, next_elements);
-        options.blocks[name].parse(name, tokens, block, options)
-        // Might need a .close() function, to consume the remaining blocks
+        let renderables = options.blocks[name].parse(name, tokens, &mut block, options);
+        block.close();
+        renderables
     } else {
         panic!("Errors not implemented. Unknown tag.")
     }
@@ -243,6 +244,14 @@ impl<'a, 'b> TagBlock<'a, 'b> {
             }
         }
         Ok(Some(element))
+    }
+
+    // need to call this close function
+    fn close(mut self) -> Result<()> {
+        while self.nesting_depth != 0 {
+            self.next()?;
+        }
+        Ok(())
     }
 
     pub fn parse(mut self, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
