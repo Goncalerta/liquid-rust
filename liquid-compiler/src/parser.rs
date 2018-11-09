@@ -18,9 +18,13 @@ use super::ParseTag;
 
 use pest::Parser;
 
-#[derive(Parser)]
-#[grammar = "grammar.pest"]
-struct LiquidParser;
+mod pest {
+    #[derive(Parser)]
+    #[grammar = "grammar.pest"]
+    pub struct LiquidParser;
+}
+
+use self::pest::*;
 
 type Pair<'a> = ::pest::iterators::Pair<'a, Rule>;
 
@@ -182,7 +186,7 @@ fn parse_tag<'a>(
         .next()
         .expect("A tag starts with an identifier.")
         .as_str();
-    let tokens = TagTokens(&mut tag);
+    let tokens = TagTokens::new(&mut tag);
 
     if options.tags.contains_key(name) {
         options.tags[name].parse(name, tokens, options)
@@ -273,10 +277,20 @@ impl<'a, 'b> TagBlock<'a, 'b> {
 /// An interface to parse tokens inside Tags without exposing the Pair structures
 // TODO maybe TagTokens wrapping an iterator over tokens instead would be better.
 // That way, users wouldn't need to constantly move_next and unwrap before parsing the token.
-pub struct TagTokens<'a>(&'a mut Iterator<Item = Pair<'a>>);
+pub struct TagTokens<'a>{
+    iter: &'a mut Iterator<Item = Pair<'a>>
+}
+
 impl<'a> TagTokens<'a> {
-    pub fn expect_something(&mut self) -> Result<Pair<'a>> {
-        match self.0.next() {
+    fn new(tokens: &'a mut Iterator<Item = Pair<'a>>) -> Self {
+        TagTokens {
+            iter: tokens,
+        }
+    }
+
+
+    fn expect_something(&mut self) -> Result<Pair<'a>> {
+        match self.iter.next() {
             Some(pair) => Ok(pair),
             None => panic!("Error handling is not implemented. Expected something."),
         }
