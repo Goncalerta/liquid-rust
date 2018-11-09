@@ -23,7 +23,6 @@ use pest::Parser;
 struct LiquidParser;
 
 type Pair<'a> = ::pest::iterators::Pair<'a, Rule>;
-type Pairs<'a> = ::pest::iterators::Pairs<'a, Rule>;
 
 pub fn parse(text: &str, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
     let mut liquid = LiquidParser::parse(Rule::LiquidFile, text)
@@ -190,7 +189,7 @@ fn parse_tag<'a>(
     } else if options.blocks.contains_key(name) {
         let mut block = TagBlock::new(name, next_elements);
         let renderables = options.blocks[name].parse(name, tokens, &mut block, options);
-        block.close();
+        block.close()?;
         renderables
     } else {
         panic!("Errors not implemented. Unknown tag.")
@@ -247,9 +246,7 @@ impl<'a, 'b> TagBlock<'a, 'b> {
     }
 
     fn close(mut self) -> Result<()> {
-        while self.nesting_depth != 0 {
-            self.next()?;
-        }
+        while let Some(_) = self.next()? {}
         Ok(())
     }
 
@@ -261,8 +258,6 @@ impl<'a, 'b> TagBlock<'a, 'b> {
         Ok(renderables)
     }
 
-    // Probably a to_str might be implemented by checking the start of 1st pair and end of the last.
-    // Then just create a slice directly from the input text.
     pub fn to_string(&mut self) -> Result<String> {
         let mut s = String::new();
         while let Some(element) = self.next()? {
