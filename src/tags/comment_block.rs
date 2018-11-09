@@ -20,7 +20,7 @@ impl Renderable for Comment {
 pub fn comment_block(
     _tag_name: &str,
     _arguments: TagTokens,
-    _tokens: TagBlock,
+    _tokens: &mut TagBlock,
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     Ok(Box::new(Comment))
