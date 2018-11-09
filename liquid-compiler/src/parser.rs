@@ -257,7 +257,7 @@ impl<'a, 'b> TagBlock<'a, 'b> {
         Ok(())
     }
 
-    pub fn parse(mut self, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
+    pub fn parse(&mut self, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
         let mut renderables = Vec::new();
         while let Some(element) = self.next()? {
             renderables.push(parse_element(element, self.iter, options)?);
