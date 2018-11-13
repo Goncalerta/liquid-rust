@@ -45,7 +45,7 @@ pub fn parse(text: &str, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>
             break;
         }
 
-        renderables.push(parse_element(element, &mut liquid, options, None)?);
+        renderables.push(parse_element(element, &mut liquid, options)?);
     }
     Ok(renderables)
 }
@@ -54,7 +54,6 @@ fn parse_element<'a>(
     element: Pair<'a>,
     next_elements: &mut Iterator<Item = Pair<'a>>,
     options: &LiquidOptions,
-    extra_tags: Option<&HashMap<&'static str, BoxedTagParser>>,
 ) -> Result<Box<Renderable>> {
     match element.as_rule() {
         Rule::Expression => {
@@ -65,7 +64,7 @@ fn parse_element<'a>(
 
             Ok(Box::new(parse_filter_chain(filter_chain)))
         }
-        Rule::Tag => Ok(parse_tag(element, next_elements, options, extra_tags)?),
+        Rule::Tag => Ok(parse_tag(element, next_elements, options)?),
         Rule::Raw => Ok(Box::new(Text::new(element.as_str()))),
         _ => panic!("Expected Expression | Tag | Raw."),
     }
@@ -180,7 +179,6 @@ fn parse_tag<'a>(
     tag: Pair<'a>,
     next_elements: &mut Iterator<Item = Pair<'a>>,
     options: &LiquidOptions,
-    extra_tags: Option<&HashMap<&'static str, BoxedTagParser>>,
 ) -> Result<Box<Renderable>> {
     if tag.as_rule() != Rule::Tag {
         panic!("Expected a tag.");
@@ -193,10 +191,7 @@ fn parse_tag<'a>(
         .as_str();
     let mut tokens = tag.map(TagToken::from);
 
-    if extra_tags.is_some() && extra_tags.unwrap().contains_key(name) {
-        let extra_tags = extra_tags.expect("Condition already checks if is some.");
-        extra_tags[name].parse(name, &mut tokens, options)
-    } else if options.tags.contains_key(name) {
+    if options.tags.contains_key(name) {
         options.tags[name].parse(name, &mut tokens, options)
     } else if options.blocks.contains_key(name) {
         let mut block = TagBlock::new(name, next_elements);
@@ -208,14 +203,15 @@ fn parse_tag<'a>(
     }
 }
 
+type FnLocalTag = Fn(&mut Iterator<Item = TagToken>) -> Result<Box<Renderable>>;
+
 /// An interface to parse elements inside blocks without exposing the Pair structures
-// TODO find if there is a better way to store the blocks instead of a vector of pairs.
 pub struct TagBlock<'a: 'b, 'b> {
     name: &'b str,
     end_name: String,
     iter: &'b mut Iterator<Item = Pair<'a>>,
     nesting_depth: u32,
-    custom_tags: HashMap<&'static str, BoxedTagParser>,
+    custom_tags: HashMap<&'static str, Box<FnLocalTag>>,
 }
 
 impl<'a, 'b> TagBlock<'a, 'b> {
@@ -266,8 +262,8 @@ impl<'a, 'b> TagBlock<'a, 'b> {
         Ok(())
     }
 
-    pub fn insert_custom_tag<T: Into<BoxedTagParser>>(&mut self, name: &'static str, tag: T) {
-        self.custom_tags.insert(name, tag.into());
+    pub fn add_local_tag(&mut self, name: &'static str, tag: Box<FnLocalTag>) {
+        self.custom_tags.insert(name, tag);
     }
 
     pub fn parse(&mut self, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
@@ -281,12 +277,21 @@ impl<'a, 'b> TagBlock<'a, 'b> {
     pub fn parse_next(&mut self, options: &LiquidOptions) -> Result<Option<Box<Renderable>>> {
         match self.next()? {
             None => Ok(None),
-            Some(element) => Ok(Some(parse_element(
-                element,
-                self.iter,
-                options,
-                Some(&self.custom_tags),
-            )?)),
+            Some(element) => {
+                if element.as_rule() == Rule::Tag && !self.custom_tags.is_empty() {
+                    let mut tag = element.clone().into_inner();
+                    let name = tag
+                        .next()
+                        .expect("A tag starts with an identifier.")
+                        .as_str();
+                    if self.custom_tags.contains_key(name) {
+                        let mut tokens = tag.map(TagToken::from);
+                        return Ok(Some(self.custom_tags[name](&mut tokens)?));
+                    }
+                }
+
+                Ok(Some(parse_element(element, self.iter, options)?))
+            }
         }
     }
 
@@ -298,6 +303,23 @@ impl<'a, 'b> TagBlock<'a, 'b> {
         }
         Ok(s)
     }
+
+    // pub fn parse_custom_raw(&mut self, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
+
+    //     match element.as_rule() {
+    //         Rule::Expression => {
+    //             let mut filter_chain = element
+    //                 .into_inner()
+    //                 .next()
+    //                 .expect("An expression consists of one filterchain.");
+
+    //             Ok(Box::new(parse_filter_chain(filter_chain)))
+    //         }
+    //         Rule::Tag => Ok(parse_tag(element, next_elements, options)?),
+    //         Rule::Raw => Ok(Box::new(Text::new(element.as_str()))),
+    //         _ => panic!("Expected Expression | Tag | Raw."),
+    //     }
+    // }
 }
 
 /// An interface to parse tokens inside Tags without exposing the Pair structures

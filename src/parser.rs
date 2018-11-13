@@ -48,8 +48,8 @@ impl ParserBuilder {
     /// Register built-in Liquid blocks
     pub fn liquid_blocks(self) -> Self {
         self.block("raw", tags::raw_block as compiler::FnParseBlock)
-            // .block("if", tags::if_block as compiler::FnParseBlock)
-            // .block("unless", tags::unless_block as compiler::FnParseBlock)
+            .block("if", tags::if_block as compiler::FnParseBlock)
+            .block("unless", tags::unless_block as compiler::FnParseBlock)
             .block("ifchanged", tags::ifchanged_block as compiler::FnParseBlock)
             // .block("for", tags::for_block as compiler::FnParseBlock)
             // .block("tablerow", tags::tablerow_block as compiler::FnParseBlock)

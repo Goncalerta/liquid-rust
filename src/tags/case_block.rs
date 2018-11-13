@@ -4,10 +4,9 @@ use itertools;
 use liquid_error::{Error, Result, ResultLiquidExt};
 use liquid_value::Value;
 
-use compiler::Element;
 use compiler::LiquidOptions;
-use compiler::Token;
-use compiler::{consume_value_token, parse, split_block, unexpected_token_error, BlockSplit};
+use compiler::TagToken;
+use compiler::TagBlock;
 use interpreter::Context;
 use interpreter::Expression;
 use interpreter::Renderable;
