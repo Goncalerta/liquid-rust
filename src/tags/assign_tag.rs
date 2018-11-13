@@ -4,7 +4,7 @@ use liquid_error::Result;
 use liquid_error::ResultLiquidExt;
 
 use compiler::LiquidOptions;
-use compiler::TagTokens;
+use compiler::TagToken;
 use interpreter::Context;
 use interpreter::FilterChain;
 use interpreter::Renderable;
@@ -31,56 +31,63 @@ impl Renderable for Assign {
 
 pub fn assign_tag(
     _tag_name: &str,
-    arguments: TagTokens,
+    arguments: &mut Iterator<Item=TagToken>,
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
-    let mut arguments = arguments;
-    let dst = arguments.expect_identifier()?.to_string();
-    arguments.expect_assignment_operator()?;
-    let src = arguments.expect_filter_chain()?;
+    let dst = arguments.next().unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
+    let op = arguments.next().unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
+    let src = arguments.next().unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
+
+    let dst = dst.expect_identifier()?.to_string();
+    let op = op.as_str();
+    let src = src.expect_filter_chain()?;
+
+    if op != "=" {
+        panic!("Errors not implemented. Token assignment operator.");
+    }
 
     Ok(Box::new(Assign { dst, src }))
 }
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use compiler;
-    use interpreter;
-    // use tags;
-    // use value::Scalar;
-    // use value::Value;
+    // use super::*;
+    // use compiler;
+    // use interpreter;
+    // // use tags;
+    // // use value::Scalar;
+    // // use value::Value;
 
-    fn options() -> LiquidOptions {
-        let mut options = LiquidOptions::default();
-        options
-            .tags
-            .insert("assign", (assign_tag as compiler::FnParseTag).into());
-        //options
-        //    .blocks
-        //    .insert("if", (tags::if_block as compiler::FnParseBlock).into());
-        //options
-        //    .blocks
-        //    .insert("for", (tags::for_block as compiler::FnParseBlock).into());
-        options
-    }
+    // fn options() -> LiquidOptions {
+    //     let mut options = LiquidOptions::default();
+    //     options
+    //         .tags
+    //         .insert("assign", (assign_tag as compiler::FnParseTag).into());
+    //     //options
+    //     //    .blocks
+    //     //    .insert("if", (tags::if_block as compiler::FnParseBlock).into());
+    //     //options
+    //     //    .blocks
+    //     //    .insert("for", (tags::for_block as compiler::FnParseBlock).into());
+    //     options
+    // }
 
-    fn unit_parse(text: &str) -> String {
-        let options = options();
-        let template = compiler::parse(text, &options)
-            .map(interpreter::Template::new)
-            .unwrap();
+    // fn unit_parse(text: &str) -> String {
+    //     let options = options();
+    //     let template = compiler::parse(text, &options)
+    //         .map(interpreter::Template::new)
+    //         .unwrap();
 
-        let mut context = Context::new();
+    //     let mut context = Context::new();
 
-        template.render(&mut context).unwrap()
-    }
+    //     template.render(&mut context).unwrap()
+    // }
 
-    #[test]
-    fn assign() {
-        let output = unit_parse("{% assign freestyle = false %}{{ freestyle }}");
-        assert_eq!(output, "false");
-    }
+    // #[test]
+    // fn assign() {
+    //     let output = unit_parse("{% assign freestyle = false %}{{ freestyle }}");
+    //     assert_eq!(output, "false");
+    // }
 
     // #[test]
     // fn assign_array_indexing() {
