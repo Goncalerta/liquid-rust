@@ -186,13 +186,13 @@ fn parse_tag<'a>(
         .next()
         .expect("A tag starts with an identifier.")
         .as_str();
-    let tokens = TagTokens::new(&mut tag);
+    let mut tokens = tag.map(TagToken::from);
 
     if options.tags.contains_key(name) {
         options.tags[name].parse(name, tokens, options)
     } else if options.blocks.contains_key(name) {
         let mut block = TagBlock::new(name, next_elements);
-        let renderables = options.blocks[name].parse(name, tokens, &mut block, options);
+        let renderables = options.blocks[name].parse(name, &mut tokens, &mut block, options);
         block.close()?;
         renderables
     } else {
@@ -275,48 +275,21 @@ impl<'a, 'b> TagBlock<'a, 'b> {
 }
 
 /// An interface to parse tokens inside Tags without exposing the Pair structures
-// TODO maybe TagTokens wrapping an iterator over tokens instead would be better.
-// That way, users wouldn't need to constantly move_next and unwrap before parsing the token.
-pub struct TagTokens<'a>{
-    iter: &'a mut Iterator<Item = Pair<'a>>
+pub struct TagToken<'a> {
+    token: Pair<'a>,
 }
 
-impl<'a> TagTokens<'a> {
-    fn new(tokens: &'a mut Iterator<Item = Pair<'a>>) -> Self {
-        TagTokens {
-            iter: tokens,
-        }
+impl<'a> From<Pair<'a>> for TagToken<'a> {
+    fn from(token: Pair<'a>) -> Self {
+        TagToken { token }
     }
+}
 
+impl<'a> TagToken<'a> {
+    // TODO  ranges, ...
 
-    fn expect_something(&mut self) -> Result<Pair<'a>> {
-        match self.iter.next() {
-            Some(pair) => Ok(pair),
-            None => panic!("Error handling is not implemented. Expected something."),
-        }
-    }
-
-    // TODO other tokens such as ranges, comparisons, assignments, ...
-
-    // Maybe create an expect_symbol(&str) where &str is a known symbol in grammar?
-    pub fn expect_assignment_operator(&mut self) -> Result<()> {
-        let token = self.expect_something()?;
-        if token.as_rule() != Rule::AssignmentOperator {
-            return panic!(
-                "Error handling is not implemented. Expected '='. {}",
-                token.as_str()
-            );
-        }
-
-        Ok(())
-    }
-
-    // TODO try to find a better approach
-    // Values, Variables, Identifiers and Literals are caught by the Filterchain rule
-    // The next methods unwrap the filterchain in order to obtain the desired rule
-
-    fn unwrap_filter_chain(&mut self) -> Result<Pair<'a>> {
-        let token = self.expect_something()?;
+    fn unwrap_filter_chain(&self) -> Result<Pair<'a>> {
+        let token = self.token.clone();
 
         if token.as_rule() != Rule::FilterChain {
             return panic!("Error handling is not implemented. Expected Filterchain.");
@@ -325,7 +298,7 @@ impl<'a> TagTokens<'a> {
         Ok(token)
     }
 
-    fn unwrap_value(&mut self) -> Result<Pair<'a>> {
+    fn unwrap_value(&self) -> Result<Pair<'a>> {
         let filterchain = self.unwrap_filter_chain()?;
 
         let mut chain = filterchain.into_inner();
@@ -338,7 +311,7 @@ impl<'a> TagTokens<'a> {
         Ok(value)
     }
 
-    fn unwrap_variable(&mut self) -> Result<Pair<'a>> {
+    fn unwrap_variable(&self) -> Result<Pair<'a>> {
         let value = self.unwrap_value()?;
 
         let variable = value
@@ -353,7 +326,7 @@ impl<'a> TagTokens<'a> {
         Ok(variable)
     }
 
-    fn unwrap_identifier(&mut self) -> Result<Pair<'a>> {
+    fn unwrap_identifier(&self) -> Result<Pair<'a>> {
         let variable = self.unwrap_variable()?;
 
         let mut indexes = variable.into_inner();
@@ -368,7 +341,7 @@ impl<'a> TagTokens<'a> {
         Ok(identifier)
     }
 
-    fn unwrap_literal(&mut self) -> Result<Pair<'a>> {
+    fn unwrap_literal(&self) -> Result<Pair<'a>> {
         let value = self.unwrap_value()?;
 
         let literal = value
@@ -383,34 +356,38 @@ impl<'a> TagTokens<'a> {
         Ok(literal)
     }
 
-    pub fn expect_filter_chain(&mut self) -> Result<FilterChain> {
+    pub fn expect_filter_chain(&self) -> Result<FilterChain> {
         let filterchain = self.unwrap_filter_chain()?;
 
         Ok(parse_filter_chain(filterchain))
     }
 
-    pub fn expect_value(&mut self) -> Result<Expression> {
+    pub fn expect_value(&self) -> Result<Expression> {
         let value = self.unwrap_value()?;
 
         Ok(parse_value(value))
     }
 
-    pub fn expect_variable(&mut self) -> Result<Variable> {
+    pub fn expect_variable(&self) -> Result<Variable> {
         let variable = self.unwrap_variable()?;
 
         Ok(parse_variable(variable))
     }
 
-    pub fn expect_identifier(&mut self) -> Result<&'a str> {
+    pub fn expect_identifier(&self) -> Result<&'a str> {
         let identifier = self.unwrap_identifier()?;
 
         Ok(identifier.as_str())
     }
 
-    pub fn expect_literal(&mut self) -> Result<Value> {
+    pub fn expect_literal(&self) -> Result<Value> {
         let literal = self.unwrap_literal()?;
 
         Ok(Value::scalar(parse_literal(literal)))
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.token.as_str()
     }
 }
 
