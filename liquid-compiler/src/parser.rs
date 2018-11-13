@@ -12,9 +12,12 @@ use liquid_value::Scalar;
 use liquid_value::Value;
 
 use super::error::{Error, Result};
+use super::BoxedTagParser;
 use super::LiquidOptions;
 use super::ParseBlock;
 use super::ParseTag;
+
+use std::collections::HashMap;
 
 use pest::Parser;
 
@@ -42,7 +45,7 @@ pub fn parse(text: &str, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>
             break;
         }
 
-        renderables.push(parse_element(element, &mut liquid, options)?);
+        renderables.push(parse_element(element, &mut liquid, options, None)?);
     }
     Ok(renderables)
 }
@@ -51,6 +54,7 @@ fn parse_element<'a>(
     element: Pair<'a>,
     next_elements: &mut Iterator<Item = Pair<'a>>,
     options: &LiquidOptions,
+    extra_tags: Option<&HashMap<&'static str, BoxedTagParser>>,
 ) -> Result<Box<Renderable>> {
     match element.as_rule() {
         Rule::Expression => {
@@ -61,7 +65,7 @@ fn parse_element<'a>(
 
             Ok(Box::new(parse_filter_chain(filter_chain)))
         }
-        Rule::Tag => Ok(parse_tag(element, next_elements, options)?),
+        Rule::Tag => Ok(parse_tag(element, next_elements, options, extra_tags)?),
         Rule::Raw => Ok(Box::new(Text::new(element.as_str()))),
         _ => panic!("Expected Expression | Tag | Raw."),
     }
@@ -176,6 +180,7 @@ fn parse_tag<'a>(
     tag: Pair<'a>,
     next_elements: &mut Iterator<Item = Pair<'a>>,
     options: &LiquidOptions,
+    extra_tags: Option<&HashMap<&'static str, BoxedTagParser>>,
 ) -> Result<Box<Renderable>> {
     if tag.as_rule() != Rule::Tag {
         panic!("Expected a tag.");
@@ -188,8 +193,11 @@ fn parse_tag<'a>(
         .as_str();
     let mut tokens = tag.map(TagToken::from);
 
-    if options.tags.contains_key(name) {
-        options.tags[name].parse(name, tokens, options)
+    if extra_tags.is_some() && extra_tags.unwrap().contains_key(name) {
+        let extra_tags = extra_tags.expect("Condition already checks if is some.");
+        extra_tags[name].parse(name, &mut tokens, options)
+    } else if options.tags.contains_key(name) {
+        options.tags[name].parse(name, &mut tokens, options)
     } else if options.blocks.contains_key(name) {
         let mut block = TagBlock::new(name, next_elements);
         let renderables = options.blocks[name].parse(name, &mut tokens, &mut block, options);
@@ -200,14 +208,14 @@ fn parse_tag<'a>(
     }
 }
 
-
 /// An interface to parse elements inside blocks without exposing the Pair structures
 // TODO find if there is a better way to store the blocks instead of a vector of pairs.
-pub struct TagBlock<'a:'b, 'b> {
+pub struct TagBlock<'a: 'b, 'b> {
     name: &'b str,
     end_name: String,
     iter: &'b mut Iterator<Item = Pair<'a>>,
     nesting_depth: u32,
+    custom_tags: HashMap<&'static str, BoxedTagParser>,
 }
 
 impl<'a, 'b> TagBlock<'a, 'b> {
@@ -218,6 +226,7 @@ impl<'a, 'b> TagBlock<'a, 'b> {
             end_name,
             iter: next_elements,
             nesting_depth: 1,
+            custom_tags: HashMap::new(),
         }
     }
 
@@ -257,19 +266,36 @@ impl<'a, 'b> TagBlock<'a, 'b> {
         Ok(())
     }
 
+    pub fn insert_custom_tag<T: Into<BoxedTagParser>>(&mut self, name: &'static str, tag: T) {
+        self.custom_tags.insert(name, tag.into());
+    }
+
     pub fn parse(&mut self, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
         let mut renderables = Vec::new();
-        while let Some(element) = self.next()? {
-            renderables.push(parse_element(element, self.iter, options)?);
+        while let Some(r) = self.parse_next(options)? {
+            renderables.push(r);
         }
         Ok(renderables)
     }
 
+    pub fn parse_next(&mut self, options: &LiquidOptions) -> Result<Option<Box<Renderable>>> {
+        match self.next()? {
+            None => Ok(None),
+            Some(element) => Ok(Some(parse_element(
+                element,
+                self.iter,
+                options,
+                Some(&self.custom_tags),
+            )?)),
+        }
+    }
+
+    // TODO: create a function to_str
     pub fn to_string(&mut self) -> Result<String> {
         let mut s = String::new();
         while let Some(element) = self.next()? {
             s.push_str(element.as_str());
-        } 
+        }
         Ok(s)
     }
 }
