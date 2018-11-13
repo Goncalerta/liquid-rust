@@ -41,10 +41,10 @@ BooleanLiteral = @{ "true" | "false" }
 
 Literal = { StringLiteral | IntegerLiteral | FloatLiteral | BooleanLiteral }
 
-
-TagToken = _{ ComparisonOperator | LogicalOperator | AssignmentOperator | Range | FilterChain }
-
 Range = { "(" ~ Value ~ ".." ~ Value ~ ")" }
-ComparisonOperator = { "==" | "!=" | "<>" | ">" | "<" | ">=" | "<=" | "contains" }
-LogicalOperator = { "and" | "or" }
-AssignmentOperator = { "=" }
+
+TagToken = _{ Range | FilterChain | DoubleCharSymbol | SingleCharSymbol } 
+
+// DoubleCharSymbol must be tried first, otherwise it could be parsed as two SingleCharSymbol instead
+SingleCharSymbol = { ">" | "<" | "=" | "," | ":" }
+DoubleCharSymbol = { "==" | "!=" | "<>" | ">=" | "<=" }
