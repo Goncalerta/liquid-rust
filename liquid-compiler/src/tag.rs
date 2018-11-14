@@ -14,7 +14,7 @@ pub trait ParseTag: Send + Sync + ParseTagClone {
     fn parse(
         &self,
         tag_name: &str,
-        arguments: &mut Iterator<Item=TagToken>,
+        arguments: Box<Iterator<Item=TagToken>>,
         options: &LiquidOptions,
     ) -> Result<Box<Renderable>>;
 }
@@ -37,7 +37,7 @@ impl Clone for Box<ParseTag> {
         self.clone_box()
     }
 }
-pub type FnParseTag = fn(&str, &mut Iterator<Item=TagToken>, &LiquidOptions) -> Result<Box<Renderable>>;
+pub type FnParseTag = fn(&str, Box<Iterator<Item=TagToken>>, &LiquidOptions) -> Result<Box<Renderable>>;
 
 
 #[derive(Clone)]
@@ -55,7 +55,7 @@ impl ParseTag for FnTagParser {
     fn parse(
         &self,
         tag_name: &str,
-        arguments: &mut Iterator<Item=TagToken>,
+        arguments: Box<Iterator<Item=TagToken>>,
         options: &LiquidOptions,
     ) -> Result<Box<Renderable>> {
         (self.parser)(tag_name, arguments, options)
@@ -77,7 +77,7 @@ impl ParseTag for BoxedTagParser {
     fn parse(
         &self,
         tag_name: &str,
-        arguments: &mut Iterator<Item=TagToken>,
+        arguments: Box<Iterator<Item=TagToken>>,
         options: &LiquidOptions,
     ) -> Result<Box<Renderable>> {
         match self.parser {
