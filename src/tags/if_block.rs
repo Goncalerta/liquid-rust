@@ -203,7 +203,8 @@ fn parse_condition(arguments: &mut Iterator<Item = TagToken>) -> Result<Conditio
         let mut and_iter = args.split(|t| t.as_str() == "and").map(|args| {
             // Iterator over tokens that form a condition
             let mut args = args.iter();
-            let lh = arguments
+            
+            let lh = args
                 .next()
                 .unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
             let lh = lh.expect_value()?;
@@ -211,7 +212,7 @@ fn parse_condition(arguments: &mut Iterator<Item = TagToken>) -> Result<Conditio
             let cond = match args.next() {
                 Some(op) => {
                     let op = ComparisonOperator::from_str(op.as_str())?;
-                    let rh = arguments
+                    let rh = args
                         .next()
                         .unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
                     let rh = rh.expect_value()?;
@@ -224,7 +225,7 @@ fn parse_condition(arguments: &mut Iterator<Item = TagToken>) -> Result<Conditio
                 None => Condition::Existence(ExistenceCondition { lh }),
             };
 
-            if arguments.next().is_some() {
+            if args.next().is_some() {
                 // return Err(unexpected_token_error("`%}`", arguments.first()));
                 return panic!("Errors not implemented. Unexpected token.");
             }
@@ -273,6 +274,12 @@ pub fn unless_block(
     }))
 }
 
+enum SubBlock {
+    If,
+    Else,
+    Elsif()
+}
+
 pub fn if_block(
     _tag_name: &str,
     arguments: &mut Iterator<Item = TagToken>,
@@ -282,6 +289,7 @@ pub fn if_block(
     let condition = parse_condition(arguments)?;
 
     let mut is_else = false;
+    //let elsif = None;
     // let else_tag = |args| {
     //     // let test = is_else;
     //     Ok(Box::new(Silent))
@@ -289,10 +297,10 @@ pub fn if_block(
 
     // tokens.add_local_tag("else", &else_tag);
 
-    tokens.add_local_tag("else", Box::new(move |args| {
-        let test = tokens; 
-        Ok(Box::new(Silent))
-    }));
+    // tokens.add_local_tag("else", Box::new(move |args| {
+    //     let test = tokens; 
+    //     Ok(Box::new(Silent))
+    // }));
 
     let mut if_true = Vec::new();
     let mut if_false = Vec::new();
