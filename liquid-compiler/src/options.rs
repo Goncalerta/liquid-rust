@@ -6,14 +6,14 @@ use super::Include;
 use super::NullInclude;
 
 #[derive(Clone)]
-pub struct LiquidOptions {
+pub struct LiquidOptions<'a> {
     pub blocks: HashMap<&'static str, BoxedBlockParser>,
-    pub tags: HashMap<&'static str, BoxedTagParser>,
+    pub tags: HashMap<&'static str, BoxedTagParser<'a>>,
     pub include_source: Box<Include>,
 }
 
-impl Default for LiquidOptions {
-    fn default() -> LiquidOptions {
+impl<'a> Default for LiquidOptions<'a> {
+    fn default() -> LiquidOptions<'a> {
         LiquidOptions {
             blocks: Default::default(),
             tags: Default::default(),
