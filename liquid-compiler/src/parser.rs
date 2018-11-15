@@ -192,7 +192,7 @@ fn parse_tag<'a>(
     let mut tokens = tag.map(TagToken::from);
 
     if options.tags.contains_key(name) {
-        options.tags[name].parse(name, Box::new(tokens), options)
+        options.tags[name].parse(name, &mut tokens, options)
     } else if options.blocks.contains_key(name) {
         let mut block = TagBlock::new(name, next_elements);
         let renderables = options.blocks[name].parse(name, &mut tokens, &mut block, options);
