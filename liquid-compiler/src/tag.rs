@@ -10,11 +10,11 @@ use super::TagToken;
 /// a new [Renderable](trait.Renderable.html) based on its parameters. The received parameters
 /// specify the name of the tag, the argument [Tokens](lexer/enum.Token.html) passed to
 /// the tag and the global [`LiquidOptions`](struct.LiquidOptions.html).
-pub trait ParseTag<'a>: Send + Sync + ParseTagClone {
+pub trait ParseTag: Send + Sync + ParseTagClone {
     fn parse(
-        &'a self,
+        &self,
         tag_name: &str,
-        arguments: Box<Iterator<Item=TagToken<'a>>+'a>,
+        arguments: Box<Iterator<Item=TagToken>>,
         options: &LiquidOptions,
     ) -> Result<Box<Renderable>>;
 }
@@ -23,39 +23,39 @@ pub trait ParseTagClone {
     fn clone_box(&self) -> Box<ParseTag>;
 }
 
-impl<'a, T> ParseTagClone for T
+impl<T> ParseTagClone for T
 where
-    T: 'static + ParseTag<'a> + Clone,
+    T: 'static + ParseTag + Clone,
 {
-    fn clone_box(&self) -> Box<ParseTag<'a>+'a> {
+    fn clone_box(&self) -> Box<ParseTag> {
         Box::new(self.clone())
     }
 }
 
-impl<'a> Clone for Box<ParseTag<'a>+'a> {
+impl Clone for Box<ParseTag> {
     fn clone(&self) -> Box<ParseTag> {
         self.clone_box()
     }
 }
-pub type FnParseTag<'a> = fn(&str, Box<Iterator<Item=TagToken<'a>>+'a>, &LiquidOptions) -> Result<Box<Renderable>>;
+pub type FnParseTag = fn(&str, Box<Iterator<Item=TagToken>>, &LiquidOptions) -> Result<Box<Renderable>>;
 
 
 #[derive(Clone)]
-struct FnTagParser<'a> {
-    parser: FnParseTag<'a>,
+struct FnTagParser {
+    parser: FnParseTag,
 }
 
-impl<'a> FnTagParser<'a> {
-    fn new(parser: FnParseTag<'a>) -> Self {
+impl FnTagParser {
+    fn new(parser: FnParseTag) -> Self {
         Self { parser }
     }
 }
 
-impl<'a> ParseTag<'a> for FnTagParser<'a> {
+impl ParseTag for FnTagParser {
     fn parse(
         &self,
         tag_name: &str,
-        arguments: Box<Iterator<Item=TagToken<'a>>+'a>,
+        arguments: Box<Iterator<Item=TagToken>>,
         options: &LiquidOptions,
     ) -> Result<Box<Renderable>> {
         (self.parser)(tag_name, arguments, options)
@@ -63,21 +63,21 @@ impl<'a> ParseTag<'a> for FnTagParser<'a> {
 }
 
 #[derive(Clone)]
-enum TagParserEnum<'a> {
-    Fun(FnTagParser<'a>),
-    Heap(Box<ParseTag<'a> + 'a>),
+enum TagParserEnum {
+    Fun(FnTagParser),
+    Heap(Box<ParseTag>),
 }
 
 #[derive(Clone)]
-pub struct BoxedTagParser<'a> {
-    parser: TagParserEnum<'a>,
+pub struct BoxedTagParser {
+    parser: TagParserEnum,
 }
 
-impl<'a> ParseTag<'a> for BoxedTagParser<'a> {
+impl ParseTag for BoxedTagParser {
     fn parse(
         &self,
         tag_name: &str,
-        arguments: Box<Iterator<Item=TagToken<'a>>+'a>,
+        arguments: Box<Iterator<Item=TagToken>>,
         options: &LiquidOptions,
     ) -> Result<Box<Renderable>> {
         match self.parser {
@@ -87,15 +87,15 @@ impl<'a> ParseTag<'a> for BoxedTagParser<'a> {
     }
 }
 
-impl<'a> From<FnParseTag<'a>> for BoxedTagParser<'a> {
-    fn from(parser: FnParseTag<'a>) -> BoxedTagParser<'a> {
+impl From<FnParseTag> for BoxedTagParser {
+    fn from(parser: FnParseTag) -> BoxedTagParser {
         let parser = TagParserEnum::Fun(FnTagParser::new(parser));
         Self { parser }
     }
 }
 
-impl<'a> From<Box<ParseTag<'a>>> for BoxedTagParser<'a> {
-    fn from(parser: Box<ParseTag<'a>+'a>) -> BoxedTagParser<'a> {
+impl From<Box<ParseTag>> for BoxedTagParser {
+    fn from(parser: Box<ParseTag>) -> BoxedTagParser {
         let parser = TagParserEnum::Heap(parser);
         Self { parser }
     }
