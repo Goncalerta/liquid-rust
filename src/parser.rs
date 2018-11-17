@@ -51,11 +51,11 @@ impl ParserBuilder {
             .block("if", tags::if_block as compiler::FnParseBlock)
             .block("unless", tags::unless_block as compiler::FnParseBlock)
             .block("ifchanged", tags::ifchanged_block as compiler::FnParseBlock)
-            // .block("for", tags::for_block as compiler::FnParseBlock)
-            // .block("tablerow", tags::tablerow_block as compiler::FnParseBlock)
+            .block("for", tags::for_block as compiler::FnParseBlock)
+            .block("tablerow", tags::tablerow_block as compiler::FnParseBlock)
             .block("comment", tags::comment_block as compiler::FnParseBlock)
             .block("capture", tags::capture_block as compiler::FnParseBlock)
-            // .block("case", tags::case_block as compiler::FnParseBlock)
+            .block("case", tags::case_block as compiler::FnParseBlock)
     }
 
     /// Register built-in Liquid filters

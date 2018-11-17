@@ -4,24 +4,14 @@ use std::io::Write;
 use liquid_error::{Result, ResultLiquidExt};
 use liquid_value::Value;
 
-use compiler::BoxedTagParser;
 use compiler::LiquidOptions;
-use compiler::ParseTag;
+use compiler::BlockElement;
 use compiler::TagBlock;
 use compiler::TagToken;
 use interpreter::Context;
 use interpreter::Renderable;
 use interpreter::Template;
 use interpreter::{unexpected_value_error, Expression};
-
-#[derive(Copy, Clone, Debug)]
-struct Silent;
-
-impl Renderable for Silent {
-    fn render_to(&self, _writer: &mut Write, _context: &mut Context) -> Result<()> {
-        Ok(())
-    }
-}
 
 #[derive(Clone, Debug)]
 enum ComparisonOperator {
@@ -224,8 +214,8 @@ fn parse_condition(arguments: &mut Iterator<Item = TagToken>) -> Result<Conditio
                 }
                 None => Condition::Existence(ExistenceCondition { lh }),
             };
-
-            if args.next().is_some() {
+            let arg_ = args.next();
+            if arg_.is_some() {
                 // return Err(unexpected_token_error("`%}`", arguments.first()));
                 return panic!("Errors not implemented. Unexpected token.");
             }
@@ -274,12 +264,6 @@ pub fn unless_block(
     }))
 }
 
-enum SubBlock {
-    If,
-    Else,
-    Elsif()
-}
-
 pub fn if_block(
     _tag_name: &str,
     arguments: &mut Iterator<Item = TagToken>,
@@ -288,62 +272,24 @@ pub fn if_block(
 ) -> Result<Box<Renderable>> {
     let condition = parse_condition(arguments)?;
 
-    let mut is_else = false;
-    //let elsif = None;
-    // let else_tag = |args| {
-    //     // let test = is_else;
-    //     Ok(Box::new(Silent))
-    // };
-
-    // tokens.add_local_tag("else", &else_tag);
-
-    // tokens.add_local_tag("else", Box::new(move |args| {
-    //     let test = tokens; 
-    //     Ok(Box::new(Silent))
-    // }));
-
     let mut if_true = Vec::new();
-    let mut if_false = Vec::new();
+    let mut if_false = None;
 
-    while let Some(r) = tokens.parse_next(options)? {
-        if is_else {
-            if_false.push(r);
-        } else {
-            if_true.push(r);
+    while let Some(element) = tokens.next()? {
+        match element {
+            BlockElement::Tag(mut tag) => {
+                match tag.name() {
+                    "else" => if_false = Some(tokens.parse(options)?),
+                    "elsif" => if_false = Some(vec![if_block("elsif", tag.tokens(), tokens, options)?]),
+                    _ => if_true.push(tag.parse(tokens, options)?),
+                }
+            },
+            element => if_true.push(element.parse(tokens, options)?),
         }
     }
 
     let if_true = Template::new(if_true);
-    let if_false = if if_false.is_empty() {
-        None
-    } else {
-        Some(Template::new(if_false))
-    };
-
-    // let (leading_tokens, trailing_tokens) = split_block(&tokens[..], &["else", "elsif"], options);
-
-    // let if_true =
-    //     parse(leading_tokens, options).trace_with(|| format!("{{% if {} %}}", condition))?;
-    // let if_true = Template::new(if_true);
-
-    // let if_false = match trailing_tokens {
-    //     None => Ok(None),
-
-    //     Some(ref split) if split.delimiter == "else" => parse(&split.trailing[1..], options)
-    //         .map(Some)
-    //         .trace("{{% else %}}"),
-
-    //     Some(ref split) if split.delimiter == "elsif" => {
-    //         let child_tokens: Vec<Element> = split.trailing.iter().skip(1).cloned().collect();
-    //         if_block("elseif", &split.args[1..], &child_tokens, options)
-    //             .map(|block| Some(vec![block]))
-    //     }
-
-    //     Some(split) => panic!("Unexpected delimiter: {:?}", split.delimiter),
-    // };
-    // let if_false = if_false
-    //     .trace_with(|| format!("{{% if {} %}}", condition))?
-    //     .map(Template::new);
+    let if_false = if_false.map(Template::new);
 
     Ok(Box::new(Conditional {
         tag_name: "if",

@@ -22,11 +22,15 @@ impl Renderable for RawT {
 
 pub fn raw_block(
     _tag_name: &str,
-    _arguments: &mut Iterator<Item=TagToken>,
+    _arguments: &mut Iterator<Item = TagToken>,
     tokens: &mut TagBlock,
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
-    let content = tokens.to_string()?;
+    let mut content = String::new();
+    while let Some(element) = tokens.next()? {
+        content.push_str(element.as_str());
+    }
+    
     Ok(Box::new(RawT { content }))
 }
 
