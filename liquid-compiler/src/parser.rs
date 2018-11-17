@@ -272,11 +272,6 @@ impl<'a, 'b> TagBlock<'a, 'b> {
             Some(element) => Ok(Some(element.parse(self, options)?)),
         }
     }
-
-    pub fn next_as_element(&mut self) -> Result<Option<BlockElement<'a>>> {
-        self.next()
-            .map(|option| option.map(|element| element.into()))
-    }
 }
 
 pub struct Raw<'a> {
