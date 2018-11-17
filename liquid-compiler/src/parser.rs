@@ -57,7 +57,7 @@ fn parse_element<'a>(
 ) -> Result<Box<Renderable>> {
     match element.as_rule() {
         Rule::Expression => {
-            let mut filter_chain = element
+            let filter_chain = element
                 .into_inner()
                 .next()
                 .expect("An expression consists of one filterchain.");
@@ -203,15 +203,12 @@ fn parse_tag<'a>(
     }
 }
 
-type FnLocalTag = Fn(&mut Iterator<Item = TagToken>) -> Result<Box<Renderable>>;
-
 /// An interface to parse elements inside blocks without exposing the Pair structures
 pub struct TagBlock<'a: 'b, 'b> {
     name: &'b str,
     end_name: String,
     iter: &'b mut Iterator<Item = Pair<'a>>,
     nesting_depth: u32,
-    custom_tags: HashMap<&'static str, Box<FnLocalTag>>,
 }
 
 impl<'a, 'b> TagBlock<'a, 'b> {
@@ -222,11 +219,10 @@ impl<'a, 'b> TagBlock<'a, 'b> {
             end_name,
             iter: next_elements,
             nesting_depth: 1,
-            custom_tags: HashMap::new(),
         }
     }
 
-    fn next(&mut self) -> Result<Option<Pair<'a>>> {
+    pub fn next(&mut self) -> Result<Option<BlockElement<'a>>> {
         if self.nesting_depth == 0 {
             return Ok(None);
         }
@@ -254,16 +250,12 @@ impl<'a, 'b> TagBlock<'a, 'b> {
                 return Ok(None);
             }
         }
-        Ok(Some(element))
+        Ok(Some(element.into()))
     }
 
     fn close(mut self) -> Result<()> {
         while let Some(_) = self.next()? {}
         Ok(())
-    }
-
-    pub fn add_local_tag(&mut self, name: &'static str, tag: Box<FnLocalTag>) {
-        self.custom_tags.insert(name, tag);
     }
 
     pub fn parse(&mut self, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
@@ -277,49 +269,167 @@ impl<'a, 'b> TagBlock<'a, 'b> {
     pub fn parse_next(&mut self, options: &LiquidOptions) -> Result<Option<Box<Renderable>>> {
         match self.next()? {
             None => Ok(None),
-            Some(element) => {
-                if element.as_rule() == Rule::Tag && !self.custom_tags.is_empty() {
-                    let mut tag = element.clone().into_inner();
-                    let name = tag
-                        .next()
-                        .expect("A tag starts with an identifier.")
-                        .as_str();
-                    if self.custom_tags.contains_key(name) {
-                        let mut tokens = tag.map(TagToken::from);
-                        return Ok(Some(self.custom_tags[name](&mut tokens)?));
-                    }
-                }
-
-                Ok(Some(parse_element(element, self.iter, options)?))
-            }
+            Some(element) => Ok(Some(element.parse(self, options)?)),
         }
     }
 
-    // TODO: create a function to_str
-    pub fn to_string(&mut self) -> Result<String> {
-        let mut s = String::new();
-        while let Some(element) = self.next()? {
-            s.push_str(element.as_str());
+    pub fn next_as_element(&mut self) -> Result<Option<BlockElement<'a>>> {
+        self.next()
+            .map(|option| option.map(|element| element.into()))
+    }
+}
+
+pub struct Raw<'a> {
+    text: &'a str,
+}
+impl<'a> From<Pair<'a>> for Raw<'a> {
+    fn from(element: Pair<'a>) -> Self {
+        if element.as_rule() != Rule::Raw {
+            panic!("Only rule Raw can be converted to Raw.");
         }
-        Ok(s)
+        Raw {
+            text: element.as_str(),
+        }
+    }
+}
+impl<'a> Into<&'a str> for Raw<'a> {
+    fn into(self) -> &'a str {
+        self.to_str()
+    }
+}
+impl<'a> Raw<'a> {
+    pub fn to_renderable(self) -> Box<Renderable> {
+        Box::new(Text::new(self.to_str()))
     }
 
-    // pub fn parse_custom_raw(&mut self, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
+    pub fn to_str(self) -> &'a str {
+        self.as_str()
+    }
 
-    //     match element.as_rule() {
-    //         Rule::Expression => {
-    //             let mut filter_chain = element
-    //                 .into_inner()
-    //                 .next()
-    //                 .expect("An expression consists of one filterchain.");
+    pub fn as_str(&self) -> &'a str {
+        self.text
+    }
+}
 
-    //             Ok(Box::new(parse_filter_chain(filter_chain)))
-    //         }
-    //         Rule::Tag => Ok(parse_tag(element, next_elements, options)?),
-    //         Rule::Raw => Ok(Box::new(Text::new(element.as_str()))),
-    //         _ => panic!("Expected Expression | Tag | Raw."),
-    //     }
-    // }
+pub struct Tag<'a> {
+    name: &'a str,
+    tokens: Box<Iterator<Item = TagToken<'a>> + 'a>,
+    as_str: &'a str,
+}
+impl<'a> From<Pair<'a>> for Tag<'a> {
+    fn from(element: Pair<'a>) -> Self {
+        if element.as_rule() != Rule::Tag {
+            panic!("Only rule Tag can be converted to Tag.");
+        }
+        let as_str = element.as_str();
+        let mut tag = element.into_inner();
+        let name = tag
+            .next()
+            .expect("A tag starts with an identifier.")
+            .as_str();
+        let tokens = Box::new(tag.map(TagToken::from));
+
+        Tag {
+            name,
+            tokens,
+            as_str,
+        }
+    }
+}
+impl<'a> Tag<'a> {
+    pub fn name(&self) -> &str {
+        self.name
+    }
+    pub fn tokens(&mut self) -> &mut Iterator<Item = TagToken<'a>> {
+        &mut self.tokens
+    }
+    pub fn as_str(&self) -> &str {
+        self.as_str
+    }
+    pub fn parse(
+        mut self,
+        next_elements: &mut TagBlock,
+        options: &LiquidOptions,
+    ) -> Result<Box<Renderable>> {
+        let (name, tokens) = (self.name, &mut self.tokens);
+
+        let next_elements = &mut next_elements.iter;
+
+        if options.tags.contains_key(name) {
+            options.tags[name].parse(name, tokens, options)
+        } else if options.blocks.contains_key(name) {
+            let mut block = TagBlock::new(name, next_elements);
+            let renderables = options.blocks[name].parse(name, tokens, &mut block, options);
+            block.close()?;
+            renderables
+        } else {
+            panic!("Errors not implemented. Unknown tag.")
+        }
+    }
+}
+
+pub struct Exp<'a> {
+    element: Pair<'a>,
+}
+impl<'a> From<Pair<'a>> for Exp<'a> {
+    fn from(element: Pair<'a>) -> Self {
+        if element.as_rule() != Rule::Expression {
+            panic!("Only rule Expression can be converted to Expression.");
+        }
+        Exp { element }
+    }
+}
+impl<'a> Exp<'a> {
+    pub fn parse(self) -> Result<Box<Renderable>> {
+        let filter_chain = self
+            .element
+            .into_inner()
+            .next()
+            .expect("An expression consists of one filterchain.");
+
+        Ok(Box::new(parse_filter_chain(filter_chain)))
+    }
+    pub fn as_str(&self) -> &str {
+        self.element.as_str()
+    }
+}
+
+pub enum BlockElement<'a> {
+    Raw(Raw<'a>),
+    Tag(Tag<'a>),
+    Expression(Exp<'a>),
+}
+impl<'a> From<Pair<'a>> for BlockElement<'a> {
+    fn from(element: Pair<'a>) -> Self {
+        match element.as_rule() {
+            Rule::Raw => BlockElement::Raw(element.into()),
+            Rule::Tag => BlockElement::Tag(element.into()),
+            Rule::Expression => BlockElement::Expression(element.into()),
+            _ => panic!("Only rules Raw | Tag | Expression can be converted to BlockElement."),
+        }
+    }
+}
+
+impl<'a> BlockElement<'a> {
+    pub fn parse(
+        self,
+        block: &mut TagBlock<'a, '_>,
+        options: &LiquidOptions,
+    ) -> Result<Box<Renderable>> {
+        match self {
+            BlockElement::Raw(raw) => Ok(raw.to_renderable()),
+            BlockElement::Tag(tag) => tag.parse(block, options),
+            BlockElement::Expression(exp) => exp.parse(),
+        }
+    }
+
+    pub fn as_str(&self) -> &str {
+        match self {
+            BlockElement::Raw(raw) => raw.as_str(),
+            BlockElement::Tag(tag) => tag.as_str(),
+            BlockElement::Expression(exp) => exp.as_str(),
+        }
+    }
 }
 
 /// An interface to parse tokens inside Tags without exposing the Pair structures
