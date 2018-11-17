@@ -45,29 +45,9 @@ pub fn parse(text: &str, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>
             break;
         }
 
-        renderables.push(parse_element(element, &mut liquid, options)?);
+        renderables.push(BlockElement::parse_pair(element.into(), &mut liquid, options)?);
     }
     Ok(renderables)
-}
-
-fn parse_element<'a>(
-    element: Pair<'a>,
-    next_elements: &mut Iterator<Item = Pair<'a>>,
-    options: &LiquidOptions,
-) -> Result<Box<Renderable>> {
-    match element.as_rule() {
-        Rule::Expression => {
-            let filter_chain = element
-                .into_inner()
-                .next()
-                .expect("An expression consists of one filterchain.");
-
-            Ok(Box::new(parse_filter_chain(filter_chain)))
-        }
-        Rule::Tag => Ok(parse_tag(element, next_elements, options)?),
-        Rule::Raw => Ok(Box::new(Text::new(element.as_str()))),
-        _ => panic!("Expected Expression | Tag | Raw."),
-    }
 }
 
 fn parse_literal(literal: Pair) -> Scalar {
@@ -173,14 +153,6 @@ fn parse_filter_chain(chain: Pair) -> FilterChain {
     let filters = chain.map(parse_filter).collect();
 
     FilterChain::new(entry, filters)
-}
-
-fn parse_tag<'a>(
-    tag: Pair<'a>,
-    next_elements: &mut Iterator<Item = Pair<'a>>,
-    options: &LiquidOptions,
-) -> Result<Box<Renderable>> {
-    Tag::parse_pair(tag.into(), next_elements, options)
 }
 
 /// An interface to parse elements inside blocks without exposing the Pair structures
@@ -400,6 +372,18 @@ impl<'a> BlockElement<'a> {
         match self {
             BlockElement::Raw(raw) => Ok(raw.to_renderable()),
             BlockElement::Tag(tag) => tag.parse(block, options),
+            BlockElement::Expression(exp) => exp.parse(),
+        }
+    }
+
+    fn parse_pair(
+        self,
+        next_elements: &mut Iterator<Item = Pair>,
+        options: &LiquidOptions,
+    ) -> Result<Box<Renderable>> {
+        match self {
+            BlockElement::Raw(raw) => Ok(raw.to_renderable()),
+            BlockElement::Tag(tag) => tag.parse_pair(next_elements, options),
             BlockElement::Expression(exp) => exp.parse(),
         }
     }
