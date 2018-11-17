@@ -444,8 +444,6 @@ impl<'a> From<Pair<'a>> for TagToken<'a> {
 }
 
 impl<'a> TagToken<'a> {
-    // TODO  ranges, ...
-
     fn unwrap_filter_chain(&self) -> Result<Pair<'a>> {
         let token = self.token.clone();
 
@@ -544,8 +542,22 @@ impl<'a> TagToken<'a> {
         Ok(Value::scalar(parse_literal(literal)))
     }
 
+    pub fn expect_range(&self) -> Result<(Expression, Expression)> {
+        let token = self.token.clone();
+
+        if token.as_rule() != Rule::Range {
+            return panic!("Error handling is not implemented. Expected Filterchain.");
+        }
+
+        let mut range = token.into_inner();
+        Ok((
+            parse_value(range.next().expect("start")),
+            parse_value(range.next().expect("end")),
+        ))
+    }
+
     pub fn as_str(&self) -> &str {
-        self.token.as_str()
+        self.token.as_str().trim()
     }
 }
 
