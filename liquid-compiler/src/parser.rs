@@ -180,27 +180,7 @@ fn parse_tag<'a>(
     next_elements: &mut Iterator<Item = Pair<'a>>,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
-    if tag.as_rule() != Rule::Tag {
-        panic!("Expected a tag.");
-    }
-
-    let mut tag = tag.into_inner();
-    let name = tag
-        .next()
-        .expect("A tag starts with an identifier.")
-        .as_str();
-    let mut tokens = tag.map(TagToken::from);
-
-    if options.tags.contains_key(name) {
-        options.tags[name].parse(name, &mut tokens, options)
-    } else if options.blocks.contains_key(name) {
-        let mut block = TagBlock::new(name, next_elements);
-        let renderables = options.blocks[name].parse(name, &mut tokens, &mut block, options);
-        block.close()?;
-        renderables
-    } else {
-        panic!("Errors not implemented. Unknown tag.")
-    }
+    Tag::parse_pair(tag.into(), next_elements, options)
 }
 
 /// An interface to parse elements inside blocks without exposing the Pair structures
@@ -343,12 +323,18 @@ impl<'a> Tag<'a> {
     }
     pub fn parse(
         mut self,
-        next_elements: &mut TagBlock,
+        tag_block: &mut TagBlock,
+        options: &LiquidOptions,
+    ) -> Result<Box<Renderable>> {
+        self.parse_pair(&mut tag_block.iter, options)
+    }
+
+    fn parse_pair(
+        mut self,
+        next_elements: &mut Iterator<Item = Pair>,
         options: &LiquidOptions,
     ) -> Result<Box<Renderable>> {
         let (name, tokens) = (self.name, &mut self.tokens);
-
-        let next_elements = &mut next_elements.iter;
 
         if options.tags.contains_key(name) {
             options.tags[name].parse(name, tokens, options)
