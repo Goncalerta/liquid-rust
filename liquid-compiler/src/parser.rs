@@ -28,9 +28,26 @@ use self::pest::*;
 
 type Pair<'a> = ::pest::iterators::Pair<'a, Rule>;
 
+fn convert_pest_error(err: ::pest::error::Error<Rule>) -> Error {
+    let err = err.renamed_rules(|&rule| match rule {
+        Rule::LesserThan => "\"<\"".to_string(),
+        Rule::GreaterThan => "\">\"".to_string(),
+        Rule::LesserThanEquals => "\"<=\"".to_string(),
+        Rule::GreaterThanEquals => "\">=\"".to_string(),
+        Rule::Equals => "\"==\"".to_string(),
+        Rule::NotEquals => "\"!=\"".to_string(),
+        Rule::LesserThanGreaterThan => "\"<>\"".to_string(),
+        Rule::Assign => "\"=\"".to_string(),
+        Rule::Comma => "\",\"".to_string(),
+        Rule::Colon => "\":\"".to_string(),
+        other => format!("{:?}", other),
+    });
+    Error::with_msg(err.to_string())
+}
+
 pub fn parse(text: &str, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
     let mut liquid = LiquidParser::parse(Rule::LiquidFile, text)
-        .map_err(|err| Error::with_msg(err.to_string()))?
+        .map_err(convert_pest_error)?
         .next()
         .expect("Unwrapping LiquidFile to access the elements.")
         .into_inner();

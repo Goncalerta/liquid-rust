@@ -47,5 +47,18 @@ Range = { "(" ~ Value ~ ".." ~ Value ~ ")" }
 TagToken = _{ Range | FilterChain | DoubleCharSymbol | SingleCharSymbol } 
 
 // DoubleCharSymbol must be tried first, otherwise it could be parsed as two SingleCharSymbol instead
-SingleCharSymbol = { ">" | "<" | "=" | "," | ":" }
-DoubleCharSymbol = { "==" | "!=" | "<>" | ">=" | "<=" }
+SingleCharSymbol = _{ GreaterThan | LesserThan | Assign | Comma | Colon }
+DoubleCharSymbol = _{ Equals | NotEquals | LesserThanGreaterThan | GreaterThanEquals | LesserThanEquals }
+
+// Symbols - Names must be given for better error messages
+GreaterThan = { ">" }
+LesserThan = { "<" }
+Assign = { "=" }
+Comma = { "," }
+Colon = { ":" }
+
+Equals = { "==" }
+NotEquals = { "!=" }
+LesserThanGreaterThan = { "<>" }
+GreaterThanEquals = { ">=" }
+LesserThanEquals = { "<=" }
