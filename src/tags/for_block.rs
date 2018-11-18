@@ -165,7 +165,7 @@ impl Renderable for For {
             }
 
             range_len => {
-                context.run_in_scope(|mut scope| {
+                context.run_in_scope(|mut scope| -> Result<()> {
                     let mut helper_vars = Object::new();
                     helper_vars.insert("length".into(), Value::scalar(range_len as i32));
 
@@ -351,7 +351,7 @@ impl Renderable for TableRow {
         let offset = evaluate_attr(&self.offset, context)?.unwrap_or(0);
         let range = iter_slice(&mut range, limit, offset, false);
 
-        context.run_in_scope(|mut scope| {
+        context.run_in_scope(|mut scope| -> Result<()> {
             let mut helper_vars = Object::new();
             helper_vars.insert("length".into(), Value::scalar(range.len() as i32));
 

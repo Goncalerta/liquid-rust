@@ -32,8 +32,7 @@ use self::pest::*;
 type Pair<'a> = ::pest::iterators::Pair<'a, Rule>;
 
 pub fn parse(text: &str, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
-    let mut liquid = LiquidParser::parse(Rule::LiquidFile, text)
-        .unwrap() // TODO do NOT unwrap error
+    let mut liquid = LiquidParser::parse(Rule::LiquidFile, text)?
         .next()
         .expect("Unwrapping LiquidFile to access the elements.")
         .into_inner();
