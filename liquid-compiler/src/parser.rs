@@ -12,12 +12,9 @@ use liquid_value::Scalar;
 use liquid_value::Value;
 
 use super::error::{Error, Result};
-use super::BoxedTagParser;
 use super::LiquidOptions;
 use super::ParseBlock;
 use super::ParseTag;
-
-use std::collections::HashMap;
 
 use pest::Parser;
 
@@ -32,7 +29,8 @@ use self::pest::*;
 type Pair<'a> = ::pest::iterators::Pair<'a, Rule>;
 
 pub fn parse(text: &str, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
-    let mut liquid = LiquidParser::parse(Rule::LiquidFile, text)?
+    let mut liquid = LiquidParser::parse(Rule::LiquidFile, text)
+        .map_err(|err| Error::with_msg(err.to_string()))?
         .next()
         .expect("Unwrapping LiquidFile to access the elements.")
         .into_inner();
@@ -293,7 +291,7 @@ impl<'a> Tag<'a> {
         self.as_str
     }
     pub fn parse(
-        mut self,
+        self,
         tag_block: &mut TagBlock,
         options: &LiquidOptions,
     ) -> Result<Box<Renderable>> {

@@ -94,15 +94,6 @@ pub struct Error {
     inner: Box<InnerError>,
 }
 
-impl<R> From<pest::error::Error<R>> for Error
-where
-    R: fmt::Debug + std::hash::Hash + std::cmp::Ord + std::marker::Copy,
-{
-    fn from(error: pest::error::Error<R>) -> Self {
-        Error::with_msg(error.to_string())
-    }
-}
-
 // Guts of `Error` here to keep `Error` small to avoid bloating the size of `Result<T>` in the
 // success case.  There are already enough memory allocations below, one more shouldn't hurt.
 #[derive(Clone, Debug)]
