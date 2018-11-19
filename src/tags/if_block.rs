@@ -1,5 +1,6 @@
 use std::fmt;
 use std::io::Write;
+use std::iter::Peekable;
 
 use liquid_error::{Result, ResultLiquidExt};
 use liquid_value::Value;
@@ -25,7 +26,7 @@ enum ComparisonOperator {
 }
 
 impl ComparisonOperator {
-    fn from_str(s: &str) -> Result<Self> {
+    fn from_str(s: &str) -> std::result::Result<Self, ()> {
         match s {
             "==" => Ok(ComparisonOperator::Equals),
             "!=" | "<>" => Ok(ComparisonOperator::NotEquals),
@@ -34,7 +35,7 @@ impl ComparisonOperator {
             "<=" => Ok(ComparisonOperator::LessThanEquals),
             ">=" => Ok(ComparisonOperator::GreaterThanEquals),
             "contains" => Ok(ComparisonOperator::Contains),
-            _ => panic!("Errors not implemented. Unexpected operator."),
+            _ => Err(()),
         }
     }
 }
@@ -184,66 +185,66 @@ impl Renderable for Conditional {
     }
 }
 
+fn parse_atom_condition(
+    arguments: &mut Peekable<&mut Iterator<Item = TagToken>>,
+) -> Result<Condition> {
+    let lh = arguments
+        .next()
+        .unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
+    let lh = lh.expect_value().map_err(TagToken::raise_error)?;
+    let cond = match arguments
+        .peek()
+        .map(TagToken::as_str)
+        .and_then(|op| ComparisonOperator::from_str(op).ok())
+    {
+        Some(op) => {
+            let rh = arguments
+                .next()
+                .unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
+            let rh = rh.expect_value().map_err(TagToken::raise_error)?;
+            Condition::Binary(BinaryCondition {
+                lh,
+                comparison: op,
+                rh,
+            })
+        }
+        None => Condition::Existence(ExistenceCondition { lh }),
+    };
+
+    Ok(cond)
+}
+
+fn parse_conjunction_chain(
+    arguments: &mut Peekable<&mut Iterator<Item = TagToken>>,
+) -> Result<Condition> {
+    let mut lh = parse_atom_condition(arguments)?;
+
+    while let Some("and") = arguments.peek().map(TagToken::as_str) {
+        arguments.next();
+        let rh = parse_atom_condition(arguments)?;
+        lh = Condition::Conjunction(Box::new(lh), Box::new(rh));
+    }
+
+    Ok(lh)
+}
+
 /// Common parsing for "if" and "unless" condition
 fn parse_condition(arguments: &mut Iterator<Item = TagToken>) -> Result<Condition> {
-    unimplemented!()
-    // let args: Vec<TagToken> = arguments.collect();
-    // // Iterator over conditions linked with `or`
-    // let mut or_iter = args.split(|t| t.as_str() == "or").map(|args| {
-    //     // Iterator over conditions linked with `and`
-    //     let mut and_iter = args.split(|t| t.as_str() == "and").map(|args| {
-    //         // Iterator over tokens that form a condition
-    //         let mut args = args.into_iter();
+    let arguments = &mut arguments.peekable();
 
-    //         let lh = args
-    //             .next()
-    //             .unwrap_or_else(|| panic!("Errors not implemented. Token expected."))
-    //         let lh = lh.expect_value().map_err(TagToken::raise_error)?;
+    let mut lh = parse_conjunction_chain(arguments)?;
 
-    //         let cond = match args.next() {
-    //             Some(op) => {
-    //                 let op = ComparisonOperator::from_str(op.as_str())?;
-    //                 let rh = args
-    //                     .next()
-    //                     .unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
-    //                 let rh = rh.expect_value().map_err(TagToken::raise_error)?;
-    //                 Condition::Binary(BinaryCondition {
-    //                     lh,
-    //                     comparison: op,
-    //                     rh,
-    //                 })
-    //             }
-    //             None => Condition::Existence(ExistenceCondition { lh }),
-    //         };
-    //         if let Some(token) = arguments.next() {
-    //             return Err(token.raise_error());
-    //         }
+    while let Some(token) = arguments.next() {
+        match token.as_str() {
+            "or" => {
+                let rh = parse_conjunction_chain(arguments)?;
+                lh = Condition::Disjunction(Box::new(lh), Box::new(rh));
+            }
+            _ => return panic!("Error not implemented. Unexpected token."),
+        }
+    }
 
-    //         Ok(cond)
-    //     });
-    //     let mut lh = and_iter
-    //         .next()
-    //         .expect("There will be always at least one condition.")?;
-    //     for rh in and_iter {
-    //         let rh = match rh {
-    //             Ok(rh) => rh,
-    //             err @ Err(_) => return err,
-    //         };
-    //         lh = Condition::Conjunction(Box::new(lh), Box::new(rh));
-    //     }
-    //     Ok(lh)
-    // });
-    // let mut lh = or_iter
-    //     .next()
-    //     .expect("There will be always at least one condition.")?;
-    // for rh in or_iter {
-    //     let rh = match rh {
-    //         Ok(rh) => rh,
-    //         err @ Err(_) => return err,
-    //     };
-    //     lh = Condition::Disjunction(Box::new(lh), Box::new(rh));
-    // }
-    // Ok(lh)
+    Ok(lh)
 }
 
 pub fn unless_block(
