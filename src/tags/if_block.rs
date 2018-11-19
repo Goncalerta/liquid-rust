@@ -4,8 +4,8 @@ use std::io::Write;
 use liquid_error::{Result, ResultLiquidExt};
 use liquid_value::Value;
 
-use compiler::LiquidOptions;
 use compiler::BlockElement;
+use compiler::LiquidOptions;
 use compiler::TagBlock;
 use compiler::TagToken;
 use interpreter::Context;
@@ -186,65 +186,64 @@ impl Renderable for Conditional {
 
 /// Common parsing for "if" and "unless" condition
 fn parse_condition(arguments: &mut Iterator<Item = TagToken>) -> Result<Condition> {
-    let args: Vec<TagToken> = arguments.collect();
-    // Iterator over conditions linked with `or`
-    let mut or_iter = args.split(|t| t.as_str() == "or").map(|args| {
-        // Iterator over conditions linked with `and`
-        let mut and_iter = args.split(|t| t.as_str() == "and").map(|args| {
-            // Iterator over tokens that form a condition
-            let mut args = args.iter();
-            
-            let lh = args
-                .next()
-                .unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
-            let lh = lh.expect_value()?;
+    unimplemented!()
+    // let args: Vec<TagToken> = arguments.collect();
+    // // Iterator over conditions linked with `or`
+    // let mut or_iter = args.split(|t| t.as_str() == "or").map(|args| {
+    //     // Iterator over conditions linked with `and`
+    //     let mut and_iter = args.split(|t| t.as_str() == "and").map(|args| {
+    //         // Iterator over tokens that form a condition
+    //         let mut args = args.into_iter();
 
-            let cond = match args.next() {
-                Some(op) => {
-                    let op = ComparisonOperator::from_str(op.as_str())?;
-                    let rh = args
-                        .next()
-                        .unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
-                    let rh = rh.expect_value()?;
-                    Condition::Binary(BinaryCondition {
-                        lh,
-                        comparison: op,
-                        rh,
-                    })
-                }
-                None => Condition::Existence(ExistenceCondition { lh }),
-            };
-            let arg_ = args.next();
-            if arg_.is_some() {
-                // return Err(unexpected_token_error("`%}`", arguments.first()));
-                return panic!("Errors not implemented. Unexpected token.");
-            }
+    //         let lh = args
+    //             .next()
+    //             .unwrap_or_else(|| panic!("Errors not implemented. Token expected."))
+    //         let lh = lh.expect_value().map_err(TagToken::raise_error)?;
 
-            Ok(cond)
-        });
-        let mut lh = and_iter
-            .next()
-            .expect("There will be always at least one condition.")?;
-        for rh in and_iter {
-            let rh = match rh {
-                Ok(rh) => rh,
-                err @ Err(_) => return err,
-            };
-            lh = Condition::Conjunction(Box::new(lh), Box::new(rh));
-        }
-        Ok(lh)
-    });
-    let mut lh = or_iter
-        .next()
-        .expect("There will be always at least one condition.")?;
-    for rh in or_iter {
-        let rh = match rh {
-            Ok(rh) => rh,
-            err @ Err(_) => return err,
-        };
-        lh = Condition::Disjunction(Box::new(lh), Box::new(rh));
-    }
-    Ok(lh)
+    //         let cond = match args.next() {
+    //             Some(op) => {
+    //                 let op = ComparisonOperator::from_str(op.as_str())?;
+    //                 let rh = args
+    //                     .next()
+    //                     .unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
+    //                 let rh = rh.expect_value().map_err(TagToken::raise_error)?;
+    //                 Condition::Binary(BinaryCondition {
+    //                     lh,
+    //                     comparison: op,
+    //                     rh,
+    //                 })
+    //             }
+    //             None => Condition::Existence(ExistenceCondition { lh }),
+    //         };
+    //         if let Some(token) = arguments.next() {
+    //             return Err(token.raise_error());
+    //         }
+
+    //         Ok(cond)
+    //     });
+    //     let mut lh = and_iter
+    //         .next()
+    //         .expect("There will be always at least one condition.")?;
+    //     for rh in and_iter {
+    //         let rh = match rh {
+    //             Ok(rh) => rh,
+    //             err @ Err(_) => return err,
+    //         };
+    //         lh = Condition::Conjunction(Box::new(lh), Box::new(rh));
+    //     }
+    //     Ok(lh)
+    // });
+    // let mut lh = or_iter
+    //     .next()
+    //     .expect("There will be always at least one condition.")?;
+    // for rh in or_iter {
+    //     let rh = match rh {
+    //         Ok(rh) => rh,
+    //         err @ Err(_) => return err,
+    //     };
+    //     lh = Condition::Disjunction(Box::new(lh), Box::new(rh));
+    // }
+    // Ok(lh)
 }
 
 pub fn unless_block(
@@ -277,12 +276,10 @@ pub fn if_block(
 
     while let Some(element) = tokens.next()? {
         match element {
-            BlockElement::Tag(mut tag) => {
-                match tag.name() {
-                    "else" => if_false = Some(tokens.parse(options)?),
-                    "elsif" => if_false = Some(vec![if_block("elsif", tag.tokens(), tokens, options)?]),
-                    _ => if_true.push(tag.parse(tokens, options)?),
-                }
+            BlockElement::Tag(mut tag) => match tag.name() {
+                "else" => if_false = Some(tokens.parse(options)?),
+                "elsif" => if_false = Some(vec![if_block("elsif", tag.tokens(), tokens, options)?]),
+                _ => if_true.push(tag.parse(tokens, options)?),
             },
             element => if_true.push(element.parse(tokens, options)?),
         }

@@ -4,8 +4,8 @@ use liquid_error::{Result, ResultLiquidExt};
 use liquid_value::Value;
 
 use compiler::LiquidOptions;
-use compiler::TagToken;
 use compiler::TagBlock;
+use compiler::TagToken;
 use interpreter::Context;
 use interpreter::Renderable;
 use interpreter::Template;
@@ -43,19 +43,25 @@ pub fn capture_block(
     tokens: &mut TagBlock,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
+    let id = arguments
+        .next()
+        .unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
 
-    let id = arguments.next().unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
-
-    let id = id.expect_identifier()?.to_string();
+    let id = id
+        .expect_identifier()
+        .map_err(TagToken::raise_error)?
+        .to_string();
 
     // no more arguments should be supplied, trying to supply them is an error
-    if arguments.next().is_some() {
-        // return Err(unexpected_token_error("`%}`", t));
-        return panic!("Errors not implemented. Unexpected token.");
+    if let Some(token) = arguments.next() {
+        return Err(token.raise_error());
     }
 
-    let template =
-        Template::new(tokens.parse(options).trace_with(|| format!("{{% capture {} %}}", &id))?);
+    let template = Template::new(
+        tokens
+            .parse(options)
+            .trace_with(|| format!("{{% capture {} %}}", &id))?,
+    );
 
     Ok(Box::new(Capture { id, template }))
 }

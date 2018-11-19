@@ -23,9 +23,8 @@ pub fn break_tag(
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     // no arguments should be supplied, trying to supply them is an error
-    if arguments.next().is_some() {
-        // return Err(unexpected_token_error("`%}`", arguments.first()));
-        return panic!("Errors not implemented. Unexpected token.");
+    if let Some(token) = arguments.next() {
+        return Err(token.raise_error());
     }
     Ok(Box::new(Break))
 }
@@ -46,9 +45,8 @@ pub fn continue_tag(
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     // no arguments should be supplied, trying to supply them is an error
-    if arguments.next().is_some() {
-        // return Err(unexpected_token_error("`%}`", arguments.first()));
-        return panic!("Errors not implemented. Unexpected token.");
+    if let Some(token) = arguments.next() {
+        return Err(token.raise_error());
     }
     Ok(Box::new(Continue))
 }

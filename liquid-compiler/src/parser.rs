@@ -45,6 +45,14 @@ fn convert_pest_error(err: ::pest::error::Error<Rule>) -> Error {
     Error::with_msg(err.to_string())
 }
 
+fn error_from_pair(pair: Pair, msg: String) -> Error {
+    let pest_error = ::pest::error::Error::new_from_span(
+        ::pest::error::ErrorVariant::CustomError { message: msg },
+        pair.as_span(),
+    );
+    convert_pest_error(pest_error)
+}
+
 pub fn parse(text: &str, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
     let mut liquid = LiquidParser::parse(Rule::LiquidFile, text)
         .map_err(convert_pest_error)?
@@ -59,7 +67,11 @@ pub fn parse(text: &str, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>
             break;
         }
 
-        renderables.push(BlockElement::parse_pair(element.into(), &mut liquid, options)?);
+        renderables.push(BlockElement::parse_pair(
+            element.into(),
+            &mut liquid,
+            options,
+        )?);
     }
     Ok(renderables)
 }
@@ -193,12 +205,13 @@ impl<'a, 'b> TagBlock<'a, 'b> {
             return Ok(None);
         }
 
-        let element = self
-            .iter
-            .next()
-            .expect("The file must not end before an EOI.");
+        let element = self.iter.next().expect("File shouldn't end before EOI.");
+
         if element.as_rule() == Rule::EOI {
-            return panic!("Errors not implemented. Unclosed block.");
+            return Err(error_from_pair(
+                element,
+                format!("Unclosed block. {{% {} %}} tag expected.", self.end_name),
+            ));
         }
         if element.as_rule() == Rule::Tag {
             let nested_tag_name = element
@@ -326,9 +339,9 @@ impl<'a> Tag<'a> {
             options.tags[name].parse(name, tokens, options)
         } else if options.blocks.contains_key(name) {
             let mut block = TagBlock::new(name, next_elements);
-            let renderables = options.blocks[name].parse(name, tokens, &mut block, options);
+            let renderables = options.blocks[name].parse(name, tokens, &mut block, options)?;
             block.close()?;
-            renderables
+            Ok(renderables)
         } else {
             panic!("Errors not implemented. Unknown tag.")
         }
@@ -414,39 +427,54 @@ impl<'a> BlockElement<'a> {
 /// An interface to parse tokens inside Tags without exposing the Pair structures
 pub struct TagToken<'a> {
     token: Pair<'a>,
+    expected: Vec<Rule>,
 }
 
 impl<'a> From<Pair<'a>> for TagToken<'a> {
     fn from(token: Pair<'a>) -> Self {
-        TagToken { token }
+        TagToken {
+            token,
+            expected: Vec::new(),
+        }
     }
 }
 
 impl<'a> TagToken<'a> {
-    fn unwrap_filter_chain(&self) -> Result<Pair<'a>> {
+    pub fn raise_error(self) -> Error {
+        let pest_error = ::pest::error::Error::new_from_span(
+            ::pest::error::ErrorVariant::ParsingError {
+                positives: self.expected,
+                negatives: vec![self.token.as_rule()],
+            },
+            self.token.as_span(),
+        );
+        convert_pest_error(pest_error)
+    }
+
+    fn unwrap_filter_chain(&mut self) -> std::result::Result<Pair<'a>, ()> {
         let token = self.token.clone();
 
         if token.as_rule() != Rule::FilterChain {
-            return panic!("Error handling is not implemented. Expected Filterchain.");
+            return Err(());
         }
 
         Ok(token)
     }
 
-    fn unwrap_value(&self) -> Result<Pair<'a>> {
+    fn unwrap_value(&mut self) -> std::result::Result<Pair<'a>, ()> {
         let filterchain = self.unwrap_filter_chain()?;
 
         let mut chain = filterchain.into_inner();
         let value = chain.next().expect("Unwrapping value out of Filterchain.");
         if chain.next().is_some() {
             // There are filters: it can't be a value
-            return panic!("Error handling is not implemented. Expected value.");
+            return Err(());
         }
 
         Ok(value)
     }
 
-    fn unwrap_variable(&self) -> Result<Pair<'a>> {
+    fn unwrap_variable(&mut self) -> std::result::Result<Pair<'a>, ()> {
         let value = self.unwrap_value()?;
 
         let variable = value
@@ -455,13 +483,13 @@ impl<'a> TagToken<'a> {
             .expect("A value is made of one token.");
 
         if variable.as_rule() != Rule::Variable {
-            return panic!("Error handling is not implemented. Expected variable.");
+            return Err(());
         }
 
         Ok(variable)
     }
 
-    fn unwrap_identifier(&self) -> Result<Pair<'a>> {
+    fn unwrap_identifier(&mut self) -> std::result::Result<Pair<'a>, ()> {
         let variable = self.unwrap_variable()?;
 
         let mut indexes = variable.into_inner();
@@ -470,13 +498,13 @@ impl<'a> TagToken<'a> {
             .expect("Unwrapping identifier out of variable.");
         if indexes.next().is_some() {
             // There are indexes: it can't be a value
-            return panic!("Error handling is not implemented. Expected identifier.");
+            return Err(());
         }
 
         Ok(identifier)
     }
 
-    fn unwrap_literal(&self) -> Result<Pair<'a>> {
+    fn unwrap_literal(&mut self) -> std::result::Result<Pair<'a>, ()> {
         let value = self.unwrap_value()?;
 
         let literal = value
@@ -485,47 +513,63 @@ impl<'a> TagToken<'a> {
             .expect("A value is made of one token.");
 
         if literal.as_rule() != Rule::Literal {
-            return panic!("Error handling is not implemented. Expected literal.");
+            return Err(());
         }
 
         Ok(literal)
     }
 
-    pub fn expect_filter_chain(&self) -> Result<FilterChain> {
-        let filterchain = self.unwrap_filter_chain()?;
+    pub fn expect_filter_chain(mut self) -> std::result::Result<FilterChain, Self> {
+        let filterchain = self.unwrap_filter_chain().map_err(|_| {
+            self.expected.push(Rule::FilterChain);
+            self
+        })?;
 
         Ok(parse_filter_chain(filterchain))
     }
 
-    pub fn expect_value(&self) -> Result<Expression> {
-        let value = self.unwrap_value()?;
+    pub fn expect_value(mut self) -> std::result::Result<Expression, Self> {
+        let value = self.unwrap_value().map_err(|_| {
+            self.expected.push(Rule::Value);
+            self
+        })?;
 
         Ok(parse_value(value))
     }
 
-    pub fn expect_variable(&self) -> Result<Variable> {
-        let variable = self.unwrap_variable()?;
+    pub fn expect_variable(mut self) -> std::result::Result<Variable, Self> {
+        let variable = self.unwrap_variable().map_err(|_| {
+            self.expected.push(Rule::Variable);
+            self
+        })?;
 
         Ok(parse_variable(variable))
     }
 
-    pub fn expect_identifier(&self) -> Result<&'a str> {
-        let identifier = self.unwrap_identifier()?;
+    pub fn expect_identifier(mut self) -> std::result::Result<&'a str, Self> {
+        let identifier = self.unwrap_identifier().map_err(|_| {
+            self.expected.push(Rule::Identifier);
+            self
+        })?;
 
         Ok(identifier.as_str())
     }
 
-    pub fn expect_literal(&self) -> Result<Value> {
-        let literal = self.unwrap_literal()?;
+    pub fn expect_literal(mut self) -> std::result::Result<Value, Self> {
+        let literal = self.unwrap_literal().map_err(|_| {
+            self.expected.push(Rule::Literal);
+            self
+        })?;
 
         Ok(Value::scalar(parse_literal(literal)))
     }
 
-    pub fn expect_range(&self) -> Result<(Expression, Expression)> {
+    pub fn expect_range(mut self) -> std::result::Result<(Expression, Expression), Self> {
         let token = self.token.clone();
 
         if token.as_rule() != Rule::Range {
-            return panic!("Error handling is not implemented. Expected Filterchain.");
+            self.expected.push(Rule::Range);
+            return Err(self);
         }
 
         let mut range = token.into_inner();

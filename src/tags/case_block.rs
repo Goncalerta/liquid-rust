@@ -82,7 +82,7 @@ fn parse_condition(arguments: &mut Iterator<Item = TagToken>) -> Result<Vec<Expr
     let mut values = Vec::new();
 
     let first_value = arguments.next().unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
-    let first_value = first_value.expect_value()?;
+    let first_value = first_value.expect_value().map_err(TagToken::raise_error)?;
     values.push(first_value);
 
     while let Some(token) = arguments.next() {
@@ -90,7 +90,7 @@ fn parse_condition(arguments: &mut Iterator<Item = TagToken>) -> Result<Vec<Expr
             panic!("Errors not implemented. Unexpected token.");
         }
         let value = arguments.next().unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
-        let value = value.expect_value()?;
+        let value = value.expect_value().map_err(TagToken::raise_error)?;
         values.push(value);
     }
 
@@ -105,7 +105,7 @@ pub fn case_block(
 ) -> Result<Box<Renderable>> {
 
     let target = arguments.next().unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
-    let target = target.expect_value()?;
+    let target = target.expect_value().map_err(TagToken::raise_error)?;
 
     let mut cases = Vec::new();
     let mut else_block = None;

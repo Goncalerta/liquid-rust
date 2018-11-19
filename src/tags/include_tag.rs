@@ -2,9 +2,9 @@ use std::io::Write;
 
 use liquid_error::{Result, ResultLiquidExt};
 
+use compiler::parse;
 use compiler::LiquidOptions;
 use compiler::TagToken;
-use compiler::{parse};
 use interpreter::Context;
 use interpreter::Renderable;
 use interpreter::Template;
@@ -35,19 +35,21 @@ fn parse_partial(name: &str, options: &LiquidOptions) -> Result<Template> {
 
 pub fn include_tag(
     _tag_name: &str,
-    arguments: &mut Iterator<Item=TagToken>,
+    arguments: &mut Iterator<Item = TagToken>,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
-    let name = arguments.next().unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
+    let name = arguments
+        .next()
+        .unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
     // TODO: make `name` a &str instead
-    let name = if let Ok(name) = name.expect_identifier() {
-        name.to_string()
-    } else if let Ok(name) = name.expect_literal() {
-        // This will allow non string literals such as 0 to be parsed as such.
-        // Is this ok or should more specific functions be created?
-        name.to_str().to_string()
-    } else {
-        panic!("Errors not implemented. Expected identifier of literal.")
+    let name = match name.expect_identifier() {
+        Ok(name) => name.to_string(),
+        Err(name) => match name.expect_literal() {
+            // This will allow non string literals such as 0 to be parsed as such.
+            // Is this ok or should more specific functions be created?
+            Ok(name) => name.to_str().to_string(),
+            Err(name) => return Err(name.raise_error()),
+        },
     };
 
     let partial =

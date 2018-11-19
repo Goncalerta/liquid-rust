@@ -38,9 +38,9 @@ pub fn assign_tag(
     let op = arguments.next().unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
     let src = arguments.next().unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
 
-    let dst = dst.expect_identifier()?.to_string();
+    let dst = dst.expect_identifier().map_err(TagToken::raise_error)?.to_string();
     let op = op.as_str();
-    let src = src.expect_filter_chain()?;
+    let src = src.expect_filter_chain().map_err(TagToken::raise_error)?;
 
     if op != "=" {
         panic!("Errors not implemented. Token assignment operator.");

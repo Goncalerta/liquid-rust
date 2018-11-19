@@ -49,7 +49,7 @@ fn parse_cycle(arguments: &mut Iterator<Item = TagToken>, _options: &LiquidOptio
         }
         Some(",") | None => {
             // first argument is the first item in the cycle
-            values.push(first.expect_value()?);
+            values.push(first.expect_value().map_err(TagToken::raise_error)?);
         }
         x => {
             // return Err(unexpected_token_error(
@@ -63,7 +63,7 @@ fn parse_cycle(arguments: &mut Iterator<Item = TagToken>, _options: &LiquidOptio
     loop {
         match arguments.next() {
             Some(a) => {
-                values.push(a.expect_value()?);
+                values.push(a.expect_value().map_err(TagToken::raise_error)?);
             }
             None => break,
         }

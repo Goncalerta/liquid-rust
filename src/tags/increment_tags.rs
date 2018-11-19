@@ -37,7 +37,7 @@ pub fn increment_tag(
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     let id = match arguments.next() {
-        Some(x) => x.expect_identifier()?.to_string(),
+        Some(x) => x.expect_identifier().map_err(TagToken::raise_error)?.to_string(),
         _ => return panic!("Errors not implemented. Token expected."),
     };
 
@@ -73,7 +73,7 @@ pub fn decrement_tag(
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     let id = match arguments.next() {
-        Some(x) => x.expect_identifier()?.to_string(),
+        Some(x) => x.expect_identifier().map_err(TagToken::raise_error)?.to_string(),
         _ => return panic!("Errors not implemented. Token expected."),
     };
 
