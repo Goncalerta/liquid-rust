@@ -20,9 +20,10 @@ impl Renderable for Comment {
 pub fn comment_block(
     _tag_name: &str,
     _arguments: TagTokenIter,
-    _tokens: &mut TagBlock,
+    mut tokens: TagBlock,
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
+    while tokens.next()?.is_some() {}
     Ok(Box::new(Comment))
 }
 

@@ -190,6 +190,14 @@ pub struct TagBlock<'a: 'b, 'b> {
     nesting_depth: u32,
 }
 
+impl<'a, 'b> Drop for TagBlock<'a, 'b> {
+    fn drop(&mut self) {
+        if self.nesting_depth != 0 {
+            panic!("Block {{% {} %}} doesn't exhaust its iterator of elements.", self.name);
+        }
+    }
+}
+
 impl<'a, 'b> TagBlock<'a, 'b> {
     fn new(name: &'b str, next_elements: &'b mut Iterator<Item = Pair<'a>>) -> Self {
         let end_name = format!("end{}", name);
@@ -233,12 +241,7 @@ impl<'a, 'b> TagBlock<'a, 'b> {
         Ok(Some(element.into()))
     }
 
-    fn close(mut self) -> Result<()> {
-        while let Some(_) = self.next()? {}
-        Ok(())
-    }
-
-    pub fn parse(&mut self, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
+    pub fn parse(mut self, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
         let mut renderables = Vec::new();
         while let Some(r) = self.parse_next(options)? {
             renderables.push(r);
@@ -341,9 +344,8 @@ impl<'a> Tag<'a> {
         if options.tags.contains_key(name) {
             options.tags[name].parse(name, tokens, options)
         } else if options.blocks.contains_key(name) {
-            let mut block = TagBlock::new(name, next_elements);
-            let renderables = options.blocks[name].parse(name, tokens, &mut block, options)?;
-            block.close()?;
+            let block = TagBlock::new(name, next_elements);
+            let renderables = options.blocks[name].parse(name, tokens, block, options)?;
             Ok(renderables)
         } else {
             let pest_error = ::pest::error::Error::new_from_span(

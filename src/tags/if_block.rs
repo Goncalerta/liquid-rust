@@ -295,7 +295,7 @@ fn parse_condition(arguments: TagTokenIter) -> Result<Condition> {
 pub fn unless_block(
     _tag_name: &str,
     arguments: TagTokenIter,
-    tokens: &mut TagBlock,
+    tokens: TagBlock,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     let condition = parse_condition(arguments)?;
@@ -312,7 +312,7 @@ pub fn unless_block(
 pub fn if_block(
     _tag_name: &str,
     arguments: TagTokenIter,
-    tokens: &mut TagBlock,
+    mut tokens: TagBlock,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     let condition = parse_condition(arguments)?;
@@ -323,13 +323,17 @@ pub fn if_block(
     while let Some(element) = tokens.next()? {
         match element {
             BlockElement::Tag(mut tag) => match tag.name() {
-                "else" => if_false = Some(tokens.parse(options)?),
+                "else" => {
+                    if_false = Some(tokens.parse(options)?);
+                    break;
+                },
                 "elsif" => {
-                    if_false = Some(vec![if_block("elsif", tag.into_tokens(), tokens, options)?])
+                    if_false = Some(vec![if_block("elsif", tag.into_tokens(), tokens, options)?]);
+                    break;
                 }
-                _ => if_true.push(tag.parse(tokens, options)?),
+                _ => if_true.push(tag.parse(&mut tokens, options)?),
             },
-            element => if_true.push(element.parse(tokens, options)?),
+            element => if_true.push(element.parse(&mut tokens, options)?),
         }
     }
 

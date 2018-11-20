@@ -235,7 +235,7 @@ fn trace_for_tag(
 pub fn for_block(
     _tag_name: &str,
     mut arguments: TagTokenIter,
-    tokens: &mut TagBlock,
+    mut tokens: TagBlock,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     let var_name = arguments
@@ -278,10 +278,13 @@ pub fn for_block(
     while let Some(element) = tokens.next()? {
         match element {
             BlockElement::Tag(mut tag) => match tag.name() {
-                "else" => else_template = Some(tokens.parse(options)?),
-                _ => item_template.push(tag.parse(tokens, options)?),
+                "else" => {
+                    else_template = Some(tokens.parse(options)?);
+                    break;
+                },
+                _ => item_template.push(tag.parse(&mut tokens, options)?),
             },
-            element => item_template.push(element.parse(tokens, options)?),
+            element => item_template.push(element.parse(&mut tokens, options)?),
         }
     }
 
@@ -414,7 +417,7 @@ impl Renderable for TableRow {
 pub fn tablerow_block(
     _tag_name: &str,
     mut arguments: TagTokenIter,
-    tokens: &mut TagBlock,
+    tokens: TagBlock,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     let var_name = arguments

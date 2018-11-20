@@ -39,7 +39,7 @@ impl Renderable for IfChanged {
 pub fn ifchanged_block(
     _tag_name: &str,
     _arguments: TagTokenIter,
-    tokens: &mut TagBlock,
+    tokens: TagBlock,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     let if_changed = Template::new(tokens.parse(options)?);

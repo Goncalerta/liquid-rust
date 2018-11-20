@@ -18,7 +18,7 @@ pub trait ParseBlock: Send + Sync + ParseBlockClone {
         &self,
         tag_name: &str,
         arguments: TagTokenIter,
-        block: &mut TagBlock,
+        block: TagBlock,
         options: &LiquidOptions,
     ) -> Result<Box<Renderable>>;
 }
@@ -42,7 +42,7 @@ impl Clone for Box<ParseBlock> {
     }
 }
 
-pub type FnParseBlock = fn(&str, TagTokenIter, &mut TagBlock, &LiquidOptions) -> Result<Box<Renderable>>;
+pub type FnParseBlock = fn(&str, TagTokenIter, TagBlock, &LiquidOptions) -> Result<Box<Renderable>>;
 
 #[derive(Clone)]
 struct FnBlockParser {
@@ -60,7 +60,7 @@ impl ParseBlock for FnBlockParser {
         &self,
         tag_name: &str,
         arguments: TagTokenIter,
-        tokens: &mut TagBlock,
+        tokens: TagBlock,
         options: &LiquidOptions,
     ) -> Result<Box<Renderable>> {
         (self.parser)(tag_name, arguments, tokens, options)
@@ -83,7 +83,7 @@ impl ParseBlock for BoxedBlockParser {
         &self,
         tag_name: &str,
         arguments: TagTokenIter,
-        tokens: &mut TagBlock,
+        tokens: TagBlock,
         options: &LiquidOptions,
     ) -> Result<Box<Renderable>> {
         match self.parser {

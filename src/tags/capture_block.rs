@@ -41,7 +41,7 @@ impl Renderable for Capture {
 pub fn capture_block(
     _tag_name: &str,
     mut arguments: TagTokenIter,
-    tokens: &mut TagBlock,
+    tokens: TagBlock,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     let id = arguments

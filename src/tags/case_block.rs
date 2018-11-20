@@ -106,7 +106,7 @@ fn parse_condition(arguments: &mut TagTokenIter) -> Result<Vec<Expression>> {
 pub fn case_block(
     _tag_name: &str,
     mut arguments: TagTokenIter,
-    tokens: &mut TagBlock,
+    mut tokens: TagBlock,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     let target = arguments
@@ -129,10 +129,13 @@ pub fn case_block(
                     current_block = Vec::new();
                     current_condition = Some(parse_condition(tag.tokens())?);
                 }
-                "else" => else_block = Some(tokens.parse(options)?),
-                _ => current_block.push(tag.parse(tokens, options)?),
+                "else" => { 
+                    else_block = Some(tokens.parse(options)?);
+                    break;
+                },
+                _ => current_block.push(tag.parse(&mut tokens, options)?),
             },
-            element => current_block.push(element.parse(tokens, options)?),
+            element => current_block.push(element.parse(&mut tokens, options)?),
         }
     }
 

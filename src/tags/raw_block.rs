@@ -23,7 +23,7 @@ impl Renderable for RawT {
 pub fn raw_block(
     _tag_name: &str,
     _arguments: TagTokenIter,
-    tokens: &mut TagBlock,
+    mut tokens: TagBlock,
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     let mut content = String::new();
