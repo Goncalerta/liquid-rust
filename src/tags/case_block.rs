@@ -1,13 +1,14 @@
 use std::io::Write;
 
 use itertools;
-use liquid_error::{Error, Result, ResultLiquidExt};
+use liquid_error::{Result, ResultLiquidExt};
 use liquid_value::Value;
 
-use compiler::LiquidOptions;
-use compiler::TagToken;
-use compiler::TagBlock;
 use compiler::BlockElement;
+use compiler::LiquidOptions;
+use compiler::TagBlock;
+use compiler::TagToken;
+use compiler::TagTokenIter;
 use interpreter::Context;
 use interpreter::Expression;
 use interpreter::Renderable;
@@ -78,34 +79,40 @@ impl Renderable for Case {
     }
 }
 
-fn parse_condition(arguments: &mut Iterator<Item = TagToken>) -> Result<Vec<Expression>> {
+fn parse_condition(arguments: &mut TagTokenIter) -> Result<Vec<Expression>> {
     let mut values = Vec::new();
 
-    let first_value = arguments.next().unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
-    let first_value = first_value.expect_value().map_err(TagToken::raise_error)?;
+    let first_value = arguments
+        .expect_next("Value expected")?
+        .expect_value()
+        .map_err(TagToken::raise_error)?;
     values.push(first_value);
 
     while let Some(token) = arguments.next() {
-        if token.as_str() != "or" {
-            panic!("Errors not implemented. Unexpected token.");
-        }
-        let value = arguments.next().unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
-        let value = value.expect_value().map_err(TagToken::raise_error)?;
+        token
+            .expect_str("or")
+            .map_err(|t| t.raise_custom_error("\"or\" expected."))?;
+        
+        let value = arguments
+            .expect_next("Value expected")?
+            .expect_value()
+            .map_err(TagToken::raise_error)?;
         values.push(value);
     }
 
-    Ok(values)     
+    Ok(values)
 }
 
 pub fn case_block(
     _tag_name: &str,
-    arguments: &mut Iterator<Item = TagToken>,
+    mut arguments: TagTokenIter,
     tokens: &mut TagBlock,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
-
-    let target = arguments.next().unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
-    let target = target.expect_value().map_err(TagToken::raise_error)?;
+    let target = arguments
+        .expect_next("Value expected.")?
+        .expect_value()
+        .map_err(TagToken::raise_error)?;
 
     let mut cases = Vec::new();
     let mut else_block = None;
@@ -114,18 +121,16 @@ pub fn case_block(
 
     while let Some(element) = tokens.next()? {
         match element {
-            BlockElement::Tag(mut tag) => {
-                match tag.name() {
-                    "when" => {
-                        if let Some(condition) = current_condition {
-                            cases.push(CaseOption::new(condition, Template::new(current_block)));
-                        }
-                        current_block = Vec::new();
-                        current_condition = Some(parse_condition(tag.tokens())?);
-                    },
-                    "else" => else_block = Some(tokens.parse(options)?),
-                    _ => current_block.push(tag.parse(tokens, options)?),
+            BlockElement::Tag(mut tag) => match tag.name() {
+                "when" => {
+                    if let Some(condition) = current_condition {
+                        cases.push(CaseOption::new(condition, Template::new(current_block)));
+                    }
+                    current_block = Vec::new();
+                    current_condition = Some(parse_condition(tag.tokens())?);
                 }
+                "else" => else_block = Some(tokens.parse(options)?),
+                _ => current_block.push(tag.parse(tokens, options)?),
             },
             element => current_block.push(element.parse(tokens, options)?),
         }

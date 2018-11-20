@@ -4,12 +4,10 @@ use liquid_error::{Result, ResultLiquidExt};
 
 use compiler::parse;
 use compiler::LiquidOptions;
-use compiler::TagToken;
+use compiler::TagTokenIter;
 use interpreter::Context;
 use interpreter::Renderable;
 use interpreter::Template;
-
-use std::borrow::Cow;
 
 #[derive(Debug)]
 struct Include {
@@ -35,12 +33,10 @@ fn parse_partial(name: &str, options: &LiquidOptions) -> Result<Template> {
 
 pub fn include_tag(
     _tag_name: &str,
-    arguments: &mut Iterator<Item = TagToken>,
+    mut arguments: TagTokenIter,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
-    let name = arguments
-        .next()
-        .unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
+    let name = arguments.expect_next("Identifier or literal expected.")?;
     // TODO: make `name` a &str instead
     let name = match name.expect_identifier() {
         Ok(name) => name.to_string(),

@@ -1,6 +1,5 @@
 use std::fmt;
 use std::io::Write;
-use std::iter::Peekable;
 
 use liquid_error::{Result, ResultLiquidExt};
 use liquid_value::Value;
@@ -9,6 +8,7 @@ use compiler::BlockElement;
 use compiler::LiquidOptions;
 use compiler::TagBlock;
 use compiler::TagToken;
+use compiler::TagTokenIter;
 use interpreter::Context;
 use interpreter::Renderable;
 use interpreter::Template;
@@ -185,13 +185,11 @@ impl Renderable for Conditional {
     }
 }
 
-fn parse_atom_condition(
-    arguments: &mut Peekable<&mut Iterator<Item = TagToken>>,
-) -> Result<Condition> {
+fn parse_atom_condition(arguments: &mut TagTokenIter) -> Result<Condition> {
     let lh = arguments
-        .next()
-        .unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
-    let lh = lh.expect_value().map_err(TagToken::raise_error)?;
+        .expect_next("Value expected.")?
+        .expect_value()
+        .map_err(TagToken::raise_error)?;
     let cond = match arguments
         .peek()
         .map(TagToken::as_str)
@@ -199,9 +197,9 @@ fn parse_atom_condition(
     {
         Some(op) => {
             let rh = arguments
-                .next()
-                .unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
-            let rh = rh.expect_value().map_err(TagToken::raise_error)?;
+                .expect_next("Value expected.")?
+                .expect_value()
+                .map_err(TagToken::raise_error)?;
             Condition::Binary(BinaryCondition {
                 lh,
                 comparison: op,
@@ -214,9 +212,7 @@ fn parse_atom_condition(
     Ok(cond)
 }
 
-fn parse_conjunction_chain(
-    arguments: &mut Peekable<&mut Iterator<Item = TagToken>>,
-) -> Result<Condition> {
+fn parse_conjunction_chain(arguments: &mut TagTokenIter) -> Result<Condition> {
     let mut lh = parse_atom_condition(arguments)?;
 
     while let Some("and") = arguments.peek().map(TagToken::as_str) {
@@ -229,19 +225,16 @@ fn parse_conjunction_chain(
 }
 
 /// Common parsing for "if" and "unless" condition
-fn parse_condition(arguments: &mut Iterator<Item = TagToken>) -> Result<Condition> {
-    let arguments = &mut arguments.peekable();
-
-    let mut lh = parse_conjunction_chain(arguments)?;
+fn parse_condition(arguments: TagTokenIter) -> Result<Condition> {
+    let mut lh = parse_conjunction_chain(&mut arguments)?;
 
     while let Some(token) = arguments.next() {
-        match token.as_str() {
-            "or" => {
-                let rh = parse_conjunction_chain(arguments)?;
-                lh = Condition::Disjunction(Box::new(lh), Box::new(rh));
-            }
-            _ => return panic!("Error not implemented. Unexpected token."),
-        }
+        token
+            .expect_str("or")
+            .map_err(|t| t.raise_custom_error("\"and\" or \"or\" expected."))?;
+
+        let rh = parse_conjunction_chain(&mut arguments)?;
+        lh = Condition::Disjunction(Box::new(lh), Box::new(rh));
     }
 
     Ok(lh)
@@ -249,7 +242,7 @@ fn parse_condition(arguments: &mut Iterator<Item = TagToken>) -> Result<Conditio
 
 pub fn unless_block(
     _tag_name: &str,
-    arguments: &mut Iterator<Item = TagToken>,
+    arguments: TagTokenIter,
     tokens: &mut TagBlock,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
@@ -266,7 +259,7 @@ pub fn unless_block(
 
 pub fn if_block(
     _tag_name: &str,
-    arguments: &mut Iterator<Item = TagToken>,
+    arguments: TagTokenIter,
     tokens: &mut TagBlock,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
@@ -279,7 +272,9 @@ pub fn if_block(
         match element {
             BlockElement::Tag(mut tag) => match tag.name() {
                 "else" => if_false = Some(tokens.parse(options)?),
-                "elsif" => if_false = Some(vec![if_block("elsif", tag.tokens(), tokens, options)?]),
+                "elsif" => {
+                    if_false = Some(vec![if_block("elsif", tag.into_tokens(), tokens, options)?])
+                }
                 _ => if_true.push(tag.parse(tokens, options)?),
             },
             element => if_true.push(element.parse(tokens, options)?),

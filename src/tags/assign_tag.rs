@@ -5,6 +5,7 @@ use liquid_error::ResultLiquidExt;
 
 use compiler::LiquidOptions;
 use compiler::TagToken;
+use compiler::TagTokenIter;
 use interpreter::Context;
 use interpreter::FilterChain;
 use interpreter::Renderable;
@@ -31,20 +32,25 @@ impl Renderable for Assign {
 
 pub fn assign_tag(
     _tag_name: &str,
-    arguments: &mut Iterator<Item=TagToken>,
+    mut arguments: TagTokenIter,
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
-    let dst = arguments.next().unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
-    let op = arguments.next().unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
-    let src = arguments.next().unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
+    let dst = arguments
+        .expect_next("Identifier expected.")?
+        .expect_identifier()
+        .map_err(TagToken::raise_error)?
+        .to_string();
 
-    let dst = dst.expect_identifier().map_err(TagToken::raise_error)?.to_string();
-    let op = op.as_str();
-    let src = src.expect_filter_chain().map_err(TagToken::raise_error)?;
+    arguments
+        .expect_next("Assignment operator \"=\" expected.")?
+        .expect_str("=")
+        .map_err(|t| t.raise_custom_error("Assignment operator \"=\" expected."))?;
 
-    if op != "=" {
-        panic!("Errors not implemented. Token assignment operator.");
-    }
+    let src = arguments
+        .expect_next("FilterChain expected.")?
+        .expect_filter_chain()
+        .map_err(TagToken::raise_error)?;
+
 
     Ok(Box::new(Assign { dst, src }))
 }

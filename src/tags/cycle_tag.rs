@@ -5,6 +5,7 @@ use liquid_error::{Result, ResultLiquidChainExt, ResultLiquidExt};
 
 use compiler::LiquidOptions;
 use compiler::TagToken;
+use compiler::TagTokenIter;
 use interpreter::Context;
 use interpreter::Expression;
 use interpreter::Renderable;
@@ -36,27 +37,29 @@ impl Renderable for Cycle {
 }
 
 /// Internal implementation of cycle, to allow easier testing.
-fn parse_cycle(arguments: &mut Iterator<Item = TagToken>, _options: &LiquidOptions) -> Result<Cycle> {
+fn parse_cycle(mut arguments: TagTokenIter, _options: &LiquidOptions) -> Result<Cycle> {
     let mut name = String::new();
     let mut values = Vec::new();
 
-    let first = arguments.next().unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
-    match arguments.next().as_ref().map(|x| x.as_str()) {
+    let first = arguments.expect_next("Identifier or value expected")?;
+    let second = arguments.next();
+    match second.as_ref().map(TagToken::as_str) {
         Some(":") => {
             // the first argument is the name of the cycle block
             // Using as_str directly might not be safe: unexpected tokens will be accepted
-            name = first.as_str().to_string();
+            name = first
+                .expect_identifier()
+                .map_err(TagToken::raise_error)?
+                .to_string();
         }
         Some(",") | None => {
             // first argument is the first item in the cycle
             values.push(first.expect_value().map_err(TagToken::raise_error)?);
         }
-        x => {
-            // return Err(unexpected_token_error(
-            //     "string | number | boolean | identifier",
-            //     x,
-            // ))
-            panic!("Errors not implemented. Unexpected token.");
+        Some(_) => {
+            return Err(second
+                .expect("is some")
+                .raise_custom_error("\":\" or \",\" expected."))
         }
     }
 
@@ -67,11 +70,13 @@ fn parse_cycle(arguments: &mut Iterator<Item = TagToken>, _options: &LiquidOptio
             }
             None => break,
         }
-
-        match arguments.next().as_ref().map(|x| x.as_str()) {
+        let next = arguments.next(); 
+        match next.as_ref().map(TagToken::as_str) {
             Some(",") => {}
             None => break,
-            x => return panic!("Errors not implemented. Unexpected token."),
+            Some(_) => return Err(next
+                .expect("is some")
+                .raise_custom_error("\",\" expected."))
         }
     }
 
@@ -84,7 +89,7 @@ fn parse_cycle(arguments: &mut Iterator<Item = TagToken>, _options: &LiquidOptio
 
 pub fn cycle_tag(
     _tag_name: &str,
-    arguments: &mut Iterator<Item = TagToken>,
+    arguments: TagTokenIter,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     parse_cycle(arguments, options).map(|opt| Box::new(opt) as Box<Renderable>)

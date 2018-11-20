@@ -3,7 +3,7 @@ use std::io::Write;
 use liquid_error::{Result, ResultLiquidChainExt, ResultLiquidExt};
 
 use compiler::LiquidOptions;
-use compiler::TagToken;
+use compiler::TagTokenIter;
 use compiler::TagBlock;
 use interpreter::Context;
 use interpreter::Renderable;
@@ -38,7 +38,7 @@ impl Renderable for IfChanged {
 
 pub fn ifchanged_block(
     _tag_name: &str,
-    _arguments: &mut Iterator<Item=TagToken>,
+    _arguments: TagTokenIter,
     tokens: &mut TagBlock,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {

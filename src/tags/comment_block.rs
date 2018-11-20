@@ -4,7 +4,7 @@ use liquid_error::Result;
 
 use compiler::LiquidOptions;
 use compiler::TagBlock;
-use compiler::TagToken;
+use compiler::TagTokenIter;
 use interpreter::Context;
 use interpreter::Renderable;
 
@@ -19,7 +19,7 @@ impl Renderable for Comment {
 
 pub fn comment_block(
     _tag_name: &str,
-    _arguments: &mut Iterator<Item = TagToken>,
+    _arguments: TagTokenIter,
     _tokens: &mut TagBlock,
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {

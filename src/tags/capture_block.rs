@@ -6,6 +6,7 @@ use liquid_value::Value;
 use compiler::LiquidOptions;
 use compiler::TagBlock;
 use compiler::TagToken;
+use compiler::TagTokenIter;
 use interpreter::Context;
 use interpreter::Renderable;
 use interpreter::Template;
@@ -39,15 +40,12 @@ impl Renderable for Capture {
 
 pub fn capture_block(
     _tag_name: &str,
-    arguments: &mut Iterator<Item = TagToken>,
+    mut arguments: TagTokenIter,
     tokens: &mut TagBlock,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     let id = arguments
-        .next()
-        .unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
-
-    let id = id
+        .expect_next("Identifier expected")?
         .expect_identifier()
         .map_err(TagToken::raise_error)?
         .to_string();

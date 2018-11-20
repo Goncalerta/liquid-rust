@@ -4,6 +4,7 @@ use liquid_error::{Result, ResultLiquidChainExt};
 
 use compiler::LiquidOptions;
 use compiler::TagToken;
+use compiler::TagTokenIter;
 use interpreter::Context;
 use interpreter::Renderable;
 use value::Value;
@@ -33,13 +34,14 @@ impl Renderable for Increment {
 
 pub fn increment_tag(
     _tag_name: &str,
-    arguments: &mut Iterator<Item=TagToken>,
+    mut arguments: TagTokenIter,
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
-    let id = match arguments.next() {
-        Some(x) => x.expect_identifier().map_err(TagToken::raise_error)?.to_string(),
-        _ => return panic!("Errors not implemented. Token expected."),
-    };
+    let id = arguments
+        .expect_next("Identifier expected.")?
+        .expect_identifier()
+        .map_err(TagToken::raise_error)?
+        .to_string();
 
     Ok(Box::new(Increment { id }))
 }
@@ -69,13 +71,14 @@ impl Renderable for Decrement {
 
 pub fn decrement_tag(
     _tag_name: &str,
-    arguments: &mut Iterator<Item=TagToken>,
+    mut arguments: TagTokenIter,
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
-    let id = match arguments.next() {
-        Some(x) => x.expect_identifier().map_err(TagToken::raise_error)?.to_string(),
-        _ => return panic!("Errors not implemented. Token expected."),
-    };
+    let id = arguments
+        .expect_next("Identifier expected.")?
+        .expect_identifier()
+        .map_err(TagToken::raise_error)?
+        .to_string();
 
     Ok(Box::new(Decrement { id }))
 }

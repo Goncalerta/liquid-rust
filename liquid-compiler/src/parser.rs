@@ -27,6 +27,7 @@ mod pest {
 use self::pest::*;
 
 type Pair<'a> = ::pest::iterators::Pair<'a, Rule>;
+type Pairs<'a> = ::pest::iterators::Pairs<'a, Rule>;
 
 fn convert_pest_error(err: ::pest::error::Error<Rule>) -> Error {
     let err = err.renamed_rules(|&rule| match rule {
@@ -286,8 +287,8 @@ impl<'a> Raw<'a> {
 }
 
 pub struct Tag<'a> {
-    name: &'a str,
-    tokens: Box<Iterator<Item = TagToken<'a>> + 'a>,
+    name: Pair<'a>,
+    tokens: TagTokenIter<'a>,
     as_str: &'a str,
 }
 impl<'a> From<Pair<'a>> for Tag<'a> {
@@ -297,11 +298,8 @@ impl<'a> From<Pair<'a>> for Tag<'a> {
         }
         let as_str = element.as_str();
         let mut tag = element.into_inner();
-        let name = tag
-            .next()
-            .expect("A tag starts with an identifier.")
-            .as_str();
-        let tokens = Box::new(tag.map(TagToken::from));
+        let name = tag.next().expect("A tag starts with an identifier.");
+        let tokens = TagTokenIter::new(&name, tag);
 
         Tag {
             name,
@@ -312,10 +310,13 @@ impl<'a> From<Pair<'a>> for Tag<'a> {
 }
 impl<'a> Tag<'a> {
     pub fn name(&self) -> &str {
-        self.name
+        self.name.as_str()
     }
-    pub fn tokens(&mut self) -> &mut Iterator<Item = TagToken<'a>> {
+    pub fn tokens(&mut self) -> &mut TagTokenIter<'a> {
         &mut self.tokens
+    }
+    pub fn into_tokens(self) -> TagTokenIter<'a> {
+        self.tokens
     }
     pub fn as_str(&self) -> &str {
         self.as_str
@@ -329,11 +330,13 @@ impl<'a> Tag<'a> {
     }
 
     fn parse_pair(
-        mut self,
+        self,
         next_elements: &mut Iterator<Item = Pair>,
         options: &LiquidOptions,
     ) -> Result<Box<Renderable>> {
-        let (name, tokens) = (self.name, &mut self.tokens);
+        let (name, tokens) = (self.name, self.tokens);
+        let position = name.as_span();
+        let name = name.as_str();
 
         if options.tags.contains_key(name) {
             options.tags[name].parse(name, tokens, options)
@@ -343,7 +346,13 @@ impl<'a> Tag<'a> {
             block.close()?;
             Ok(renderables)
         } else {
-            panic!("Errors not implemented. Unknown tag.")
+            let pest_error = ::pest::error::Error::new_from_span(
+                ::pest::error::ErrorVariant::CustomError {
+                    message: "Unknown tag.".to_string(),
+                },
+                position,
+            );
+            Err(convert_pest_error(pest_error))
         }
     }
 }
@@ -423,6 +432,39 @@ impl<'a> BlockElement<'a> {
         }
     }
 }
+pub struct TagTokenIter<'a> {
+    iter: Box<Iterator<Item = TagToken<'a>> + 'a>,
+    position: ::pest::Position<'a>,
+}
+impl<'a> Iterator for TagTokenIter<'a> {
+    type Item = TagToken<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(|next| {
+            self.position = next.token.as_span().end_pos();
+            next
+        })
+    }
+}
+impl<'a> TagTokenIter<'a> {
+    fn new(name: &Pair<'a>, tokens: Pairs<'a>) -> Self {
+        TagTokenIter {
+            iter: Box::new(tokens.map(TagToken::from)),
+            position: name.as_span().end_pos(),
+        }
+    }
+
+    pub fn expect_next(&mut self, error_msg: &str) -> Result<TagToken<'a>> {
+        self.next().ok_or_else(|| {
+            let pest_error = ::pest::error::Error::new_from_pos(
+                ::pest::error::ErrorVariant::CustomError {
+                    message: error_msg.to_string(),
+                },
+                self.position.clone(),
+            );
+            convert_pest_error(pest_error)
+        })
+    }
+}
 
 /// An interface to parse tokens inside Tags without exposing the Pair structures
 pub struct TagToken<'a> {
@@ -445,6 +487,16 @@ impl<'a> TagToken<'a> {
             ::pest::error::ErrorVariant::ParsingError {
                 positives: self.expected,
                 negatives: vec![self.token.as_rule()],
+            },
+            self.token.as_span(),
+        );
+        convert_pest_error(pest_error)
+    }
+
+    pub fn raise_custom_error(self, msg: &str) -> Error {
+        let pest_error = ::pest::error::Error::new_from_span(
+            ::pest::error::ErrorVariant::CustomError {
+                message: msg.to_string(),
             },
             self.token.as_span(),
         );
@@ -577,6 +629,15 @@ impl<'a> TagToken<'a> {
             parse_value(range.next().expect("start")),
             parse_value(range.next().expect("end")),
         ))
+    }
+
+    pub fn expect_str(self, expected: &str) -> std::result::Result<(), Self> {
+        if self.as_str() == expected {
+            Ok(())
+        } else {
+            // TODO change self to be aware that `expected` was expected.
+            Err(self)
+        }
     }
 
     pub fn as_str(&self) -> &str {

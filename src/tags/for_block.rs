@@ -9,6 +9,7 @@ use compiler::BlockElement;
 use compiler::LiquidOptions;
 use compiler::TagBlock;
 use compiler::TagToken;
+use compiler::TagTokenIter;
 use interpreter::Expression;
 use interpreter::Renderable;
 use interpreter::Template;
@@ -71,19 +72,14 @@ fn iter_slice(
 }
 
 /// Extracts an integer value or an identifier from the token stream
-fn parse_attr(arguments: &mut Iterator<Item = TagToken>) -> Result<Expression> {
-    if arguments
-        .next()
-        .unwrap_or_else(|| panic!("Errors not implemented. Token expected."))
-        .as_str()
-        != ":"
-    {
-        panic!("Errors not implemented. Unexpected token.");
-    }
+fn parse_attr(arguments: &mut TagTokenIter) -> Result<Expression> {
+    arguments
+        .expect_next("\":\" expected.")?
+        .expect_str(":")
+        .map_err(|t| t.raise_custom_error("\":\" expected."))?;
 
     arguments
-        .next()
-        .unwrap_or_else(|| panic!("Errors not implemented. Token expected."))
+        .expect_next("Value expected.")?
         .expect_value()
         .map_err(TagToken::raise_error)
 }
@@ -238,33 +234,28 @@ fn trace_for_tag(
 
 pub fn for_block(
     _tag_name: &str,
-    arguments: &mut Iterator<Item = TagToken>,
+    mut arguments: TagTokenIter,
     tokens: &mut TagBlock,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     let var_name = arguments
-        .next()
-        .unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
-    let var_name = var_name.expect_identifier().map_err(TagToken::raise_error)?.to_string();
+        .expect_next("Identifier expected.")?
+        .expect_identifier()
+        .map_err(TagToken::raise_error)?
+        .to_string();
 
-    if arguments
-        .next()
-        .unwrap_or_else(|| panic!("Errors not implemented. Token expected."))
-        .as_str()
-        != "in"
-    {
-        panic!("Errors not implemented. Unexpected token.");
-    }
+    arguments
+        .expect_next("\"in\" expected.")?
+        .expect_str("in")
+        .map_err(|t| t.raise_custom_error("\"in\" expected."))?;
 
-    let range = arguments
-        .next()
-        .unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
+    let range = arguments.expect_next("Array or range expected.")?;
     let range = match range.expect_value() {
         Ok(array) => Range::Array(array),
         Err(range) => match range.expect_range() {
             Ok((start, stop)) => Range::Counted(start, stop),
             Err(range) => return Err(range.raise_error()),
-        }
+        },
     };
 
     // now we get to check for parameters...
@@ -273,11 +264,11 @@ pub fn for_block(
     let mut reversed = false;
 
     while let Some(token) = arguments.next() {
-        match token.expect_identifier().map_err(TagToken::raise_error)? {
-            "limit" => limit = Some(parse_attr(arguments)?),
-            "offset" => offset = Some(parse_attr(arguments)?),
+        match token.as_str() {
+            "limit" => limit = Some(parse_attr(&mut arguments)?),
+            "offset" => offset = Some(parse_attr(&mut arguments)?),
             "reversed" => reversed = true,
-            _ => panic!("Errors not implemented. Expected `limit` | `offset` | `reversed`."),
+            _ => return Err(token.raise_custom_error("\"limit\", \"offset\" or \"reversed\" expected.")),
         }
     }
 
@@ -422,33 +413,28 @@ impl Renderable for TableRow {
 
 pub fn tablerow_block(
     _tag_name: &str,
-    arguments: &mut Iterator<Item = TagToken>,
+    mut arguments: TagTokenIter,
     tokens: &mut TagBlock,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     let var_name = arguments
-        .next()
-        .unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
-    let var_name = var_name.expect_identifier().map_err(TagToken::raise_error)?.to_string();
+        .expect_next("Identifier expected.")?
+        .expect_identifier()
+        .map_err(TagToken::raise_error)?
+        .to_string();
 
-    if arguments
-        .next()
-        .unwrap_or_else(|| panic!("Errors not implemented. Token expected."))
-        .as_str()
-        != "in"
-    {
-        panic!("Errors not implemented. Unexpected token.");
-    }
+    arguments
+        .expect_next("\"in\" expected.")?
+        .expect_str("in")
+        .map_err(|t| t.raise_custom_error("\"in\" expected."))?;
 
-    let range = arguments
-        .next()
-        .unwrap_or_else(|| panic!("Errors not implemented. Token expected."));
+    let range = arguments.expect_next("Array or range expected.")?;
     let range = match range.expect_value() {
         Ok(array) => Range::Array(array),
         Err(range) => match range.expect_range() {
             Ok((start, stop)) => Range::Counted(start, stop),
             Err(range) => return Err(range.raise_error()),
-        }
+        },
     };
 
     // now we get to check for parameters...
@@ -457,11 +443,11 @@ pub fn tablerow_block(
     let mut offset = None;
 
     while let Some(token) = arguments.next() {
-        match token.expect_identifier().map_err(TagToken::raise_error)? {
-            "cols" => cols = Some(parse_attr(arguments)?),
-            "limit" => limit = Some(parse_attr(arguments)?),
-            "offset" => offset = Some(parse_attr(arguments)?),
-            _ => panic!("Errors not implemented. Expected `limit` | `offset` | `reversed`."),
+        match token.as_str() {
+            "cols" => cols = Some(parse_attr(&mut arguments)?),
+            "limit" => limit = Some(parse_attr(&mut arguments)?),
+            "offset" => offset = Some(parse_attr(&mut arguments)?),
+            _ => return Err(token.raise_custom_error("\"cols\", \"limit\" or \"offset\" expected.")),
         }
     }
 

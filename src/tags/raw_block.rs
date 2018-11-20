@@ -4,7 +4,7 @@ use liquid_error::{Result, ResultLiquidChainExt};
 
 use compiler::LiquidOptions;
 use compiler::TagBlock;
-use compiler::TagToken;
+use compiler::TagTokenIter;
 use interpreter::Context;
 use interpreter::Renderable;
 
@@ -22,7 +22,7 @@ impl Renderable for RawT {
 
 pub fn raw_block(
     _tag_name: &str,
-    _arguments: &mut Iterator<Item = TagToken>,
+    _arguments: TagTokenIter,
     tokens: &mut TagBlock,
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {

@@ -3,7 +3,7 @@ use std::io::Write;
 use liquid_error::Result;
 
 use compiler::LiquidOptions;
-use compiler::TagToken;
+use compiler::TagTokenIter;
 use interpreter::Renderable;
 use interpreter::{Context, Interrupt};
 
@@ -19,7 +19,7 @@ impl Renderable for Break {
 
 pub fn break_tag(
     _tag_name: &str,
-    arguments: &mut Iterator<Item=TagToken>,
+    mut arguments: TagTokenIter,
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     // no arguments should be supplied, trying to supply them is an error
@@ -41,7 +41,7 @@ impl Renderable for Continue {
 
 pub fn continue_tag(
     _tag_name: &str,
-    arguments: &mut Iterator<Item=TagToken>,
+    mut arguments: TagTokenIter,
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     // no arguments should be supplied, trying to supply them is an error
