@@ -25,6 +25,21 @@ enum ComparisonOperator {
     Contains,
 }
 
+impl fmt::Display for ComparisonOperator {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let out = match *self {
+            ComparisonOperator::Equals => "==",
+            ComparisonOperator::NotEquals => "!=",
+            ComparisonOperator::LessThanEquals => "<=",
+            ComparisonOperator::GreaterThanEquals => ">=",
+            ComparisonOperator::LessThan => "<",
+            ComparisonOperator::GreaterThan => ">",
+            ComparisonOperator::Contains => "contains",
+        };
+        write!(f, "{}", out)
+    }
+}
+
 impl ComparisonOperator {
     fn from_str(s: &str) -> std::result::Result<Self, ()> {
         match s {
@@ -68,7 +83,7 @@ impl BinaryCondition {
 
 impl fmt::Display for BinaryCondition {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} {:?} {}", self.lh, self.comparison, self.rh) // TODO: Implement fmt::Display on ComparisonOperator
+        write!(f, "{} {} {}", self.lh, self.comparison, self.rh)
     }
 }
 

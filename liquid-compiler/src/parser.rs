@@ -637,7 +637,7 @@ impl<'a> TagToken<'a> {
         if self.as_str() == expected {
             Ok(())
         } else {
-            // TODO change self to be aware that `expected` was expected.
+            // TODO change `self`'s state to be aware that `expected` was expected.
             Err(self)
         }
     }
