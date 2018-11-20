@@ -37,13 +37,13 @@ pub fn include_tag(
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     let name = arguments.expect_next("Identifier or literal expected.")?;
-    // TODO: make `name` a &str instead
+
     let name = match name.expect_identifier() {
         Ok(name) => name.to_string(),
         Err(name) => match name.expect_literal() {
             // This will allow non string literals such as 0 to be parsed as such.
             // Is this ok or should more specific functions be created?
-            Ok(name) => name.to_str().to_string(),
+            Ok(name) => name.to_str().into_owned(),
             Err(name) => return Err(name.raise_error()),
         },
     };
@@ -51,10 +51,7 @@ pub fn include_tag(
     let partial =
         parse_partial(&name, options).trace_with(|| format!("{{% include {} %}}", name))?;
 
-    Ok(Box::new(Include {
-        name: name.to_owned(),
-        partial,
-    }))
+    Ok(Box::new(Include { name, partial }))
 }
 
 #[cfg(test)]
