@@ -453,16 +453,18 @@ impl<'a> TagTokenIter<'a> {
         }
     }
 
-    pub fn expect_next(&mut self, error_msg: &str) -> Result<TagToken<'a>> {
-        self.next().ok_or_else(|| {
-            let pest_error = ::pest::error::Error::new_from_pos(
+    pub fn raise_error(&mut self, error_msg: &str) -> Error {
+        let pest_error = ::pest::error::Error::new_from_pos(
                 ::pest::error::ErrorVariant::CustomError {
                     message: error_msg.to_string(),
                 },
                 self.position.clone(),
             );
             convert_pest_error(pest_error)
-        })
+    }
+
+    pub fn expect_next(&mut self, error_msg: &str) -> Result<TagToken<'a>> {
+        self.next().ok_or_else(|| self.raise_error(error_msg))
     }
 }
 

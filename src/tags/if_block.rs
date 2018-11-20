@@ -185,7 +185,40 @@ impl Renderable for Conditional {
     }
 }
 
-fn parse_atom_condition(arguments: &mut TagTokenIter) -> Result<Condition> {
+struct PeekableTagTokenIter<'a> {
+    iter: TagTokenIter<'a>,
+    peeked: Option<Option<TagToken<'a>>>,
+}
+
+impl<'a> Iterator for PeekableTagTokenIter<'a> {
+    type Item = TagToken<'a>;
+
+    fn next(&mut self) -> Option<TagToken<'a>> {
+        match self.peeked.take() {
+            Some(v) => v,
+            None => self.iter.next(),
+        }
+    }
+}
+
+impl<'a> PeekableTagTokenIter<'a> {
+    pub fn expect_next(&mut self, error_msg: &str) -> Result<TagToken<'a>> {
+        self.next().ok_or_else(|| self.iter.raise_error(error_msg))
+    }
+
+    fn peek(&mut self) -> Option<&TagToken<'a>> {
+        if self.peeked.is_none() {
+            self.peeked = Some(self.iter.next());
+        }
+        match self.peeked {
+            Some(Some(ref value)) => Some(value),
+            Some(None) => None,
+            None => unreachable!(),
+        }
+    }
+}
+
+fn parse_atom_condition(arguments: &mut PeekableTagTokenIter) -> Result<Condition> {
     let lh = arguments
         .expect_next("Value expected.")?
         .expect_value()
@@ -212,7 +245,7 @@ fn parse_atom_condition(arguments: &mut TagTokenIter) -> Result<Condition> {
     Ok(cond)
 }
 
-fn parse_conjunction_chain(arguments: &mut TagTokenIter) -> Result<Condition> {
+fn parse_conjunction_chain(arguments: &mut PeekableTagTokenIter) -> Result<Condition> {
     let mut lh = parse_atom_condition(arguments)?;
 
     while let Some("and") = arguments.peek().map(TagToken::as_str) {
@@ -226,6 +259,10 @@ fn parse_conjunction_chain(arguments: &mut TagTokenIter) -> Result<Condition> {
 
 /// Common parsing for "if" and "unless" condition
 fn parse_condition(arguments: TagTokenIter) -> Result<Condition> {
+    let mut arguments = PeekableTagTokenIter {
+        iter: arguments,
+        peeked: None,
+    };
     let mut lh = parse_conjunction_chain(&mut arguments)?;
 
     while let Some(token) = arguments.next() {
