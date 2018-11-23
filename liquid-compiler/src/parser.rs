@@ -190,14 +190,6 @@ pub struct TagBlock<'a: 'b, 'b> {
     nesting_depth: u32,
 }
 
-impl<'a, 'b> Drop for TagBlock<'a, 'b> {
-    fn drop(&mut self) {
-        if self.nesting_depth != 0 {
-            panic!("Block {{% {} %}} doesn't exhaust its iterator of elements.", self.name);
-        }
-    }
-}
-
 impl<'a, 'b> TagBlock<'a, 'b> {
     fn new(name: &'b str, next_elements: &'b mut Iterator<Item = Pair<'a>>) -> Self {
         let end_name = format!("end{}", name);
@@ -254,6 +246,10 @@ impl<'a, 'b> TagBlock<'a, 'b> {
             None => Ok(None),
             Some(element) => Ok(Some(element.parse(self, options)?)),
         }
+    }
+
+    pub fn assert_empty(self) {
+        assert!(self.nesting_depth == 0, "Block {{% {} %}} doesn't exhaust its iterator of elements.", self.name)
     }
 }
 
