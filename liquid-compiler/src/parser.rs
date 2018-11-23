@@ -185,24 +185,21 @@ fn parse_filter_chain(chain: Pair) -> FilterChain {
 /// An interface to parse elements inside blocks without exposing the Pair structures
 pub struct TagBlock<'a: 'b, 'b> {
     name: &'b str,
-    end_name: String,
     iter: &'b mut Iterator<Item = Pair<'a>>,
-    nesting_depth: u32,
+    closed: bool,
 }
 
 impl<'a, 'b> TagBlock<'a, 'b> {
     fn new(name: &'b str, next_elements: &'b mut Iterator<Item = Pair<'a>>) -> Self {
-        let end_name = format!("end{}", name);
         TagBlock {
             name,
-            end_name,
             iter: next_elements,
-            nesting_depth: 1,
+            closed: false,
         }
     }
 
     pub fn next(&mut self) -> Result<Option<BlockElement<'a>>> {
-        if self.nesting_depth == 0 {
+        if self.closed {
             return Ok(None);
         }
 
@@ -211,22 +208,21 @@ impl<'a, 'b> TagBlock<'a, 'b> {
         if element.as_rule() == Rule::EOI {
             return Err(error_from_pair(
                 element,
-                format!("Unclosed block. {{% {} %}} tag expected.", self.end_name),
+                format!("Unclosed block. {{% end{} %}} tag expected.", self.name),
             ));
         }
+        
         if element.as_rule() == Rule::Tag {
-            let nested_tag_name = element
+            let tag_name = element
                 .clone()
                 .into_inner()
                 .next()
                 .expect("Tags start by their identifier.")
                 .as_str();
-            if self.name == nested_tag_name {
-                self.nesting_depth += 1;
-            } else if self.end_name == nested_tag_name {
-                self.nesting_depth -= 1;
-            }
-            if self.nesting_depth == 0 {
+
+            // The name of the closing tag is "end" followed by the tag's name.
+            if tag_name.len() > 3 && &tag_name[0..3] == "end" && &tag_name[3..] == self.name {
+                self.closed = true;
                 return Ok(None);
             }
         }
@@ -249,7 +245,7 @@ impl<'a, 'b> TagBlock<'a, 'b> {
     }
 
     pub fn assert_empty(self) {
-        assert!(self.nesting_depth != 0, "Block {{% {} %}} doesn't exhaust its iterator of elements.", self.name)
+        assert!(self.closed, "Block {{% {} %}} doesn't exhaust its iterator of elements.", self.name)
     }
 }
 
