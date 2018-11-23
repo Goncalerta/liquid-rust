@@ -57,155 +57,150 @@ pub fn assign_tag(
 
 #[cfg(test)]
 mod test {
-    // use super::*;
-    // use compiler;
-    // use interpreter;
-    // // use tags;
-    // // use value::Scalar;
-    // // use value::Value;
+    use super::*;
+    use compiler;
+    use interpreter;
+    use tags;
+    use value::Scalar;
+    use value::Value;
 
-    // fn options() -> LiquidOptions {
-    //     let mut options = LiquidOptions::default();
-    //     options
-    //         .tags
-    //         .insert("assign", (assign_tag as compiler::FnParseTag).into());
-    //     //options
-    //     //    .blocks
-    //     //    .insert("if", (tags::if_block as compiler::FnParseBlock).into());
-    //     //options
-    //     //    .blocks
-    //     //    .insert("for", (tags::for_block as compiler::FnParseBlock).into());
-    //     options
-    // }
+    fn options() -> LiquidOptions {
+        let mut options = LiquidOptions::default();
+        options
+            .tags
+            .insert("assign", (assign_tag as compiler::FnParseTag).into());
+        options
+           .blocks
+           .insert("if", (tags::if_block as compiler::FnParseBlock).into());
+        options
+           .blocks
+           .insert("for", (tags::for_block as compiler::FnParseBlock).into());
+        options
+    }
 
-    // fn unit_parse(text: &str) -> String {
-    //     let options = options();
-    //     let template = compiler::parse(text, &options)
-    //         .map(interpreter::Template::new)
-    //         .unwrap();
+    #[test]
+    fn assign() {
+        let options = options();
+        let template = compiler::parse("{% assign freestyle = false %}{{ freestyle }}", &options)
+            .map(interpreter::Template::new)
+            .unwrap();
 
-    //     let mut context = Context::new();
+        let mut context = Context::new();
 
-    //     template.render(&mut context).unwrap()
-    // }
+        
+        let output =template.render(&mut context).unwrap();
+        assert_eq!(output, "false");
+    }
 
-    // #[test]
-    // fn assign() {
-    //     let output = unit_parse("{% assign freestyle = false %}{{ freestyle }}");
-    //     assert_eq!(output, "false");
-    // }
+    #[test]
+    fn assign_array_indexing() {
+        let text = concat!("{% assign freestyle = tags[1] %}", "{{ freestyle }}");
+        let options = options();
+        let template = compiler::parse(text, &options)
+            .map(interpreter::Template::new)
+            .unwrap();
 
-    // #[test]
-    // fn assign_array_indexing() {
-    //     let text = concat!("{% assign freestyle = tags[1] %}", "{{ freestyle }}");
-    //     let tokens = compiler::tokenize(text).unwrap();
-    //     let options = options();
-    //     let template = compiler::parse(&tokens, &options)
-    //         .map(interpreter::Template::new)
-    //         .unwrap();
+        let mut context = Context::new();
+        context.stack_mut().set_global(
+            "tags",
+            Value::Array(vec![
+                Value::scalar("alpha"),
+                Value::scalar("beta"),
+                Value::scalar("gamma"),
+            ]),
+        );
 
-    //     let mut context = Context::new();
-    //     context.stack_mut().set_global(
-    //         "tags",
-    //         Value::Array(vec![
-    //             Value::scalar("alpha"),
-    //             Value::scalar("beta"),
-    //             Value::scalar("gamma"),
-    //         ]),
-    //     );
+        let output = template.render(&mut context).unwrap();
+        assert_eq!(output, "beta");
+    }
 
-    //     let output = template.render(&mut context).unwrap();
-    //     assert_eq!(output, "beta");
-    // }
+    #[test]
+    fn assign_object_indexing() {
+        let text = concat!(
+            r#"{% assign freestyle = tags["greek"] %}"#,
+            "{{ freestyle }}"
+        );
+        let options = options();
+        let template = compiler::parse(text, &options)
+            .map(interpreter::Template::new)
+            .unwrap();
 
-    // #[test]
-    // fn assign_object_indexing() {
-    //     let text = concat!(
-    //         r#"{% assign freestyle = tags["greek"] %}"#,
-    //         "{{ freestyle }}"
-    //     );
-    //     let tokens = compiler::tokenize(text).unwrap();
-    //     let options = options();
-    //     let template = compiler::parse(&tokens, &options)
-    //         .map(interpreter::Template::new)
-    //         .unwrap();
+        let mut context = Context::new();
+        context.stack_mut().set_global(
+            "tags",
+            Value::Object(
+                vec![("greek".into(), Value::scalar("alpha"))]
+                    .into_iter()
+                    .collect(),
+            ),
+        );
 
-    //     let mut context = Context::new();
-    //     context.stack_mut().set_global(
-    //         "tags",
-    //         Value::Object(
-    //             vec![("greek".into(), Value::scalar("alpha"))]
-    //                 .into_iter()
-    //                 .collect(),
-    //         ),
-    //     );
+        let output = template.render(&mut context).unwrap();
+        assert_eq!(output, "alpha");
+    }
 
-    //     let output = template.render(&mut context).unwrap();
-    //     assert_eq!(output, "alpha");
-    // }
+    #[test]
+    fn assign_in_loop_persists_on_loop_exit() {
+        let text = concat!(
+            "{% assign freestyle = false %}",
+            "{% for t in tags %}{% if t == 'freestyle' %}",
+            "{% assign freestyle = true %}",
+            "{% endif %}{% endfor %}",
+            "{% if freestyle %}",
+            "<p>Freestyle!</p>",
+            "{% endif %}"
+        );
+        
+        let options = options();
+        let template = compiler::parse(text, &options)
+            .map(interpreter::Template::new)
+            .unwrap();
 
-    // #[test]
-    // fn assign_in_loop_persists_on_loop_exit() {
-    //     let text = concat!(
-    //         "{% assign freestyle = false %}",
-    //         "{% for t in tags %}{% if t == 'freestyle' %}",
-    //         "{% assign freestyle = true %}",
-    //         "{% endif %}{% endfor %}",
-    //         "{% if freestyle %}",
-    //         "<p>Freestyle!</p>",
-    //         "{% endif %}"
-    //     );
-    //     let tokens = compiler::tokenize(text).unwrap();
-    //     let options = options();
-    //     let template = compiler::parse(&tokens, &options)
-    //         .map(interpreter::Template::new)
-    //         .unwrap();
+        // test one: no matching value in `tags`
+        {
+            let mut context = Context::new();
+            context.stack_mut().set_global(
+                "tags",
+                Value::Array(vec![
+                    Value::scalar("alpha"),
+                    Value::scalar("beta"),
+                    Value::scalar("gamma"),
+                ]),
+            );
 
-    //     // test one: no matching value in `tags`
-    //     {
-    //         let mut context = Context::new();
-    //         context.stack_mut().set_global(
-    //             "tags",
-    //             Value::Array(vec![
-    //                 Value::scalar("alpha"),
-    //                 Value::scalar("beta"),
-    //                 Value::scalar("gamma"),
-    //             ]),
-    //         );
+            let output = template.render(&mut context).unwrap();
+            assert_eq!(
+                context
+                    .stack()
+                    .get(&vec![Scalar::new("freestyle")].into_iter().collect())
+                    .unwrap(),
+                &Value::scalar(false)
+            );
+            assert_eq!(output, "");
+        }
 
-    //         let output = template.render(&mut context).unwrap();
-    //         assert_eq!(
-    //             context
-    //                 .stack()
-    //                 .get(&vec![Scalar::new("freestyle")].into_iter().collect())
-    //                 .unwrap(),
-    //             &Value::scalar(false)
-    //         );
-    //         assert_eq!(output, "");
-    //     }
+        // test two: matching value in `tags`
+        {
+            let mut context = Context::new();
+            context.stack_mut().set_global(
+                "tags",
+                Value::Array(vec![
+                    Value::scalar("alpha"),
+                    Value::scalar("beta"),
+                    Value::scalar("freestyle"),
+                    Value::scalar("gamma"),
+                ]),
+            );
 
-    //     // test two: matching value in `tags`
-    //     {
-    //         let mut context = Context::new();
-    //         context.stack_mut().set_global(
-    //             "tags",
-    //             Value::Array(vec![
-    //                 Value::scalar("alpha"),
-    //                 Value::scalar("beta"),
-    //                 Value::scalar("freestyle"),
-    //                 Value::scalar("gamma"),
-    //             ]),
-    //         );
-
-    //         let output = template.render(&mut context).unwrap();
-    //         assert_eq!(
-    //             context
-    //                 .stack()
-    //                 .get(&vec![Scalar::new("freestyle")].into_iter().collect())
-    //                 .unwrap(),
-    //             &Value::scalar(true)
-    //         );
-    //         assert_eq!(output, "<p>Freestyle!</p>");
-    //     }
-    // }
+            let output = template.render(&mut context).unwrap();
+            assert_eq!(
+                context
+                    .stack()
+                    .get(&vec![Scalar::new("freestyle")].into_iter().collect())
+                    .unwrap(),
+                &Value::scalar(true)
+            );
+            assert_eq!(output, "<p>Freestyle!</p>");
+        }
+    }
 }

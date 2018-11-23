@@ -139,6 +139,10 @@ pub fn case_block(
         }
     }
 
+    if let Some(condition) = current_condition {
+        cases.push(CaseOption::new(condition, Template::new(current_block)));
+    }
+
     let else_block = else_block.map(Template::new);
 
     tokens.assert_empty();
@@ -151,86 +155,83 @@ pub fn case_block(
 
 #[cfg(test)]
 mod test {
-    // use super::*;
-    // use compiler;
-    // use interpreter;
+    use super::*;
+    use compiler;
+    use interpreter;
 
-    // fn options() -> LiquidOptions {
-    //     let mut options = LiquidOptions::default();
-    //     options
-    //         .blocks
-    //         .insert("case", (case_block as compiler::FnParseBlock).into());
-    //     options
-    // }
+    fn options() -> LiquidOptions {
+        let mut options = LiquidOptions::default();
+        options
+            .blocks
+            .insert("case", (case_block as compiler::FnParseBlock).into());
+        options
+    }
 
-    // #[test]
-    // fn test_case_block() {
-    //     let text = concat!(
-    //         "{% case x %}",
-    //         "{% when 2 %}",
-    //         "two",
-    //         "{% when 3 or 4 %}",
-    //         "three and a half",
-    //         "{% else %}",
-    //         "otherwise",
-    //         "{% endcase %}"
-    //     );
-    //     let tokens = compiler::tokenize(text).unwrap();
-    //     let options = options();
-    //     let template = compiler::parse(&tokens, &options)
-    //         .map(interpreter::Template::new)
-    //         .unwrap();
+    #[test]
+    fn test_case_block() {
+        let text = concat!(
+            "{% case x %}",
+            "{% when 2 %}",
+            "two",
+            "{% when 3 or 4 %}",
+            "three and a half",
+            "{% else %}",
+            "otherwise",
+            "{% endcase %}"
+        );
+        let options = options();
+        let template = compiler::parse(text, &options)
+            .map(interpreter::Template::new)
+            .unwrap();
 
-    //     let mut context = Context::new();
-    //     context.stack_mut().set_global("x", Value::scalar(2f64));
-    //     assert_eq!(template.render(&mut context).unwrap(), "two");
+        let mut context = Context::new();
+        context.stack_mut().set_global("x", Value::scalar(2f64));
+        assert_eq!(template.render(&mut context).unwrap(), "two");
 
-    //     context.stack_mut().set_global("x", Value::scalar(3f64));
-    //     assert_eq!(template.render(&mut context).unwrap(), "three and a half");
+        context.stack_mut().set_global("x", Value::scalar(3f64));
+        assert_eq!(template.render(&mut context).unwrap(), "three and a half");
 
-    //     context.stack_mut().set_global("x", Value::scalar(4f64));
-    //     assert_eq!(template.render(&mut context).unwrap(), "three and a half");
+        context.stack_mut().set_global("x", Value::scalar(4f64));
+        assert_eq!(template.render(&mut context).unwrap(), "three and a half");
 
-    //     context.stack_mut().set_global("x", Value::scalar("nope"));
-    //     assert_eq!(template.render(&mut context).unwrap(), "otherwise");
-    // }
+        context.stack_mut().set_global("x", Value::scalar("nope"));
+        assert_eq!(template.render(&mut context).unwrap(), "otherwise");
+    }
 
-    // #[test]
-    // fn test_no_matches_returns_empty_string() {
-    //     let text = concat!(
-    //         "{% case x %}",
-    //         "{% when 2 %}",
-    //         "two",
-    //         "{% when 3 or 4 %}",
-    //         "three and a half",
-    //         "{% endcase %}"
-    //     );
-    //     let tokens = compiler::tokenize(text).unwrap();
-    //     let options = options();
-    //     let template = compiler::parse(&tokens, &options)
-    //         .map(interpreter::Template::new)
-    //         .unwrap();
+    #[test]
+    fn test_no_matches_returns_empty_string() {
+        let text = concat!(
+            "{% case x %}",
+            "{% when 2 %}",
+            "two",
+            "{% when 3 or 4 %}",
+            "three and a half",
+            "{% endcase %}"
+        );
+        let options = options();
+        let template = compiler::parse(text, &options)
+            .map(interpreter::Template::new)
+            .unwrap();
 
-    //     let mut context = Context::new();
-    //     context.stack_mut().set_global("x", Value::scalar("nope"));
-    //     assert_eq!(template.render(&mut context).unwrap(), "");
-    // }
+        let mut context = Context::new();
+        context.stack_mut().set_global("x", Value::scalar("nope"));
+        assert_eq!(template.render(&mut context).unwrap(), "");
+    }
 
-    // #[test]
-    // fn multiple_else_blocks_is_an_error() {
-    //     let text = concat!(
-    //         "{% case x %}",
-    //         "{% when 2 %}",
-    //         "two",
-    //         "{% else %}",
-    //         "else #1",
-    //         "{% else %}",
-    //         "else # 2",
-    //         "{% endcase %}"
-    //     );
-    //     let tokens = compiler::tokenize(text).unwrap();
-    //     let options = options();
-    //     let template = compiler::parse(&tokens, &options).map(interpreter::Template::new);
-    //     assert!(template.is_err());
-    // }
+    #[test]
+    fn multiple_else_blocks_is_an_error() {
+        let text = concat!(
+            "{% case x %}",
+            "{% when 2 %}",
+            "two",
+            "{% else %}",
+            "else #1",
+            "{% else %}",
+            "else # 2",
+            "{% endcase %}"
+        );
+        let options = options();
+        let template = compiler::parse(text, &options).map(interpreter::Template::new);
+        assert!(template.is_err());
+    }
 }

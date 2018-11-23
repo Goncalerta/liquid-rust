@@ -38,14 +38,12 @@ pub fn include_tag(
 ) -> Result<Box<Renderable>> {
     let name = arguments.expect_next("Identifier or literal expected.")?;
 
-    let name = match name.expect_identifier() {
-        Ok(name) => name.to_string(),
-        Err(name) => match name.expect_literal() {
-            // This will allow non string literals such as 0 to be parsed as such.
-            // Is this ok or should more specific functions be created?
-            Ok(name) => name.to_str().into_owned(),
-            Err(name) => return Err(name.raise_error()),
-        },
+    // This may accept strange inputs such as `{% include 0 %}` or `{% include filterchain | filter:0 %}`. 
+    // Those inputs would fail anyway by there being not a path with those names so they are not a big concern. 
+    let name = match name.expect_literal() {
+        // Using `to_str()` on literals ensures `Strings` will have their quotes trimmed.
+        Ok(name) => name.to_str().to_string(),
+        Err(name) => name.as_str().to_string(),
     };
 
     let partial =
@@ -56,95 +54,92 @@ pub fn include_tag(
 
 #[cfg(test)]
 mod test {
-    // use std::collections::HashMap;
-    // use std::iter::FromIterator;
-    // use std::path;
-    // use std::sync;
+    use std::collections::HashMap;
+    use std::iter::FromIterator;
+    use std::path;
+    use std::sync;
 
-    // use compiler;
-    // use filters;
-    // use interpreter;
-    // use interpreter::ContextBuilder;
-    // use tags;
-    // use value;
+    use compiler;
+    use filters;
+    use interpreter;
+    use interpreter::ContextBuilder;
+    use tags;
+    use value;
 
-    // use super::*;
+    use super::*;
 
-    // fn options() -> LiquidOptions {
-    //     let include_path = path::PathBuf::from_iter("tests/fixtures/input".split('/'));
+    fn options() -> LiquidOptions {
+        let include_path = path::PathBuf::from_iter("tests/fixtures/input".split('/'));
 
-    //     let mut options = LiquidOptions::default();
-    //     options.include_source = Box::new(compiler::FilesystemInclude::new(include_path));
-    //     options
-    //         .tags
-    //         .insert("include", (include_tag as compiler::FnParseTag).into());
-    //     options.blocks.insert(
-    //         "comment",
-    //         (tags::comment_block as compiler::FnParseBlock).into(),
-    //     );
-    //     options
-    //         .blocks
-    //         .insert("if", (tags::if_block as compiler::FnParseBlock).into());
-    //     options
-    // }
+        let mut options = LiquidOptions::default();
+        options.include_source = Box::new(compiler::FilesystemInclude::new(include_path));
+        options
+            .tags
+            .insert("include", (include_tag as compiler::FnParseTag).into());
+        options.blocks.insert(
+            "comment",
+            (tags::comment_block as compiler::FnParseBlock).into(),
+        );
+        options
+            .blocks
+            .insert("if", (tags::if_block as compiler::FnParseBlock).into());
+        options
+    }
 
-    // #[test]
-    // fn include_tag_quotes() {
-    //     let text = "{% include 'example.txt' %}";
-    //     let tokens = compiler::tokenize(&text).unwrap();
-    //     let template = compiler::parse(&tokens, &options())
-    //         .map(interpreter::Template::new)
-    //         .unwrap();
+    #[test]
+    fn include_tag_quotes() {
+        let text = "{% include 'example.txt' %}";
+        let template = compiler::parse(text, &options())
+            .map(interpreter::Template::new)
+            .unwrap();
 
-    //     let mut filters: HashMap<&'static str, interpreter::BoxedValueFilter> = HashMap::new();
-    //     filters.insert("size", (filters::size as interpreter::FnFilterValue).into());
-    //     let mut context = ContextBuilder::new()
-    //         .set_filters(&sync::Arc::new(filters))
-    //         .build();
-    //     context
-    //         .stack_mut()
-    //         .set_global("num", value::Value::scalar(5f64));
-    //     context
-    //         .stack_mut()
-    //         .set_global("numTwo", value::Value::scalar(10f64));
-    //     let output = template.render(&mut context).unwrap();
-    //     assert_eq!(output, "5 wat wot\n");
-    // }
+        let mut filters: HashMap<&'static str, interpreter::BoxedValueFilter> = HashMap::new();
+        filters.insert("size", (filters::size as interpreter::FnFilterValue).into());
+        let mut context = ContextBuilder::new()
+            .set_filters(&sync::Arc::new(filters))
+            .build();
+        context
+            .stack_mut()
+            .set_global("num", value::Value::scalar(5f64));
+        context
+            .stack_mut()
+            .set_global("numTwo", value::Value::scalar(10f64));
+        let output = template.render(&mut context).unwrap();
+        assert_eq!(output, "5 wat wot\n");
+    }
 
-    // #[test]
-    // fn include_non_string() {
-    //     let text = "{% include example.txt %}";
-    //     let tokens = compiler::tokenize(&text).unwrap();
-    //     let template = compiler::parse(&tokens, &options())
-    //         .map(interpreter::Template::new)
-    //         .unwrap();
+    #[test]
+    fn include_non_string() {
+        let text = "{% include example.txt %}";
+        let template = compiler::parse(text, &options())
+            .map(interpreter::Template::new)
+            .unwrap();
 
-    //     let mut filters: HashMap<&'static str, interpreter::BoxedValueFilter> = HashMap::new();
-    //     filters.insert("size", (filters::size as interpreter::FnFilterValue).into());
-    //     let mut context = ContextBuilder::new()
-    //         .set_filters(&sync::Arc::new(filters))
-    //         .build();
-    //     context
-    //         .stack_mut()
-    //         .set_global("num", value::Value::scalar(5f64));
-    //     context
-    //         .stack_mut()
-    //         .set_global("numTwo", value::Value::scalar(10f64));
-    //     let output = template.render(&mut context).unwrap();
-    //     assert_eq!(output, "5 wat wot\n");
-    // }
+        let mut filters: HashMap<&'static str, interpreter::BoxedValueFilter> = HashMap::new();
+        filters.insert("size", (filters::size as interpreter::FnFilterValue).into());
+        let mut context = ContextBuilder::new()
+            .set_filters(&sync::Arc::new(filters))
+            .build();
+        context
+            .stack_mut()
+            .set_global("num", value::Value::scalar(5f64));
+        context
+            .stack_mut()
+            .set_global("numTwo", value::Value::scalar(10f64));
+        let output = template.render(&mut context).unwrap();
+        assert_eq!(output, "5 wat wot\n");
+    }
 
-    // #[test]
-    // fn no_file() {
-    //     let text = "{% include 'file_does_not_exist.liquid' %}";
-    //     let tokens = compiler::tokenize(&text).unwrap();
-    //     let template = compiler::parse(&tokens, &options()).map(interpreter::Template::new);
+    #[test]
+    fn no_file() {
+        let text = "{% include 'file_does_not_exist.liquid' %}";
+        let template = compiler::parse(text, &options()).map(interpreter::Template::new);
 
-    //     assert!(template.is_err());
-    //     if let Err(val) = template {
-    //         let val = val.to_string();
-    //         println!("val={}", val);
-    //         assert!(val.contains("Snippet does not exist"));
-    //     }
-    // }
+        assert!(template.is_err());
+        if let Err(val) = template {
+            let val = val.to_string();
+            println!("val={}", val);
+            assert!(val.contains("Snippet does not exist"));
+        }
+    }
 }

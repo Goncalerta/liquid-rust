@@ -41,7 +41,7 @@ impl Renderable for Capture {
 pub fn capture_block(
     _tag_name: &str,
     mut arguments: TagTokenIter,
-    tokens: TagBlock,
+    mut tokens: TagBlock,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     let id = arguments
@@ -67,56 +67,54 @@ pub fn capture_block(
 
 #[cfg(test)]
 mod test {
-    // use super::*;
-    // use compiler;
-    // use interpreter;
-    // use value::Scalar;
+    use super::*;
+    use compiler;
+    use interpreter;
+    use value::Scalar;
 
-    // fn options() -> LiquidOptions {
-    //     let mut options = LiquidOptions::default();
-    //     options
-    //         .blocks
-    //         .insert("capture", (capture_block as compiler::FnParseBlock).into());
-    //     options
-    // }
+    fn options() -> LiquidOptions {
+        let mut options = LiquidOptions::default();
+        options
+            .blocks
+            .insert("capture", (capture_block as compiler::FnParseBlock).into());
+        options
+    }
 
-    // #[test]
-    // fn test_capture() {
-    //     let text = concat!(
-    //         "{% capture attribute_name %}",
-    //         "{{ item }}-{{ i }}-color",
-    //         "{% endcapture %}"
-    //     );
-    //     let tokens = compiler::tokenize(text).unwrap();
-    //     let options = options();
-    //     let template = compiler::parse(&tokens, &options)
-    //         .map(interpreter::Template::new)
-    //         .unwrap();
+    #[test]
+    fn test_capture() {
+        let text = concat!(
+            "{% capture attribute_name %}",
+            "{{ item }}-{{ i }}-color",
+            "{% endcapture %}"
+        );
+        let options = options();
+        let template = compiler::parse(text, &options)
+            .map(interpreter::Template::new)
+            .unwrap();
 
-    //     let mut ctx = Context::new();
-    //     ctx.stack_mut().set_global("item", Value::scalar("potato"));
-    //     ctx.stack_mut().set_global("i", Value::scalar(42f64));
+        let mut ctx = Context::new();
+        ctx.stack_mut().set_global("item", Value::scalar("potato"));
+        ctx.stack_mut().set_global("i", Value::scalar(42f64));
 
-    //     let output = template.render(&mut ctx).unwrap();
-    //     assert_eq!(
-    //         ctx.stack()
-    //             .get(&vec![Scalar::new("attribute_name")].into_iter().collect())
-    //             .unwrap(),
-    //         &Value::scalar("potato-42-color")
-    //     );
-    //     assert_eq!(output, "");
-    // }
+        let output = template.render(&mut ctx).unwrap();
+        assert_eq!(
+            ctx.stack()
+                .get(&vec![Scalar::new("attribute_name")].into_iter().collect())
+                .unwrap(),
+            &Value::scalar("potato-42-color")
+        );
+        assert_eq!(output, "");
+    }
 
-    // #[test]
-    // fn trailing_tokens_are_an_error() {
-    //     let text = concat!(
-    //         "{% capture foo bar baz %}",
-    //         "We should never see this",
-    //         "{% endcapture %}"
-    //     );
-    //     let tokens = compiler::tokenize(text).unwrap();
-    //     let options = options();
-    //     let template = compiler::parse(&tokens, &options).map(interpreter::Template::new);
-    //     assert!(template.is_err());
-    // }
+    #[test]
+    fn trailing_tokens_are_an_error() {
+        let text = concat!(
+            "{% capture foo bar baz %}",
+            "We should never see this",
+            "{% endcapture %}"
+        );
+        let options = options();
+        let template = compiler::parse(text, &options).map(interpreter::Template::new);
+        assert!(template.is_err());
+    }
 }
