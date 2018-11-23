@@ -279,7 +279,7 @@ pub fn for_block(
         match element {
             BlockElement::Tag(mut tag) => match tag.name() {
                 "else" => {
-                    else_template = Some(tokens.parse(options)?);
+                    else_template = Some(tokens.parse_all(options)?);
                     break;
                 },
                 _ => item_template.push(tag.parse(&mut tokens, options)?),
@@ -291,6 +291,7 @@ pub fn for_block(
     let item_template = Template::new(item_template);
     let else_template = else_template.map(Template::new);
 
+    tokens.assert_empty();
     Ok(Box::new(For {
         var_name,
         range,
@@ -454,8 +455,9 @@ pub fn tablerow_block(
         }
     }
 
-    let item_template = Template::new(tokens.parse(options)?);
+    let item_template = Template::new(tokens.parse_all(options)?);
 
+    tokens.assert_empty();
     Ok(Box::new(TableRow {
         var_name,
         range,

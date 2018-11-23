@@ -324,7 +324,7 @@ pub fn if_block(
         match element {
             BlockElement::Tag(mut tag) => match tag.name() {
                 "else" => {
-                    if_false = Some(tokens.parse(options)?);
+                    if_false = Some(tokens.parse_all(options)?);
                     break;
                 },
                 "elsif" => {
@@ -340,6 +340,7 @@ pub fn if_block(
     let if_true = Template::new(if_true);
     let if_false = if_false.map(Template::new);
 
+    tokens.assert_empty();
     Ok(Box::new(Conditional {
         tag_name: "if",
         condition,

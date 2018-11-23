@@ -216,7 +216,7 @@ impl<'a, 'b> TagBlock<'a, 'b> {
         }
         if element.as_rule() == Rule::Tag {
             let nested_tag_name = element
-                .clone() // Maybe there is a better way?
+                .clone()
                 .into_inner()
                 .next()
                 .expect("Tags start by their identifier.")
@@ -233,7 +233,7 @@ impl<'a, 'b> TagBlock<'a, 'b> {
         Ok(Some(element.into()))
     }
 
-    pub fn parse(mut self, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
+    pub fn parse_all(&mut self, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
         let mut renderables = Vec::new();
         while let Some(r) = self.parse_next(options)? {
             renderables.push(r);
@@ -249,7 +249,7 @@ impl<'a, 'b> TagBlock<'a, 'b> {
     }
 
     pub fn assert_empty(self) {
-        assert!(self.nesting_depth == 0, "Block {{% {} %}} doesn't exhaust its iterator of elements.", self.name)
+        assert!(self.nesting_depth != 0, "Block {{% {} %}} doesn't exhaust its iterator of elements.", self.name)
     }
 }
 

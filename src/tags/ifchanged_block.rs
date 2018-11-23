@@ -42,7 +42,9 @@ pub fn ifchanged_block(
     tokens: TagBlock,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
-    let if_changed = Template::new(tokens.parse(options)?);
+    let if_changed = Template::new(tokens.parse_all(options)?);
+
+    tokens.assert_empty();
     Ok(Box::new(IfChanged { if_changed }))
 }
 

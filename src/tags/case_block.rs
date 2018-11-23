@@ -130,7 +130,7 @@ pub fn case_block(
                     current_condition = Some(parse_condition(tag.tokens())?);
                 }
                 "else" => { 
-                    else_block = Some(tokens.parse(options)?);
+                    else_block = Some(tokens.parse_all(options)?);
                     break;
                 },
                 _ => current_block.push(tag.parse(&mut tokens, options)?),
@@ -141,6 +141,7 @@ pub fn case_block(
 
     let else_block = else_block.map(Template::new);
 
+    tokens.assert_empty();
     Ok(Box::new(Case {
         target,
         cases,

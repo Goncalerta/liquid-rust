@@ -24,6 +24,7 @@ pub fn comment_block(
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     while tokens.next()?.is_some() {}
+    tokens.assert_empty();
     Ok(Box::new(Comment))
 }
 

@@ -57,10 +57,11 @@ pub fn capture_block(
 
     let template = Template::new(
         tokens
-            .parse(options)
+            .parse_all(options)
             .trace_with(|| format!("{{% capture {} %}}", &id))?,
     );
 
+    tokens.assert_empty();
     Ok(Box::new(Capture { id, template }))
 }
 

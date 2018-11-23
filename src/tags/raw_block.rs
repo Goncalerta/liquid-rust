@@ -31,6 +31,7 @@ pub fn raw_block(
         content.push_str(element.as_str());
     }
     
+    tokens.assert_empty();
     Ok(Box::new(RawT { content }))
 }
 
