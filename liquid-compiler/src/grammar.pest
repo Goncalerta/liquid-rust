@@ -19,7 +19,7 @@ Raw = @{ (!(TagStart | ExpressionStart | TagEnd | ExpressionEnd) ~ ANY)+ }
 
 
 // Inner parsing        
-Identifier = @{ (ASCII_ALPHA | "_")+ }
+Identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 
 Variable = ${ Identifier 
             ~ ( ("." ~ Identifier)
