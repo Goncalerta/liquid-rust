@@ -303,7 +303,17 @@ impl<'a> From<Pair<'a>> for Tag<'a> {
         }
     }
 }
+
 impl<'a> Tag<'a> {
+    pub fn new(text: &'a str) -> Result<Self> {
+        let tag = LiquidParser::parse(Rule::Tag, text)
+            .map_err(convert_pest_error)?
+            .next()
+            .ok_or_else(|| Error::with_msg("Tried to create a Tag from an invalid string."))?;
+
+        Ok(tag.into())
+    }
+
     pub fn name(&self) -> &str {
         self.name.as_str()
     }

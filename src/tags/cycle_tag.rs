@@ -113,7 +113,9 @@ mod test {
 
     #[test]
     fn unnamed_cycle_gets_a_name() {
-        unimplemented!()
+        let tag = compiler::Tag::new("{% cycle this, cycle, has, no, name %}").unwrap();
+        let cycle = parse_cycle(tag.into_tokens(), &options()).unwrap();
+        assert!(!cycle.name.is_empty());
     }
 
     #[test]
