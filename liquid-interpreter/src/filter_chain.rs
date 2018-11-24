@@ -3,7 +3,7 @@ use std::io::Write;
 
 use itertools;
 
-use error::{Error, Result, ResultLiquidChainExt, ResultLiquidExt};
+use error::{Result, ResultLiquidChainExt, ResultLiquidExt};
 use value::Value;
 
 use super::Context;
@@ -54,18 +54,16 @@ impl FilterChain {
     /// Process `Value` expression within `context`'s stack.
     pub fn evaluate(&self, context: &Context) -> Result<Value> {
         // take either the provided value or the value from the provided variable
-        let mut entry = self.entry.evaluate(context)?;
+        let mut entry = self.entry.evaluate(context)?.to_owned();
 
         // apply all specified filters
         for filter in &self.filters {
-            let f = context.get_filter(&filter.name).ok_or_else(|| {
-                Error::with_msg("Unsupported filter").context("filter", filter.name.clone())
-            })?;
+            let f = context.get_filter(&filter.name)?;
 
             let arguments: Result<Vec<Value>> = filter
                 .arguments
                 .iter()
-                .map(|a| a.evaluate(context))
+                .map(|a| Ok(a.evaluate(context)?.to_owned()))
                 .collect();
             let arguments = arguments?;
             entry = f
