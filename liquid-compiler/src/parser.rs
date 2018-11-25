@@ -29,6 +29,7 @@ use self::pest::*;
 type Pair<'a> = ::pest::iterators::Pair<'a, Rule>;
 type Pairs<'a> = ::pest::iterators::Pairs<'a, Rule>;
 
+/// Converts a `pest::Error` into a `liquid::Error`.
 fn convert_pest_error(err: ::pest::error::Error<Rule>) -> Error {
     let err = err.renamed_rules(|&rule| match rule {
         Rule::LesserThan => "\"<\"".to_string(),
@@ -46,6 +47,8 @@ fn convert_pest_error(err: ::pest::error::Error<Rule>) -> Error {
     Error::with_msg(err.to_string())
 }
 
+/// Generates a `liquid::Error` with the given message pointing to
+/// the pest 
 fn error_from_pair(pair: Pair, msg: String) -> Error {
     let pest_error = ::pest::error::Error::new_from_span(
         ::pest::error::ErrorVariant::CustomError { message: msg },
@@ -54,6 +57,7 @@ fn error_from_pair(pair: Pair, msg: String) -> Error {
     convert_pest_error(pest_error)
 }
 
+/// Parses the provided &str into a number of Renderable items.
 pub fn parse(text: &str, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
     let mut liquid = LiquidParser::parse(Rule::LiquidFile, text)
         .map_err(convert_pest_error)?
@@ -77,6 +81,8 @@ pub fn parse(text: &str, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>
     Ok(renderables)
 }
 
+/// Parses a `Scalar` from a `Pair` with a literal value.
+/// This `Pair` must be `Rule::Literal`.
 fn parse_literal(literal: Pair) -> Scalar {
     if literal.as_rule() != Rule::Literal {
         panic!("Expected literal.");
@@ -116,6 +122,8 @@ fn parse_literal(literal: Pair) -> Scalar {
     }
 }
 
+/// Parses a `Variable` from a `Pair` with a variable.
+/// This `Pair` must be `Rule::Variable`.
 fn parse_variable(variable: Pair) -> Variable {
     if variable.as_rule() != Rule::Variable {
         panic!("Expected variable.");
@@ -140,6 +148,12 @@ fn parse_variable(variable: Pair) -> Variable {
     variable
 }
 
+/// Parses an `Expression` from a `Pair` with a value.
+/// 
+/// Do not confuse this value with `liquid-value`'s `Value`.
+/// In this context, value refers to either a literal value or a variable.
+/// 
+/// This `Pair` must be `Rule::Value`.
 fn parse_value(value: Pair) -> Expression {
     if value.as_rule() != Rule::Value {
         panic!("Expected value.");
@@ -154,6 +168,8 @@ fn parse_value(value: Pair) -> Expression {
     }
 }
 
+/// Parses a `FilterCall` from a `Pair` with a filter.
+/// This `Pair` must be `Rule::Filter`.
 fn parse_filter(filter: Pair) -> FilterCall {
     if filter.as_rule() != Rule::Filter {
         panic!("Expected a filter.");
@@ -166,6 +182,8 @@ fn parse_filter(filter: Pair) -> FilterCall {
     FilterCall::new(name, args)
 }
 
+/// Parses a `FilterChain` from a `Pair` with a filter chain.
+/// This `Pair` must be `Rule::FilterChain`.
 fn parse_filter_chain(chain: Pair) -> FilterChain {
     if chain.as_rule() != Rule::FilterChain {
         panic!("Expected an expression with filters.");
@@ -182,7 +200,7 @@ fn parse_filter_chain(chain: Pair) -> FilterChain {
     FilterChain::new(entry, filters)
 }
 
-/// An interface to parse elements inside blocks without exposing the Pair structures
+/// An interface to access elements inside a block.
 pub struct TagBlock<'a: 'b, 'b> {
     name: &'b str,
     iter: &'b mut Iterator<Item = Pair<'a>>,
@@ -197,7 +215,11 @@ impl<'a, 'b> TagBlock<'a, 'b> {
             closed: false,
         }
     }
-
+    
+    /// Returns the next element of the block, if any, similarly to an iterator.
+    /// 
+    /// However, if the input text reaches its end and the block is not closed,
+    /// an error is returned instead.
     pub fn next(&mut self) -> Result<Option<BlockElement<'a>>> {
         if self.closed {
             return Ok(None);
@@ -229,6 +251,7 @@ impl<'a, 'b> TagBlock<'a, 'b> {
         Ok(Some(element.into()))
     }
 
+    /// A convenient method that parses every element remaining in the block.
     pub fn parse_all(&mut self, options: &LiquidOptions) -> Result<Vec<Box<Renderable>>> {
         let mut renderables = Vec::new();
         while let Some(r) = self.parse_next(options)? {
@@ -237,6 +260,9 @@ impl<'a, 'b> TagBlock<'a, 'b> {
         Ok(renderables)
     }
 
+    /// Parses the next element in the block just as if it weren't inside any block.
+    /// 
+    /// Returns none if no element is left and raises the same errors as `next()`.
     pub fn parse_next(&mut self, options: &LiquidOptions) -> Result<Option<Box<Renderable>>> {
         match self.next()? {
             None => Ok(None),
@@ -244,6 +270,10 @@ impl<'a, 'b> TagBlock<'a, 'b> {
         }
     }
 
+    /// Checks whether the block was fully parsed its elements.
+    /// 
+    /// This must be added at the end of every block right before returning, so as
+    /// to ensure that it doesn't leave any unparsed element by accident.
     pub fn assert_empty(self) {
         assert!(
             self.closed,
@@ -253,6 +283,7 @@ impl<'a, 'b> TagBlock<'a, 'b> {
     }
 }
 
+/// An element that is raw text.
 pub struct Raw<'a> {
     text: &'a str,
 }
@@ -272,19 +303,23 @@ impl<'a> Into<&'a str> for Raw<'a> {
     }
 }
 impl<'a> Raw<'a> {
+    /// Turns the text into a Renderable.
     pub fn to_renderable(self) -> Box<Renderable> {
         Box::new(Text::new(self.to_str()))
     }
 
+    /// Converts the text into a str.
     pub fn to_str(self) -> &'a str {
         self.as_str()
     }
 
+    /// Returns the text as a str.
     pub fn as_str(&self) -> &'a str {
         self.text
     }
 }
 
+/// An element that is a tag.
 pub struct Tag<'a> {
     name: Pair<'a>,
     tokens: TagTokenIter<'a>,
@@ -309,6 +344,9 @@ impl<'a> From<Pair<'a>> for Tag<'a> {
 }
 
 impl<'a> Tag<'a> {
+    /// Creates a new tag from a string such as "{% tagname tagtoken1 tagtoken2 ... %}".
+    /// 
+    /// This is used as a debug tool. It allows to easily build tags in unit tests.
     pub fn new(text: &'a str) -> Result<Self> {
         let tag = LiquidParser::parse(Rule::Tag, text)
             .map_err(convert_pest_error)?
@@ -318,18 +356,27 @@ impl<'a> Tag<'a> {
         Ok(tag.into())
     }
 
+    /// Returns the name of this tag.
     pub fn name(&self) -> &str {
         self.name.as_str()
     }
+
+    /// Returns the tokens of this tag.
     pub fn tokens(&mut self) -> &mut TagTokenIter<'a> {
         &mut self.tokens
     }
+
+    /// Consumes this structure to obtain ownership over its tokens.
     pub fn into_tokens(self) -> TagTokenIter<'a> {
         self.tokens
     }
+
+    /// Returns the tag as a str.
     pub fn as_str(&self) -> &str {
         self.as_str
     }
+
+    /// Parses the tag just as if it weren't inside any block.
     pub fn parse(
         self,
         tag_block: &mut TagBlock,
@@ -338,6 +385,7 @@ impl<'a> Tag<'a> {
         self.parse_pair(&mut tag_block.iter, options)
     }
 
+    /// The same as `parse`, but directly takes an iterator over `Pair`s instead of a TagBlock.
     fn parse_pair(
         self,
         next_elements: &mut Iterator<Item = Pair>,
@@ -365,6 +413,7 @@ impl<'a> Tag<'a> {
     }
 }
 
+/// An element that is an expression.
 pub struct Exp<'a> {
     element: Pair<'a>,
 }
@@ -377,6 +426,7 @@ impl<'a> From<Pair<'a>> for Exp<'a> {
     }
 }
 impl<'a> Exp<'a> {
+    /// Parses the expression just as if it weren't inside any block.
     pub fn parse(self) -> Result<Box<Renderable>> {
         let filter_chain = self
             .element
@@ -386,11 +436,16 @@ impl<'a> Exp<'a> {
 
         Ok(Box::new(parse_filter_chain(filter_chain)))
     }
+
+    /// Returns the expression as a str.
     pub fn as_str(&self) -> &str {
         self.element.as_str()
     }
 }
 
+/// An element that can be raw text, a tag, or an expression.
+/// 
+/// This is the result of calling `next()` on a `TagBlock`.
 pub enum BlockElement<'a> {
     Raw(Raw<'a>),
     Tag(Tag<'a>),
@@ -408,6 +463,7 @@ impl<'a> From<Pair<'a>> for BlockElement<'a> {
 }
 
 impl<'a> BlockElement<'a> {
+    /// Parses the element in the block just as if it weren't inside any block.
     pub fn parse(
         self,
         block: &mut TagBlock<'a, '_>,
@@ -420,6 +476,7 @@ impl<'a> BlockElement<'a> {
         }
     }
 
+    /// The same as `parse`, but directly takes an iterator over `Pair`s instead of a TagBlock.
     fn parse_pair(
         self,
         next_elements: &mut Iterator<Item = Pair>,
@@ -432,6 +489,7 @@ impl<'a> BlockElement<'a> {
         }
     }
 
+    /// Returns the element as a str.
     pub fn as_str(&self) -> &str {
         match self {
             BlockElement::Raw(raw) => raw.as_str(),
@@ -440,6 +498,10 @@ impl<'a> BlockElement<'a> {
         }
     }
 }
+
+/// An iterator over `TagToken`s that is aware of their position in the file.
+/// 
+/// The awareness of the position allows more precise error messages.
 pub struct TagTokenIter<'a> {
     iter: Box<Iterator<Item = TagToken<'a>> + 'a>,
     position: ::pest::Position<'a>,
@@ -461,6 +523,8 @@ impl<'a> TagTokenIter<'a> {
         }
     }
 
+    /// Creates an error with the given message pointing at the current
+    /// position of the iterator.
     pub fn raise_error(&mut self, error_msg: &str) -> Error {
         let pest_error = ::pest::error::Error::new_from_pos(
             ::pest::error::ErrorVariant::CustomError {
@@ -471,12 +535,13 @@ impl<'a> TagTokenIter<'a> {
         convert_pest_error(pest_error)
     }
 
+    /// Returns the next tag token or raises an error if there is none.
     pub fn expect_next(&mut self, error_msg: &str) -> Result<TagToken<'a>> {
         self.next().ok_or_else(|| self.raise_error(error_msg))
     }
 }
 
-/// An interface to parse tokens inside Tags without exposing the Pair structures
+/// An interface to access tokens inside a tag.
 pub struct TagToken<'a> {
     token: Pair<'a>,
     expected: Vec<Rule>,
@@ -492,6 +557,15 @@ impl<'a> From<Pair<'a>> for TagToken<'a> {
 }
 
 impl<'a> TagToken<'a> {
+    /// Raises an error from this TagToken.
+    /// 
+    /// The error message will be based on the expected tokens,
+    /// which this structure tracks when using the methods starting
+    /// with 'expect'. 
+    /// 
+    /// For example, if one calls `expect_value` and that function fails
+    /// to give an `Ok` value, calling this would show `Expected Value`
+    /// on the error message.
     pub fn raise_error(self) -> Error {
         let pest_error = ::pest::error::Error::new_from_span(
             ::pest::error::ErrorVariant::ParsingError {
@@ -503,6 +577,9 @@ impl<'a> TagToken<'a> {
         convert_pest_error(pest_error)
     }
 
+    /// Raises an error from this TagToken.
+    /// 
+    /// The error will have the given error message.
     pub fn raise_custom_error(self, msg: &str) -> Error {
         let pest_error = ::pest::error::Error::new_from_span(
             ::pest::error::ErrorVariant::CustomError {
@@ -581,6 +658,7 @@ impl<'a> TagToken<'a> {
         Ok(literal)
     }
 
+    /// Tries to obtain a `FilterChain` from this token.
     pub fn expect_filter_chain(mut self) -> std::result::Result<FilterChain, Self> {
         let filterchain = self.unwrap_filter_chain().map_err(|_| {
             self.expected.push(Rule::FilterChain);
@@ -590,6 +668,10 @@ impl<'a> TagToken<'a> {
         Ok(parse_filter_chain(filterchain))
     }
 
+    /// Tries to obtain a value from this token.
+    /// 
+    /// Do not confuse this value with `liquid-value`'s `Value`.
+    /// In this context, value refers to either a literal value or a variable.
     pub fn expect_value(mut self) -> std::result::Result<Expression, Self> {
         let value = self.unwrap_value().map_err(|_| {
             self.expected.push(Rule::Value);
@@ -599,6 +681,7 @@ impl<'a> TagToken<'a> {
         Ok(parse_value(value))
     }
 
+    /// Tries to obtain a `Variable` from this token.
     pub fn expect_variable(mut self) -> std::result::Result<Variable, Self> {
         let variable = self.unwrap_variable().map_err(|_| {
             self.expected.push(Rule::Variable);
@@ -608,6 +691,9 @@ impl<'a> TagToken<'a> {
         Ok(parse_variable(variable))
     }
 
+    /// Tries to obtain an identifier from this token.
+    /// 
+    /// The identifier is returned as a str.
     pub fn expect_identifier(mut self) -> std::result::Result<&'a str, Self> {
         let identifier = self.unwrap_identifier().map_err(|_| {
             self.expected.push(Rule::Identifier);
@@ -617,6 +703,9 @@ impl<'a> TagToken<'a> {
         Ok(identifier.as_str())
     }
 
+    /// Tries to obtain a literal value from this token.
+    /// 
+    /// The value is returned as a `Value`.
     pub fn expect_literal(mut self) -> std::result::Result<Value, Self> {
         let literal = self.unwrap_literal().map_err(|_| {
             self.expected.push(Rule::Literal);
@@ -626,6 +715,9 @@ impl<'a> TagToken<'a> {
         Ok(Value::scalar(parse_literal(literal)))
     }
 
+    /// Tries to obtain a range from this token.
+    /// 
+    /// The range is returned as a pair `(Expression, Expression)`.
     pub fn expect_range(mut self) -> std::result::Result<(Expression, Expression), Self> {
         let token = self.token.clone();
 
@@ -641,6 +733,7 @@ impl<'a> TagToken<'a> {
         ))
     }
 
+    /// Returns `Ok` if and only if the tokens' str is equal to the given str.
     pub fn expect_str(self, expected: &str) -> std::result::Result<(), Self> {
         if self.as_str() == expected {
             Ok(())
@@ -650,6 +743,7 @@ impl<'a> TagToken<'a> {
         }
     }
 
+    /// Returns token as a str.
     pub fn as_str(&self) -> &str {
         self.token.as_str().trim()
     }
