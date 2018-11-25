@@ -239,6 +239,9 @@ impl<'a, 'b> TagBlock<'a, 'b> {
                 .clone()
                 .into_inner()
                 .next()
+                .expect("Unwrapping TagInner")
+                .into_inner()
+                .next()
                 .expect("Tags start by their identifier.")
                 .as_str();
 
@@ -331,7 +334,7 @@ impl<'a> From<Pair<'a>> for Tag<'a> {
             panic!("Only rule Tag can be converted to Tag.");
         }
         let as_str = element.as_str();
-        let mut tag = element.into_inner();
+        let mut tag = element.into_inner().next().expect("Unwrapping TagInner.").into_inner();
         let name = tag.next().expect("A tag starts with an identifier.");
         let tokens = TagTokenIter::new(&name, tag);
 
@@ -432,6 +435,9 @@ impl<'a> Exp<'a> {
             .element
             .into_inner()
             .next()
+            .expect("Unwrapping ExpressionInner")
+            .into_inner()
+            .next()
             .expect("An expression consists of one filterchain.");
 
         Ok(Box::new(parse_filter_chain(filter_chain)))
@@ -457,7 +463,7 @@ impl<'a> From<Pair<'a>> for BlockElement<'a> {
             Rule::Raw => BlockElement::Raw(element.into()),
             Rule::Tag => BlockElement::Tag(element.into()),
             Rule::Expression => BlockElement::Expression(element.into()),
-            _ => panic!("Only rules Raw | Tag | Expression can be converted to BlockElement."),
+            _ => panic!("Only rules Raw | Tag | Expression can be converted to BlockElement. Found {:?}", element.as_rule()),
         }
     }
 }
