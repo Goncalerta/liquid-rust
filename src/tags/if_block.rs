@@ -41,7 +41,7 @@ impl fmt::Display for ComparisonOperator {
 }
 
 impl ComparisonOperator {
-    fn from_str(s: &str) -> std::result::Result<Self, ()> {
+    fn from_str(s: &str) -> ::std::result::Result<Self, ()> {
         match s {
             "==" => Ok(ComparisonOperator::Equals),
             "!=" | "<>" => Ok(ComparisonOperator::NotEquals),
