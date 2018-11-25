@@ -30,7 +30,7 @@ pub fn raw_block(
     while let Some(element) = tokens.next()? {
         content.push_str(element.as_str());
     }
-    
+
     tokens.assert_empty();
     Ok(Box::new(RawT { content }))
 }

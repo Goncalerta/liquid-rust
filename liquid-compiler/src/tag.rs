@@ -39,7 +39,6 @@ impl Clone for Box<ParseTag> {
 }
 pub type FnParseTag = fn(&str, TagTokenIter, &LiquidOptions) -> Result<Box<Renderable>>;
 
-
 #[derive(Clone)]
 struct FnTagParser {
     parser: FnParseTag,

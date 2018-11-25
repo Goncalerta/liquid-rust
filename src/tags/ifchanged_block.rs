@@ -3,8 +3,8 @@ use std::io::Write;
 use liquid_error::{Result, ResultLiquidChainExt, ResultLiquidExt};
 
 use compiler::LiquidOptions;
-use compiler::TagTokenIter;
 use compiler::TagBlock;
+use compiler::TagTokenIter;
 use interpreter::Context;
 use interpreter::Renderable;
 use interpreter::Template;

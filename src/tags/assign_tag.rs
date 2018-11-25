@@ -51,7 +51,6 @@ pub fn assign_tag(
         .expect_filter_chain()
         .map_err(TagToken::raise_error)?;
 
-
     Ok(Box::new(Assign { dst, src }))
 }
 
@@ -70,11 +69,11 @@ mod test {
             .tags
             .insert("assign", (assign_tag as compiler::FnParseTag).into());
         options
-           .blocks
-           .insert("if", (tags::if_block as compiler::FnParseBlock).into());
+            .blocks
+            .insert("if", (tags::if_block as compiler::FnParseBlock).into());
         options
-           .blocks
-           .insert("for", (tags::for_block as compiler::FnParseBlock).into());
+            .blocks
+            .insert("for", (tags::for_block as compiler::FnParseBlock).into());
         options
     }
 
@@ -87,8 +86,7 @@ mod test {
 
         let mut context = Context::new();
 
-        
-        let output =template.render(&mut context).unwrap();
+        let output = template.render(&mut context).unwrap();
         assert_eq!(output, "false");
     }
 
@@ -150,7 +148,7 @@ mod test {
             "<p>Freestyle!</p>",
             "{% endif %}"
         );
-        
+
         let options = options();
         let template = compiler::parse(text, &options)
             .map(interpreter::Template::new)

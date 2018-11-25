@@ -38,8 +38,8 @@ pub fn include_tag(
 ) -> Result<Box<Renderable>> {
     let name = arguments.expect_next("Identifier or literal expected.")?;
 
-    // This may accept strange inputs such as `{% include 0 %}` or `{% include filterchain | filter:0 %}`. 
-    // Those inputs would fail anyway by there being not a path with those names so they are not a big concern. 
+    // This may accept strange inputs such as `{% include 0 %}` or `{% include filterchain | filter:0 %}`.
+    // Those inputs would fail anyway by there being not a path with those names so they are not a big concern.
     let name = match name.expect_literal() {
         // Using `to_str()` on literals ensures `Strings` will have their quotes trimmed.
         Ok(name) => name.to_str().to_string(),

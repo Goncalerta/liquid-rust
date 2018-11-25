@@ -333,7 +333,7 @@ fn parse_if(
                 "else" => {
                     if_false = Some(tokens.parse_all(options)?);
                     break;
-                },
+                }
                 "elsif" => {
                     if_false = Some(vec![parse_if("elsif", tag.into_tokens(), tokens, options)?]);
                     break;
@@ -347,7 +347,6 @@ fn parse_if(
     let if_true = Template::new(if_true);
     let if_false = if_false.map(Template::new);
 
-   
     Ok(Box::new(Conditional {
         tag_name,
         condition,
@@ -551,18 +550,15 @@ mod test {
         let output = template.render(&mut context).unwrap();
         assert_eq!(output, "first");
 
-
         let mut context = Context::new();
         context.stack_mut().set_global("a", Value::scalar(2f64));
         let output = template.render(&mut context).unwrap();
         assert_eq!(output, "second");
 
-
         let mut context = Context::new();
         context.stack_mut().set_global("a", Value::scalar(3f64));
         let output = template.render(&mut context).unwrap();
         assert_eq!(output, "third");
-
 
         let mut context = Context::new();
         context.stack_mut().set_global("a", Value::scalar("else"));

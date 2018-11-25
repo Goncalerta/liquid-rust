@@ -92,7 +92,7 @@ fn parse_condition(arguments: &mut TagTokenIter) -> Result<Vec<Expression>> {
         token
             .expect_str("or")
             .map_err(|t| t.raise_custom_error("\"or\" expected."))?;
-        
+
         let value = arguments
             .expect_next("Value expected")?
             .expect_value()
@@ -129,10 +129,10 @@ pub fn case_block(
                     current_block = Vec::new();
                     current_condition = Some(parse_condition(tag.tokens())?);
                 }
-                "else" => { 
+                "else" => {
                     else_block = Some(tokens.parse_all(options)?);
                     break;
-                },
+                }
                 _ => current_block.push(tag.parse(&mut tokens, options)?),
             },
             element => current_block.push(element.parse(&mut tokens, options)?),

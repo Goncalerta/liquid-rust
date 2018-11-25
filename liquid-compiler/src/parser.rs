@@ -48,7 +48,7 @@ fn convert_pest_error(err: ::pest::error::Error<Rule>) -> Error {
 }
 
 /// Generates a `liquid::Error` with the given message pointing to
-/// the pest 
+/// the pest
 fn error_from_pair(pair: Pair, msg: String) -> Error {
     let pest_error = ::pest::error::Error::new_from_span(
         ::pest::error::ErrorVariant::CustomError { message: msg },
@@ -149,10 +149,10 @@ fn parse_variable(variable: Pair) -> Variable {
 }
 
 /// Parses an `Expression` from a `Pair` with a value.
-/// 
+///
 /// Do not confuse this value with `liquid-value`'s `Value`.
 /// In this context, value refers to either a literal value or a variable.
-/// 
+///
 /// This `Pair` must be `Rule::Value`.
 fn parse_value(value: Pair) -> Expression {
     if value.as_rule() != Rule::Value {
@@ -215,9 +215,9 @@ impl<'a, 'b> TagBlock<'a, 'b> {
             closed: false,
         }
     }
-    
+
     /// Returns the next element of the block, if any, similarly to an iterator.
-    /// 
+    ///
     /// However, if the input text reaches its end and the block is not closed,
     /// an error is returned instead.
     pub fn next(&mut self) -> Result<Option<BlockElement<'a>>> {
@@ -264,7 +264,7 @@ impl<'a, 'b> TagBlock<'a, 'b> {
     }
 
     /// Parses the next element in the block just as if it weren't inside any block.
-    /// 
+    ///
     /// Returns none if no element is left and raises the same errors as `next()`.
     pub fn parse_next(&mut self, options: &LiquidOptions) -> Result<Option<Box<Renderable>>> {
         match self.next()? {
@@ -274,7 +274,7 @@ impl<'a, 'b> TagBlock<'a, 'b> {
     }
 
     /// Checks whether the block was fully parsed its elements.
-    /// 
+    ///
     /// This must be added at the end of every block right before returning, so as
     /// to ensure that it doesn't leave any unparsed element by accident.
     pub fn assert_empty(self) {
@@ -334,7 +334,11 @@ impl<'a> From<Pair<'a>> for Tag<'a> {
             panic!("Only rule Tag can be converted to Tag.");
         }
         let as_str = element.as_str();
-        let mut tag = element.into_inner().next().expect("Unwrapping TagInner.").into_inner();
+        let mut tag = element
+            .into_inner()
+            .next()
+            .expect("Unwrapping TagInner.")
+            .into_inner();
         let name = tag.next().expect("A tag starts with an identifier.");
         let tokens = TagTokenIter::new(&name, tag);
 
@@ -348,7 +352,7 @@ impl<'a> From<Pair<'a>> for Tag<'a> {
 
 impl<'a> Tag<'a> {
     /// Creates a new tag from a string such as "{% tagname tagtoken1 tagtoken2 ... %}".
-    /// 
+    ///
     /// This is used as a debug tool. It allows to easily build tags in unit tests.
     pub fn new(text: &'a str) -> Result<Self> {
         let tag = LiquidParser::parse(Rule::Tag, text)
@@ -450,7 +454,7 @@ impl<'a> Exp<'a> {
 }
 
 /// An element that can be raw text, a tag, or an expression.
-/// 
+///
 /// This is the result of calling `next()` on a `TagBlock`.
 pub enum BlockElement<'a> {
     Raw(Raw<'a>),
@@ -463,7 +467,10 @@ impl<'a> From<Pair<'a>> for BlockElement<'a> {
             Rule::Raw => BlockElement::Raw(element.into()),
             Rule::Tag => BlockElement::Tag(element.into()),
             Rule::Expression => BlockElement::Expression(element.into()),
-            _ => panic!("Only rules Raw | Tag | Expression can be converted to BlockElement. Found {:?}", element.as_rule()),
+            _ => panic!(
+                "Only rules Raw | Tag | Expression can be converted to BlockElement. Found {:?}",
+                element.as_rule()
+            ),
         }
     }
 }
@@ -506,7 +513,7 @@ impl<'a> BlockElement<'a> {
 }
 
 /// An iterator over `TagToken`s that is aware of their position in the file.
-/// 
+///
 /// The awareness of the position allows more precise error messages.
 pub struct TagTokenIter<'a> {
     iter: Box<Iterator<Item = TagToken<'a>> + 'a>,
@@ -564,11 +571,11 @@ impl<'a> From<Pair<'a>> for TagToken<'a> {
 
 impl<'a> TagToken<'a> {
     /// Raises an error from this TagToken.
-    /// 
+    ///
     /// The error message will be based on the expected tokens,
     /// which this structure tracks when using the methods starting
-    /// with 'expect'. 
-    /// 
+    /// with 'expect'.
+    ///
     /// For example, if one calls `expect_value` and that function fails
     /// to give an `Ok` value, calling this would show `Expected Value`
     /// on the error message.
@@ -584,7 +591,7 @@ impl<'a> TagToken<'a> {
     }
 
     /// Raises an error from this TagToken.
-    /// 
+    ///
     /// The error will have the given error message.
     pub fn raise_custom_error(self, msg: &str) -> Error {
         let pest_error = ::pest::error::Error::new_from_span(
@@ -675,7 +682,7 @@ impl<'a> TagToken<'a> {
     }
 
     /// Tries to obtain a value from this token.
-    /// 
+    ///
     /// Do not confuse this value with `liquid-value`'s `Value`.
     /// In this context, value refers to either a literal value or a variable.
     pub fn expect_value(mut self) -> std::result::Result<Expression, Self> {
@@ -698,7 +705,7 @@ impl<'a> TagToken<'a> {
     }
 
     /// Tries to obtain an identifier from this token.
-    /// 
+    ///
     /// The identifier is returned as a str.
     pub fn expect_identifier(mut self) -> std::result::Result<&'a str, Self> {
         let identifier = self.unwrap_identifier().map_err(|_| {
@@ -710,7 +717,7 @@ impl<'a> TagToken<'a> {
     }
 
     /// Tries to obtain a literal value from this token.
-    /// 
+    ///
     /// The value is returned as a `Value`.
     pub fn expect_literal(mut self) -> std::result::Result<Value, Self> {
         let literal = self.unwrap_literal().map_err(|_| {
@@ -722,7 +729,7 @@ impl<'a> TagToken<'a> {
     }
 
     /// Tries to obtain a range from this token.
-    /// 
+    ///
     /// The range is returned as a pair `(Expression, Expression)`.
     pub fn expect_range(mut self) -> std::result::Result<(Expression, Expression), Self> {
         let token = self.token.clone();
@@ -840,7 +847,7 @@ mod test {
             .unwrap()
             .next()
             .unwrap();
-        
+
         let indexes = vec![
             Expression::Literal(Value::scalar(0)),
             Expression::Literal(Value::scalar("bar")),
@@ -851,58 +858,38 @@ mod test {
         let mut expected = Variable::with_literal("foo");
         expected.extend(indexes);
 
-        assert_eq!(
-            parse_variable(variable),
-            expected
-        );
+        assert_eq!(parse_variable(variable), expected);
     }
 
     #[test]
     fn test_whitespace_control() {
         let options = LiquidOptions::default();
-        
+
         let mut context = Context::new();
-        context.stack_mut().set_global(
-            "exp",
-            Value::Scalar(Scalar::new(5)),
-        );
-
-
+        context
+            .stack_mut()
+            .set_global("exp", Value::Scalar(Scalar::new(5)));
 
         let text = "    \n    {{ exp }}    \n    ";
-        let template = parse(text, &options)
-            .map(Template::new)
-            .unwrap();
+        let template = parse(text, &options).map(Template::new).unwrap();
         let output = template.render(&mut context).unwrap();
 
         assert_eq!(output, "    \n    5    \n    ");
 
-
-
         let text = "    \n    {{- exp }}    \n    ";
-        let template = parse(text, &options)
-            .map(Template::new)
-            .unwrap();
+        let template = parse(text, &options).map(Template::new).unwrap();
         let output = template.render(&mut context).unwrap();
 
         assert_eq!(output, "5    \n    ");
 
-
-
         let text = "    \n    {{ exp -}}    \n    ";
-        let template = parse(text, &options)
-            .map(Template::new)
-            .unwrap();
+        let template = parse(text, &options).map(Template::new).unwrap();
         let output = template.render(&mut context).unwrap();
 
         assert_eq!(output, "    \n    5");
 
-
-
         let text = "    \n    {{- exp -}}    \n    ";
-        let template = parse(text, &options)
-            .map(Template::new)
-            .unwrap();
+        let template = parse(text, &options).map(Template::new).unwrap();
         let output = template.render(&mut context).unwrap();
 
         assert_eq!(output, "5");
