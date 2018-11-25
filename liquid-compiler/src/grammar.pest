@@ -37,8 +37,8 @@ FilterChain = { Value ~ ("|" ~ Filter)* }
 StringLiteral = @{ ("'" ~ (!"'" ~ ANY)* ~ "'")
 		        		 | ("\"" ~ (!"\"" ~ ANY)* ~ "\"") }
                  
-IntegerLiteral = @{ ASCII_DIGIT+ }
-FloatLiteral = @{ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
+IntegerLiteral = @{ ("+" | "-")? ~ ASCII_DIGIT+ }
+FloatLiteral = @{ ("+" | "-")? ~ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
 
 BooleanLiteral = @{ "true" | "false" }
 

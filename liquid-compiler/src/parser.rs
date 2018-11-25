@@ -768,11 +768,23 @@ mod test {
             .unwrap();
         assert_eq!(parse_literal(integer), Scalar::new(42));
 
+        let negative_int = LiquidParser::parse(Rule::Literal, "-42")
+            .unwrap()
+            .next()
+            .unwrap();
+        assert_eq!(parse_literal(negative_int), Scalar::new(-42));
+
         let float = LiquidParser::parse(Rule::Literal, "4321.032")
             .unwrap()
             .next()
             .unwrap();
         assert_eq!(parse_literal(float), Scalar::new(4321.032));
+
+        let negative_float = LiquidParser::parse(Rule::Literal, "-4321.032")
+            .unwrap()
+            .next()
+            .unwrap();
+        assert_eq!(parse_literal(negative_float), Scalar::new(-4321.032));
 
         let boolean = LiquidParser::parse(Rule::Literal, "true")
             .unwrap()
