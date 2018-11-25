@@ -3,15 +3,17 @@ LINE_OR_SPACE = _{ NEWLINE | WHITESPACE }
 LiquidFile = ${ SOI ~ Element* ~ EOI }
 
 // Element-level parsing
-Element = _{ Expression | Tag | Raw } 
+Element = _{ ExpressionSignature | TagSignature | Raw } 
 
 TagStart = _{ (LINE_OR_SPACE* ~ "{%-") | "{%" }
 TagEnd =   _{ ("-%}" ~ LINE_OR_SPACE*) | "%}" }
+Tag = !{Identifier ~ TagToken*}
 ExpressionStart = _{ (LINE_OR_SPACE* ~ "{{-") | "{{" }
 ExpressionEnd =   _{ ("-}}" ~ LINE_OR_SPACE*) | "}}" }
+Expression = !{FilterChain}
 
-Tag = !{ TagStart ~ Identifier ~ TagToken* ~ TagEnd }
-Expression = !{ ExpressionStart ~ FilterChain ~ ExpressionEnd }
+TagSignature = _{ TagStart ~ WHITESPACE* ~ Tag ~ WHITESPACE* ~ TagEnd }
+ExpressionSignature = _{ ExpressionStart ~ WHITESPACE* ~ Expression ~ WHITESPACE* ~ ExpressionEnd }
 // Not allowing Tag/Expression Start/End might become a problem 
 // for {% raw %}, {% comment %} and other blocks that don't parse
 // the elements inside with liquid: unclosed delimiters won't be accepted
