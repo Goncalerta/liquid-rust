@@ -33,14 +33,14 @@ FilterChain = { Value ~ ("|" ~ Filter)* }
 
 // Literals 
 StringLiteral = @{ ("'" ~ (!"'" ~ ANY)* ~ "'")
-				 | ("\"" ~ (!"\"" ~ ANY)* ~ "\"") }
+		        		 | ("\"" ~ (!"\"" ~ ANY)* ~ "\"") }
                  
 IntegerLiteral = @{ ASCII_DIGIT+ }
 FloatLiteral = @{ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
 
 BooleanLiteral = @{ "true" | "false" }
 
-Literal = { StringLiteral | IntegerLiteral | FloatLiteral | BooleanLiteral }
+Literal = { StringLiteral | FloatLiteral | IntegerLiteral | BooleanLiteral }
 
 Range = { "(" ~ Value ~ ".." ~ Value ~ ")" }
 
