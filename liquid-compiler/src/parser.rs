@@ -211,7 +211,7 @@ impl<'a, 'b> TagBlock<'a, 'b> {
                 format!("Unclosed block. {{% end{} %}} tag expected.", self.name),
             ));
         }
-        
+
         if element.as_rule() == Rule::Tag {
             let tag_name = element
                 .clone()
@@ -245,7 +245,11 @@ impl<'a, 'b> TagBlock<'a, 'b> {
     }
 
     pub fn assert_empty(self) {
-        assert!(self.closed, "Block {{% {} %}} doesn't exhaust its iterator of elements.", self.name)
+        assert!(
+            self.closed,
+            "Block {{% {} %}} doesn't exhaust its iterator of elements.",
+            self.name
+        )
     }
 }
 
@@ -459,12 +463,12 @@ impl<'a> TagTokenIter<'a> {
 
     pub fn raise_error(&mut self, error_msg: &str) -> Error {
         let pest_error = ::pest::error::Error::new_from_pos(
-                ::pest::error::ErrorVariant::CustomError {
-                    message: error_msg.to_string(),
-                },
-                self.position.clone(),
-            );
-            convert_pest_error(pest_error)
+            ::pest::error::ErrorVariant::CustomError {
+                message: error_msg.to_string(),
+            },
+            self.position.clone(),
+        );
+        convert_pest_error(pest_error)
     }
 
     pub fn expect_next(&mut self, error_msg: &str) -> Result<TagToken<'a>> {
@@ -652,8 +656,143 @@ impl<'a> TagToken<'a> {
 }
 
 #[cfg(test)]
-mod test_parse_output {
+mod test {
     use super::*;
+    use liquid_interpreter::{Context, Template};
 
-    // TODO tests
+    #[test]
+    fn test_parse_literal() {
+        let integer = LiquidParser::parse(Rule::Literal, "42")
+            .unwrap()
+            .next()
+            .unwrap();
+        assert_eq!(parse_literal(integer), Scalar::new(42));
+
+        let float = LiquidParser::parse(Rule::Literal, "4321.032")
+            .unwrap()
+            .next()
+            .unwrap();
+        assert_eq!(parse_literal(float), Scalar::new(4321.032));
+
+        let boolean = LiquidParser::parse(Rule::Literal, "true")
+            .unwrap()
+            .next()
+            .unwrap();
+        assert_eq!(parse_literal(boolean), Scalar::new(true));
+
+        let string_double_quotes = LiquidParser::parse(Rule::Literal, "\"Hello world!\"")
+            .unwrap()
+            .next()
+            .unwrap();
+        assert_eq!(
+            parse_literal(string_double_quotes),
+            Scalar::new("Hello world!")
+        );
+
+        let string_single_quotes = LiquidParser::parse(Rule::Literal, "'Liquid'")
+            .unwrap()
+            .next()
+            .unwrap();
+        assert_eq!(parse_literal(string_single_quotes), Scalar::new("Liquid"));
+    }
+
+    #[test]
+    fn test_parse_filter_chain() {
+        let filter = LiquidParser::parse(Rule::FilterChain, "abc | def:'1',2,'3' | blabla")
+            .unwrap()
+            .next()
+            .unwrap();
+
+        assert_eq!(
+            parse_filter_chain(filter),
+            FilterChain::new(
+                Expression::Variable(Variable::with_literal("abc")),
+                vec![
+                    FilterCall::new(
+                        "def",
+                        vec![
+                            Expression::Literal(Value::scalar("1")),
+                            Expression::Literal(Value::scalar(2.0)),
+                            Expression::Literal(Value::scalar("3")),
+                        ],
+                    ),
+                    FilterCall::new("blabla", vec![]),
+                ]
+            )
+        );
+    }
+
+    #[test]
+    fn test_parse_variable() {
+        let variable = LiquidParser::parse(Rule::Variable, "foo[0].bar.baz[foo.bar]")
+            .unwrap()
+            .next()
+            .unwrap();
+        
+        let indexes = vec![
+            Expression::Literal(Value::scalar(0)),
+            Expression::Literal(Value::scalar("bar")),
+            Expression::Literal(Value::scalar("baz")),
+            Expression::Variable(Variable::with_literal("foo").push_literal("bar")),
+        ];
+
+        let mut expected = Variable::with_literal("foo");
+        expected.extend(indexes);
+
+        assert_eq!(
+            parse_variable(variable),
+            expected
+        );
+    }
+
+    #[test]
+    fn test_whitespace_control() {
+        let options = LiquidOptions::default();
+        
+        let mut context = Context::new();
+        context.stack_mut().set_global(
+            "exp",
+            Value::Scalar(Scalar::new(5)),
+        );
+
+
+
+        let text = "    \n    {{ exp }}    \n    ";
+        let template = parse(text, &options)
+            .map(Template::new)
+            .unwrap();
+        let output = template.render(&mut context).unwrap();
+
+        assert_eq!(output, "    \n    5    \n    ");
+
+
+
+        let text = "    \n    {{- exp }}    \n    ";
+        let template = parse(text, &options)
+            .map(Template::new)
+            .unwrap();
+        let output = template.render(&mut context).unwrap();
+
+        assert_eq!(output, "5    \n    ");
+
+
+
+        let text = "    \n    {{ exp -}}    \n    ";
+        let template = parse(text, &options)
+            .map(Template::new)
+            .unwrap();
+        let output = template.render(&mut context).unwrap();
+
+        assert_eq!(output, "    \n    5");
+
+
+
+        let text = "    \n    {{- exp -}}    \n    ";
+        let template = parse(text, &options)
+            .map(Template::new)
+            .unwrap();
+        let output = template.render(&mut context).unwrap();
+
+        assert_eq!(output, "5");
+    }
 }
