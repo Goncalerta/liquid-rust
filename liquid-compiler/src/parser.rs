@@ -3,7 +3,7 @@
 //! This module contains functions than can be used for writing plugins
 //! but should be ignored for simple usage.
 
-use ::std;
+use std;
 
 use liquid_interpreter::Expression;
 use liquid_interpreter::Renderable;
