@@ -10,6 +10,7 @@ mod include_tag;
 mod increment_tags;
 mod interrupt_tags;
 mod raw_block;
+
 pub use self::assign_tag::assign_tag;
 pub use self::capture_block::capture_block;
 pub use self::case_block::case_block;

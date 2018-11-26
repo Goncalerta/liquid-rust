@@ -1,5 +1,6 @@
 WHITESPACE = _{" "}
 LINE_OR_SPACE = _{ NEWLINE | WHITESPACE }
+NON_WHITESPACE_CONTROL_HYPHEN = _{ !"-}}" ~ !"-%}" ~ "-" }
 LiquidFile = ${ SOI ~ Element* ~ EOI }
 
 // Element-level parsing
@@ -21,7 +22,7 @@ Raw = @{ (!(TagStart | ExpressionStart | TagEnd | ExpressionEnd) ~ ANY)+ }
 
 
 // Inner parsing        
-Identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+Identifier = @{ (ASCII_ALPHA | "_" | NON_WHITESPACE_CONTROL_HYPHEN) ~ (ASCII_ALPHANUMERIC | "_" | NON_WHITESPACE_CONTROL_HYPHEN)* }
 
 Variable = ${ Identifier 
             ~ ( ("." ~ Identifier)
