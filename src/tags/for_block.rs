@@ -270,6 +270,9 @@ pub fn for_block(
         }
     }
 
+    // no more arguments should be supplied, trying to supply them is an error
+    arguments.expect_nothing()?;
+
     let mut item_template = Vec::new();
     let mut else_template = None;
 
@@ -277,6 +280,8 @@ pub fn for_block(
         match element {
             BlockElement::Tag(mut tag) => match tag.name() {
                 "else" => {
+                    // no more arguments should be supplied, trying to supply them is an error
+                    tag.tokens().expect_nothing()?;
                     else_template = Some(tokens.parse_all(options)?);
                     break;
                 }
@@ -452,6 +457,9 @@ pub fn tablerow_block(
             }
         }
     }
+
+    // no more arguments should be supplied, trying to supply them is an error
+    arguments.expect_nothing()?;
 
     let item_template = Template::new(tokens.parse_all(options)?);
 

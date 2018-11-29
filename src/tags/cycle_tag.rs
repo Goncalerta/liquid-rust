@@ -85,6 +85,9 @@ fn parse_cycle(mut arguments: TagTokenIter, _options: &LiquidOptions) -> Result<
         name = itertools::join(values.iter(), "-");
     }
 
+    // no more arguments should be supplied, trying to supply them is an error
+    arguments.expect_nothing()?;
+
     Ok(Cycle { name, values })
 }
 

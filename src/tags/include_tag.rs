@@ -46,6 +46,9 @@ pub fn include_tag(
         Err(name) => name.as_str().to_string(),
     };
 
+    // no more arguments should be supplied, trying to supply them is an error
+    arguments.expect_nothing()?;
+
     let partial =
         parse_partial(&name, options).trace_with(|| format!("{{% include {} %}}", name))?;
 

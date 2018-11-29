@@ -51,6 +51,9 @@ pub fn assign_tag(
         .expect_filter_chain()
         .map_err(TagToken::raise_error)?;
 
+    // no more arguments should be supplied, trying to supply them is an error
+    arguments.expect_nothing()?;
+
     Ok(Box::new(Assign { dst, src }))
 }
 

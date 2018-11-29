@@ -51,9 +51,7 @@ pub fn capture_block(
         .to_string();
 
     // no more arguments should be supplied, trying to supply them is an error
-    if let Some(token) = arguments.next() {
-        return Err(token.raise_error());
-    }
+    arguments.expect_nothing()?;
 
     let template = Template::new(
         tokens

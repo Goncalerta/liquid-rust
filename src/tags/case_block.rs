@@ -100,6 +100,8 @@ fn parse_condition(arguments: &mut TagTokenIter) -> Result<Vec<Expression>> {
         values.push(value);
     }
 
+    // no more arguments should be supplied, trying to supply them is an error
+    arguments.expect_nothing()?;
     Ok(values)
 }
 
@@ -113,6 +115,9 @@ pub fn case_block(
         .expect_next("Value expected.")?
         .expect_value()
         .map_err(TagToken::raise_error)?;
+
+    // no more arguments should be supplied, trying to supply them is an error
+    arguments.expect_nothing()?;
 
     let mut cases = Vec::new();
     let mut else_block = None;
@@ -130,6 +135,8 @@ pub fn case_block(
                     current_condition = Some(parse_condition(tag.tokens())?);
                 }
                 "else" => {
+                    // no more arguments should be supplied, trying to supply them is an error
+                    tag.tokens().expect_nothing()?;
                     else_block = Some(tokens.parse_all(options)?);
                     break;
                 }

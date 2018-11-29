@@ -250,6 +250,12 @@ impl<'a, 'b> TagBlock<'a, 'b> {
             // The name of the closing tag is "end" followed by the tag's name.
             if name_str.len() > 3 && &name_str[0..3] == "end" && &name_str[3..] == self.name {
                 // Then this is a block ending tag and will close the block.
+
+                // no more arguments should be supplied, trying to supply them is an error
+                if let Some(token) = tag.next() {
+                    return Err(TagToken::from(token).raise_error());
+                }
+
                 self.closed = true;
                 return Ok(None);
             } else {
@@ -557,6 +563,15 @@ impl<'a> TagTokenIter<'a> {
     /// Returns the next tag token or raises an error if there is none.
     pub fn expect_next(&mut self, error_msg: &str) -> Result<TagToken<'a>> {
         self.next().ok_or_else(|| self.raise_error(error_msg))
+    }
+
+    /// Returns `Ok` if the iterator is empty, an error otherwise
+    pub fn expect_nothing(&mut self) -> Result<()> {
+        if let Some(token) = self.next() {
+            Err(token.raise_error())
+        } else {
+            Ok(())
+        }
     }
 }
 

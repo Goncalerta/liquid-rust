@@ -23,9 +23,7 @@ pub fn break_tag(
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     // no arguments should be supplied, trying to supply them is an error
-    if let Some(token) = arguments.next() {
-        return Err(token.raise_error());
-    }
+    arguments.expect_nothing()?;
     Ok(Box::new(Break))
 }
 
@@ -45,9 +43,7 @@ pub fn continue_tag(
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
     // no arguments should be supplied, trying to supply them is an error
-    if let Some(token) = arguments.next() {
-        return Err(token.raise_error());
-    }
+    arguments.expect_nothing()?;
     Ok(Box::new(Continue))
 }
 

@@ -22,10 +22,13 @@ impl Renderable for RawT {
 
 pub fn raw_block(
     _tag_name: &str,
-    _arguments: TagTokenIter,
+    mut arguments: TagTokenIter,
     mut tokens: TagBlock,
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
+    // no arguments should be supplied, trying to supply them is an error
+    arguments.expect_nothing()?;
+
     let mut content = String::new();
     while let Some(element) = tokens.next()? {
         content.push_str(element.as_str());

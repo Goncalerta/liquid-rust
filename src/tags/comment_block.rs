@@ -19,10 +19,13 @@ impl Renderable for Comment {
 
 pub fn comment_block(
     _tag_name: &str,
-    _arguments: TagTokenIter,
+    mut arguments: TagTokenIter,
     mut tokens: TagBlock,
     _options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
+    // no arguments should be supplied, trying to supply them is an error
+    arguments.expect_nothing()?;
+    
     while tokens.next()?.is_some() {}
     tokens.assert_empty();
     Ok(Box::new(Comment))

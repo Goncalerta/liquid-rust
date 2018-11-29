@@ -38,10 +38,13 @@ impl Renderable for IfChanged {
 
 pub fn ifchanged_block(
     _tag_name: &str,
-    _arguments: TagTokenIter,
+    mut arguments: TagTokenIter,
     mut tokens: TagBlock,
     options: &LiquidOptions,
 ) -> Result<Box<Renderable>> {
+    // no arguments should be supplied, trying to supply them is an error
+    arguments.expect_nothing()?;
+
     let if_changed = Template::new(tokens.parse_all(options)?);
 
     tokens.assert_empty();

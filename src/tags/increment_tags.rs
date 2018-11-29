@@ -42,6 +42,9 @@ pub fn increment_tag(
         .expect_identifier()
         .map_err(TagToken::raise_error)?
         .to_string();
+    
+    // no more arguments should be supplied, trying to supply them is an error
+    arguments.expect_nothing()?;
 
     Ok(Box::new(Increment { id }))
 }
@@ -79,6 +82,9 @@ pub fn decrement_tag(
         .expect_identifier()
         .map_err(TagToken::raise_error)?
         .to_string();
+
+    // no more arguments should be supplied, trying to supply them is an error
+    arguments.expect_nothing()?;
 
     Ok(Box::new(Decrement { id }))
 }
