@@ -236,21 +236,30 @@ impl<'a, 'b> TagBlock<'a, 'b> {
             ));
         }
 
+        // Tags are treated separately so as to check for a possible `{% endtag %}`
         if element.as_rule() == Rule::Tag {
-            let tag_name = element
-                .clone()
+            let as_str = element.as_str();
+            let mut tag = element
                 .into_inner()
                 .next()
                 .expect("Unwrapping TagInner")
-                .into_inner()
-                .next()
-                .expect("Tags start by their identifier.")
-                .as_str();
+                .into_inner();
+            let name = tag.next().expect("Tags start by their identifier.");
+            let name_str = name.as_str();
 
             // The name of the closing tag is "end" followed by the tag's name.
-            if tag_name.len() > 3 && &tag_name[0..3] == "end" && &tag_name[3..] == self.name {
+            if name_str.len() > 3 && &name_str[0..3] == "end" && &name_str[3..] == self.name {
+                // Then this is a block ending tag and will close the block.
                 self.closed = true;
                 return Ok(None);
+            } else {
+                // Then this is a regular tag
+                let tokens = TagTokenIter::new(&name, tag);
+                return Ok(Some(BlockElement::Tag(Tag {
+                    name,
+                    tokens,
+                    as_str,
+                })));
             }
         }
         Ok(Some(element.into()))
