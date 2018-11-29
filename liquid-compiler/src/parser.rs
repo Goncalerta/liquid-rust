@@ -304,18 +304,13 @@ impl<'a> From<Pair<'a>> for Raw<'a> {
 }
 impl<'a> Into<&'a str> for Raw<'a> {
     fn into(self) -> &'a str {
-        self.to_str()
+        self.as_str()
     }
 }
 impl<'a> Raw<'a> {
     /// Turns the text into a Renderable.
     pub fn to_renderable(self) -> Box<Renderable> {
-        Box::new(Text::new(self.to_str()))
-    }
-
-    /// Converts the text into a str.
-    pub fn to_str(self) -> &'a str {
-        self.as_str()
+        Box::new(Text::new(self.as_str()))
     }
 
     /// Returns the text as a str.
