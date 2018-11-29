@@ -25,7 +25,7 @@ pub fn comment_block(
 ) -> Result<Box<Renderable>> {
     // no arguments should be supplied, trying to supply them is an error
     arguments.expect_nothing()?;
-    
+
     while tokens.next()?.is_some() {}
     tokens.assert_empty();
     Ok(Box::new(Comment))
