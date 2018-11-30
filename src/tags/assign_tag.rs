@@ -4,7 +4,6 @@ use liquid_error::Result;
 use liquid_error::ResultLiquidExt;
 
 use compiler::LiquidOptions;
-use compiler::TagToken;
 use compiler::TagTokenIter;
 use interpreter::Context;
 use interpreter::FilterChain;
@@ -38,18 +37,18 @@ pub fn assign_tag(
     let dst = arguments
         .expect_next("Identifier expected.")?
         .expect_identifier()
-        .map_err(TagToken::raise_error)?
+        .into_result()?
         .to_string();
 
     arguments
         .expect_next("Assignment operator \"=\" expected.")?
         .expect_str("=")
-        .map_err(|t| t.raise_custom_error("Assignment operator \"=\" expected."))?;
+        .into_result_custom_msg("Assignment operator \"=\" expected.")?;
 
     let src = arguments
         .expect_next("FilterChain expected.")?
         .expect_filter_chain()
-        .map_err(TagToken::raise_error)?;
+        .into_result()?;
 
     // no more arguments should be supplied, trying to supply them is an error
     arguments.expect_nothing()?;

@@ -7,7 +7,6 @@ use liquid_value::Value;
 use compiler::BlockElement;
 use compiler::LiquidOptions;
 use compiler::TagBlock;
-use compiler::TagToken;
 use compiler::TagTokenIter;
 use interpreter::Context;
 use interpreter::Expression;
@@ -85,18 +84,18 @@ fn parse_condition(arguments: &mut TagTokenIter) -> Result<Vec<Expression>> {
     let first_value = arguments
         .expect_next("Value expected")?
         .expect_value()
-        .map_err(TagToken::raise_error)?;
+        .into_result()?;
     values.push(first_value);
 
     while let Some(token) = arguments.next() {
         token
             .expect_str("or")
-            .map_err(|t| t.raise_custom_error("\"or\" expected."))?;
+            .into_result_custom_msg("\"or\" expected.")?;
 
         let value = arguments
             .expect_next("Value expected")?
             .expect_value()
-            .map_err(TagToken::raise_error)?;
+            .into_result()?;
         values.push(value);
     }
 
@@ -114,7 +113,7 @@ pub fn case_block(
     let target = arguments
         .expect_next("Value expected.")?
         .expect_value()
-        .map_err(TagToken::raise_error)?;
+        .into_result()?;
 
     // no more arguments should be supplied, trying to supply them is an error
     arguments.expect_nothing()?;

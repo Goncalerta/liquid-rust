@@ -6,6 +6,7 @@ use liquid_error::{Result, ResultLiquidChainExt, ResultLiquidExt};
 use compiler::LiquidOptions;
 use compiler::TagToken;
 use compiler::TagTokenIter;
+use compiler::TryMatchToken;
 use interpreter::Context;
 use interpreter::Expression;
 use interpreter::Renderable;
@@ -46,18 +47,18 @@ fn parse_cycle(mut arguments: TagTokenIter, _options: &LiquidOptions) -> Result<
     match second.as_ref().map(TagToken::as_str) {
         Some(":") => {
             name = match first.expect_identifier() {
-                Ok(name) => name.to_string(),
-                Err(name) => match name.expect_literal() {
+                TryMatchToken::Matches(name) => name.to_string(),
+                TryMatchToken::Fails(name) => match name.expect_literal() {
                     // This will allow non string literals such as 0 to be parsed as such.
                     // Is this ok or should more specific functions be created?
-                    Ok(name) => name.to_str().into_owned(),
-                    Err(name) => return Err(name.raise_error()),
+                    TryMatchToken::Matches(name) => name.to_str().into_owned(),
+                    TryMatchToken::Fails(name) => return Err(name.raise_error()),
                 },
             };
         }
         Some(",") | None => {
             // first argument is the first item in the cycle
-            values.push(first.expect_value().map_err(TagToken::raise_error)?);
+            values.push(first.expect_value().into_result()?);
         }
         Some(_) => {
             return Err(second
@@ -69,7 +70,7 @@ fn parse_cycle(mut arguments: TagTokenIter, _options: &LiquidOptions) -> Result<
     loop {
         match arguments.next() {
             Some(a) => {
-                values.push(a.expect_value().map_err(TagToken::raise_error)?);
+                values.push(a.expect_value().into_result()?);
             }
             None => break,
         }

@@ -3,7 +3,6 @@ use std::io::Write;
 use liquid_error::{Result, ResultLiquidChainExt};
 
 use compiler::LiquidOptions;
-use compiler::TagToken;
 use compiler::TagTokenIter;
 use interpreter::Context;
 use interpreter::Renderable;
@@ -40,7 +39,7 @@ pub fn increment_tag(
     let id = arguments
         .expect_next("Identifier expected.")?
         .expect_identifier()
-        .map_err(TagToken::raise_error)?
+        .into_result()?
         .to_string();
 
     // no more arguments should be supplied, trying to supply them is an error
@@ -80,7 +79,7 @@ pub fn decrement_tag(
     let id = arguments
         .expect_next("Identifier expected.")?
         .expect_identifier()
-        .map_err(TagToken::raise_error)?
+        .into_result()?
         .to_string();
 
     // no more arguments should be supplied, trying to supply them is an error

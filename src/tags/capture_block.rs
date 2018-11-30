@@ -5,7 +5,6 @@ use liquid_value::Value;
 
 use compiler::LiquidOptions;
 use compiler::TagBlock;
-use compiler::TagToken;
 use compiler::TagTokenIter;
 use interpreter::Context;
 use interpreter::Renderable;
@@ -47,7 +46,7 @@ pub fn capture_block(
     let id = arguments
         .expect_next("Identifier expected")?
         .expect_identifier()
-        .map_err(TagToken::raise_error)?
+        .into_result()?
         .to_string();
 
     // no more arguments should be supplied, trying to supply them is an error

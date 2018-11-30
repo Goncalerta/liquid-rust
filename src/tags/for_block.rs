@@ -8,8 +8,8 @@ use liquid_value::{Object, Scalar, Value};
 use compiler::BlockElement;
 use compiler::LiquidOptions;
 use compiler::TagBlock;
-use compiler::TagToken;
 use compiler::TagTokenIter;
+use compiler::TryMatchToken;
 use interpreter::Expression;
 use interpreter::Renderable;
 use interpreter::Template;
@@ -72,12 +72,12 @@ fn parse_attr(arguments: &mut TagTokenIter) -> Result<Expression> {
     arguments
         .expect_next("\":\" expected.")?
         .expect_str(":")
-        .map_err(|t| t.raise_custom_error("\":\" expected."))?;
+        .into_result_custom_msg("\":\" expected.")?;
 
     arguments
         .expect_next("Value expected.")?
         .expect_value()
-        .map_err(TagToken::raise_error)
+        .into_result()
 }
 
 /// Evaluates an attribute, returning Ok(None) if input is also None.
@@ -235,20 +235,20 @@ pub fn for_block(
     let var_name = arguments
         .expect_next("Identifier expected.")?
         .expect_identifier()
-        .map_err(TagToken::raise_error)?
+        .into_result()?
         .to_string();
 
     arguments
         .expect_next("\"in\" expected.")?
         .expect_str("in")
-        .map_err(|t| t.raise_custom_error("\"in\" expected."))?;
+        .into_result_custom_msg("\"in\" expected.")?;
 
     let range = arguments.expect_next("Array or range expected.")?;
     let range = match range.expect_value() {
-        Ok(array) => Range::Array(array),
-        Err(range) => match range.expect_range() {
-            Ok((start, stop)) => Range::Counted(start, stop),
-            Err(range) => return Err(range.raise_error()),
+        TryMatchToken::Matches(array) => Range::Array(array),
+        TryMatchToken::Fails(range) => match range.expect_range() {
+            TryMatchToken::Matches((start, stop)) => Range::Counted(start, stop),
+            TryMatchToken::Fails(range) => return Err(range.raise_error()),
         },
     };
 
@@ -425,20 +425,20 @@ pub fn tablerow_block(
     let var_name = arguments
         .expect_next("Identifier expected.")?
         .expect_identifier()
-        .map_err(TagToken::raise_error)?
+        .into_result()?
         .to_string();
 
     arguments
         .expect_next("\"in\" expected.")?
         .expect_str("in")
-        .map_err(|t| t.raise_custom_error("\"in\" expected."))?;
+        .into_result_custom_msg("\"in\" expected.")?;
 
     let range = arguments.expect_next("Array or range expected.")?;
     let range = match range.expect_value() {
-        Ok(array) => Range::Array(array),
-        Err(range) => match range.expect_range() {
-            Ok((start, stop)) => Range::Counted(start, stop),
-            Err(range) => return Err(range.raise_error()),
+        TryMatchToken::Matches(array) => Range::Array(array),
+        TryMatchToken::Fails(range) => match range.expect_range() {
+            TryMatchToken::Matches((start, stop)) => Range::Counted(start, stop),
+            TryMatchToken::Fails(range) => return Err(range.raise_error()),
         },
     };
 

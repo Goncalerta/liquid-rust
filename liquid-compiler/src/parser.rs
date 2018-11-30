@@ -575,6 +575,31 @@ impl<'a> TagTokenIter<'a> {
     }
 }
 
+/// The result of calling `TagToken`'s `try`.
+///
+/// If the token is successfuly matched, the match is returned;
+/// otherwise, the TagToken is returned back.
+pub enum TryMatchToken<'a, T> {
+    Matches(T),
+    Fails(TagToken<'a>),
+}
+
+impl<'a, T> TryMatchToken<'a, T> {
+    pub fn into_result(self) -> Result<T> {
+        match self {
+            TryMatchToken::Matches(t) => Ok(t),
+            TryMatchToken::Fails(t) => Err(t.raise_error()),
+        }
+    }
+
+    pub fn into_result_custom_msg(self, msg: &str) -> Result<T> {
+        match self {
+            TryMatchToken::Matches(t) => Ok(t),
+            TryMatchToken::Fails(t) => Err(t.raise_custom_error(msg)),
+        }
+    }
+}
+
 /// An interface to access tokens inside a tag.
 pub struct TagToken<'a> {
     token: Pair<'a>,
@@ -693,87 +718,91 @@ impl<'a> TagToken<'a> {
     }
 
     /// Tries to obtain a `FilterChain` from this token.
-    pub fn expect_filter_chain(mut self) -> std::result::Result<FilterChain, Self> {
-        let filterchain = self.unwrap_filter_chain().map_err(|_| {
-            self.expected.push(Rule::FilterChain);
-            self
-        })?;
-
-        Ok(parse_filter_chain(filterchain))
+    pub fn expect_filter_chain(mut self) -> TryMatchToken<'a, FilterChain> {
+        match self.unwrap_filter_chain() {
+            Ok(t) => TryMatchToken::Matches(parse_filter_chain(t)),
+            Err(_) => {
+                self.expected.push(Rule::FilterChain);
+                TryMatchToken::Fails(self)
+            }
+        }
     }
 
     /// Tries to obtain a value from this token.
     ///
     /// Do not confuse this value with `liquid-value`'s `Value`.
     /// In this context, value refers to either a literal value or a variable.
-    pub fn expect_value(mut self) -> std::result::Result<Expression, Self> {
-        let value = self.unwrap_value().map_err(|_| {
-            self.expected.push(Rule::Value);
-            self
-        })?;
-
-        Ok(parse_value(value))
+    pub fn expect_value(mut self) -> TryMatchToken<'a, Expression> {
+        match self.unwrap_value() {
+            Ok(t) => TryMatchToken::Matches(parse_value(t)),
+            Err(_) => {
+                self.expected.push(Rule::Value);
+                TryMatchToken::Fails(self)
+            }
+        }
     }
 
     /// Tries to obtain a `Variable` from this token.
-    pub fn expect_variable(mut self) -> std::result::Result<Variable, Self> {
-        let variable = self.unwrap_variable().map_err(|_| {
-            self.expected.push(Rule::Variable);
-            self
-        })?;
-
-        Ok(parse_variable(variable))
+    pub fn expect_variable(mut self) -> TryMatchToken<'a, Variable> {
+        match self.unwrap_variable() {
+            Ok(t) => TryMatchToken::Matches(parse_variable(t)),
+            Err(_) => {
+                self.expected.push(Rule::Variable);
+                TryMatchToken::Fails(self)
+            }
+        }
     }
 
     /// Tries to obtain an identifier from this token.
     ///
     /// The identifier is returned as a str.
-    pub fn expect_identifier(mut self) -> std::result::Result<&'a str, Self> {
-        let identifier = self.unwrap_identifier().map_err(|_| {
-            self.expected.push(Rule::Identifier);
-            self
-        })?;
-
-        Ok(identifier.as_str())
+    pub fn expect_identifier(mut self) -> TryMatchToken<'a, &'a str> {
+        match self.unwrap_identifier() {
+            Ok(t) => TryMatchToken::Matches(t.as_str()),
+            Err(_) => {
+                self.expected.push(Rule::Identifier);
+                TryMatchToken::Fails(self)
+            }
+        }
     }
 
     /// Tries to obtain a literal value from this token.
     ///
     /// The value is returned as a `Value`.
-    pub fn expect_literal(mut self) -> std::result::Result<Value, Self> {
-        let literal = self.unwrap_literal().map_err(|_| {
-            self.expected.push(Rule::Literal);
-            self
-        })?;
-
-        Ok(Value::scalar(parse_literal(literal)))
+    pub fn expect_literal(mut self) -> TryMatchToken<'a, Value> {
+        match self.unwrap_literal() {
+            Ok(t) => TryMatchToken::Matches(Value::scalar(parse_literal(t))),
+            Err(_) => {
+                self.expected.push(Rule::Literal);
+                TryMatchToken::Fails(self)
+            }
+        }
     }
-
     /// Tries to obtain a range from this token.
     ///
     /// The range is returned as a pair `(Expression, Expression)`.
-    pub fn expect_range(mut self) -> std::result::Result<(Expression, Expression), Self> {
+    pub fn expect_range(mut self) -> TryMatchToken<'a, (Expression, Expression)> {
         let token = self.token.clone();
 
         if token.as_rule() != Rule::Range {
             self.expected.push(Rule::Range);
-            return Err(self);
+            return TryMatchToken::Fails(self);
         }
 
         let mut range = token.into_inner();
-        Ok((
+        TryMatchToken::Matches((
             parse_value(range.next().expect("start")),
             parse_value(range.next().expect("end")),
         ))
     }
 
     /// Returns `Ok` if and only if the tokens' str is equal to the given str.
-    pub fn expect_str(self, expected: &str) -> std::result::Result<(), Self> {
+    pub fn expect_str(self, expected: &str) -> TryMatchToken<'a, ()> {
         if self.as_str() == expected {
-            Ok(())
+            TryMatchToken::Matches(())
         } else {
             // TODO change `self`'s state to be aware that `expected` was expected.
-            Err(self)
+            TryMatchToken::Fails(self)
         }
     }
 

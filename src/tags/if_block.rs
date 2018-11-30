@@ -241,7 +241,7 @@ fn parse_atom_condition(arguments: &mut PeekableTagTokenIter) -> Result<Conditio
     let lh = arguments
         .expect_next("Value expected.")?
         .expect_value()
-        .map_err(TagToken::raise_error)?;
+        .into_result()?;
     let cond = match arguments
         .peek()
         .map(TagToken::as_str)
@@ -252,7 +252,7 @@ fn parse_atom_condition(arguments: &mut PeekableTagTokenIter) -> Result<Conditio
             let rh = arguments
                 .expect_next("Value expected.")?
                 .expect_value()
-                .map_err(TagToken::raise_error)?;
+                .into_result()?;
             Condition::Binary(BinaryCondition {
                 lh,
                 comparison: op,
@@ -288,7 +288,7 @@ fn parse_condition(arguments: TagTokenIter) -> Result<Condition> {
     while let Some(token) = arguments.next() {
         token
             .expect_str("or")
-            .map_err(|t| t.raise_custom_error("\"and\" or \"or\" expected."))?;
+            .into_result_custom_msg("\"and\" or \"or\" expected.")?;
 
         let rh = parse_conjunction_chain(&mut arguments)?;
         lh = Condition::Disjunction(Box::new(lh), Box::new(rh));

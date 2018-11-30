@@ -5,6 +5,7 @@ use liquid_error::{Result, ResultLiquidExt};
 use compiler::parse;
 use compiler::LiquidOptions;
 use compiler::TagTokenIter;
+use compiler::TryMatchToken;
 use interpreter::Context;
 use interpreter::Renderable;
 use interpreter::Template;
@@ -42,8 +43,8 @@ pub fn include_tag(
     // Those inputs would fail anyway by there being not a path with those names so they are not a big concern.
     let name = match name.expect_literal() {
         // Using `to_str()` on literals ensures `Strings` will have their quotes trimmed.
-        Ok(name) => name.to_str().to_string(),
-        Err(name) => name.as_str().to_string(),
+        TryMatchToken::Matches(name) => name.to_str().to_string(),
+        TryMatchToken::Fails(name) => name.as_str().to_string(),
     };
 
     // no more arguments should be supplied, trying to supply them is an error
