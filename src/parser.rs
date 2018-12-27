@@ -59,6 +59,7 @@ impl ParserBuilder {
     /// Register built-in Liquid filters
     pub fn liquid_filters(self) -> Self {
         self
+        .filter("slice", Box::new(filters::SliceFilterParser))
         // self.filter("abs", filters::abs as compiler::FnFilterValue)
         //     .filter("append", filters::append as compiler::FnFilterValue)
         //     .filter("at_least", filters::at_least as compiler::FnFilterValue)

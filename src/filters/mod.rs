@@ -18,10 +18,18 @@ use std::borrow::Cow;
 use std::cmp;
 
 use itertools;
+use liquid_error::{self, Result};
+use liquid_interpreter::Context;
+use liquid_interpreter::Expression;
 use liquid_value::Scalar;
 use liquid_value::Value;
 use unicode_segmentation::UnicodeSegmentation;
 
+use liquid_compiler::{Filter, FilterArguments, ParseFilter, FilterReflection};
+
+use liquid_derive;
+
+type FilterResult = Result<Filter>;
 
 pub fn invalid_input<S: Into<Cow<'static, str>>>(cause: S) -> liquid_error::Error {
     liquid_error::Error::with_msg("Invalid input").context("cause", cause)
@@ -59,11 +67,93 @@ fn check_args_len(args: &[Value], required: usize, optional: usize) -> Result<()
     Ok(())
 }
 
+// TEST MACROS
+
+#[derive(Debug, FilterParameters)]
+struct SliceParameters {
+    offset: Expression,
+    length: Option<Expression>,
+}
 
 
+
+#[derive(Debug)]
+pub struct SliceFilter {
+    args: SliceParameters,
+}
+impl Filter for SliceFilter {
+    fn filter(&self, input: &Value, context: &Context) -> Result<Value> {
+        let args = self.args.evaluate(context)?;
+        
+        let offset = args.offset
+            .as_scalar()
+            .and_then(Scalar::to_integer)
+            .ok_or_else(|| invalid_argument(0, "Whole number expected"))?;
+        let offset = offset as isize;
+
+        let length = args.length
+            .unwrap_or(Value::scalar(1))
+            .as_scalar()
+            .and_then(Scalar::to_integer)
+            .ok_or_else(|| invalid_argument(0, "Whole number expected"))?;
+        if length < 1 {
+            return Err(invalid_argument(1, "Positive number expected"));
+        }
+        let length = length as isize;
+
+        if let Value::Array(ref input) = *input {
+            let (offset, length) = canonicalize_slice(offset, length, input.len());
+            Ok(Value::array(
+                input
+                    .iter()
+                    .skip(offset as usize)
+                    .take(length as usize)
+                    .cloned(),
+            ))
+        } else {
+            let input = input.to_str();
+            let (offset, length) = canonicalize_slice(offset, length, input.len());
+            Ok(Value::scalar(
+                input
+                    .chars()
+                    .skip(offset as usize)
+                    .take(length as usize)
+                    .collect::<String>(),
+            ))
+        }
     }
 }
 
+#[derive(Clone)]
+pub struct SliceFilterParser;
+impl ParseFilter for SliceFilterParser {
+    fn parse(&self, args: FilterArguments) -> Result<Box<Filter>> {
+        let args = SliceParameters::new(args)?;
+        Ok(Box::new(SliceFilter { args }))
+    }
+}
+impl FilterReflection for SliceFilterParser {
+    fn name(&self) -> &'static str {
+        "slice"
+    }
+    fn description(&self) -> &'static str {
+        "Takes a slice of a given string or array."
+    }
+    // Not sure on return type
+    // Goal is to return name and description
+    fn required_parameters(&self) -> &'static [(&'static str, &'static str)] {
+        &[("offset", "The offset of the slice.")]
+    }
+    fn optional_parameters(&self) -> &'static [(&'static str, &'static str)] {
+        &[("length", "The length of the slice.")]
+    }
+    // TODO does liquid have positional-only or keyword-only parameters?
+    fn positional_parameters(&self) -> &'static [(&'static str, &'static str)] {
+        &[("offset", "The offset of the slice."), ("length", "The length of the slice.")]
+    }
+    fn keyword_parameters(&self) -> &'static [(&'static str, &'static str)] {
+        &[]
+    }
 }
 
 // standardfilters.rb
