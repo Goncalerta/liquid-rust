@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use std::io::Write;
 
 use itertools;
-use liquid_error::{Error, Result, ResultLiquidChainExt, ResultLiquidExt};
+use liquid_error::{Error, Result, ResultLiquidExt, ResultLiquidReplaceExt};
 
-use compiler::LiquidOptions;
+use compiler::Language;
 use compiler::TagToken;
 use compiler::TagTokenIter;
 use compiler::TryMatchToken;
@@ -34,13 +34,13 @@ impl Renderable for Cycle {
             .cycle(&self.name, &self.values)
             .trace_with(|| self.trace().into())?;
         let value = expr.evaluate(context).trace_with(|| self.trace().into())?;
-        write!(writer, "{}", value).chain("Failed to render")?;
+        write!(writer, "{}", value.render()).replace("Failed to render")?;
         Ok(())
     }
 }
 
 /// Internal implementation of cycle, to allow easier testing.
-fn parse_cycle(mut arguments: TagTokenIter, _options: &LiquidOptions) -> Result<Cycle> {
+fn parse_cycle(mut arguments: TagTokenIter, _options: &Language) -> Result<Cycle> {
     let mut name = String::new();
     let mut values = Vec::new();
 
@@ -97,7 +97,7 @@ fn parse_cycle(mut arguments: TagTokenIter, _options: &LiquidOptions) -> Result<
 pub fn cycle_tag(
     _tag_name: &str,
     arguments: TagTokenIter,
-    options: &LiquidOptions,
+    options: &Language,
 ) -> Result<Box<Renderable>> {
     parse_cycle(arguments, options).map(|opt| Box::new(opt) as Box<Renderable>)
 }
@@ -137,8 +137,8 @@ mod test {
     use interpreter;
     use value::Value;
 
-    fn options() -> LiquidOptions {
-        let mut options = LiquidOptions::default();
+    fn options() -> Language {
+        let mut options = Language::default();
         options
             .tags
             .register("cycle", (cycle_tag as compiler::FnParseTag).into());

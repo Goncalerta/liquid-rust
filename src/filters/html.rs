@@ -25,7 +25,7 @@ fn _escape(input: &Value, args: &[Value], once_p: bool) -> FilterResult {
     let mut result = String::new();
     let mut last = 0;
     let mut skip = 0;
-    for (i, c) in s.chars().enumerate() {
+    for (i, c) in s.char_indices() {
         if skip > 0 {
             skip -= 1;
             continue;
@@ -80,7 +80,7 @@ pub fn strip_html(input: &Value, args: &[Value]) -> FilterResult {
     }
     check_args_len(args, 0, 0)?;
 
-    let input = input.to_string();
+    let input = input.to_str().into_owned();
 
     let result = MATCHERS.iter().fold(input, |acc, matcher| {
         matcher.replace_all(&acc, "").into_owned()
@@ -135,6 +135,14 @@ mod tests {
         assert_eq!(
             unit!(escape, tos!("Tetsuro Takara")),
             tos!("Tetsuro Takara")
+        );
+    }
+
+    #[test]
+    fn unit_escape_non_ascii() {
+        assert_eq!(
+            unit!(escape, tos!("word¹ <br> word¹")),
+            tos!("word¹ &lt;br&gt; word¹")
         );
     }
 

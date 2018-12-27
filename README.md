@@ -34,7 +34,7 @@ To include liquid in your project add the following to your Cargo.toml:
 
 ```toml
 [dependencies]
-liquid = "0.17"
+liquid = "0.18"
 ```
 
 Now you can use the crate in your code:
@@ -49,7 +49,7 @@ Example:
 extern crate liquid;
 
 let template = liquid::ParserBuilder::with_liquid()
-    .build()
+    .build().unwrap()
     .parse("Liquid! {{num | minus: 2}}").unwrap();
 
 let mut globals = liquid::value::Object::new();

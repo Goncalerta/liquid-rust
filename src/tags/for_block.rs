@@ -2,11 +2,11 @@ use std::fmt;
 use std::io::Write;
 
 use itertools;
-use liquid_error::{Error, Result, ResultLiquidChainExt, ResultLiquidExt};
+use liquid_error::{Error, Result, ResultLiquidExt, ResultLiquidReplaceExt};
 use liquid_value::{Object, Scalar, Value};
 
 use compiler::BlockElement;
-use compiler::LiquidOptions;
+use compiler::Language;
 use compiler::TagBlock;
 use compiler::TagTokenIter;
 use compiler::TryMatchToken;
@@ -142,8 +142,8 @@ fn int_argument(arg: &Expression, context: &Context, arg_name: &str) -> Result<i
         .as_scalar()
         .and_then(Scalar::to_integer)
         .ok_or_else(|| unexpected_value_error("whole number", Some(value.type_name())))
-        .context_key_with(|| arg_name.to_string().into())
-        .value_with(|| value.to_string().into())?;
+        .context_key_with(|| arg_name.to_owned().into())
+        .value_with(|| value.to_str().into_owned().into())?;
 
     Ok(value as isize)
 }
@@ -236,7 +236,7 @@ pub fn for_block(
     _tag_name: &str,
     mut arguments: TagTokenIter,
     mut tokens: TagBlock,
-    options: &LiquidOptions,
+    options: &Language,
 ) -> Result<Box<Renderable>> {
     let var_name = arguments
         .expect_next("Identifier expected.")?
@@ -403,9 +403,10 @@ impl Renderable for TableRow {
 
                 if col_first {
                     write!(writer, "<tr class=\"row{}\">", row_index + 1)
-                        .chain("Failed to render")?;
+                        .replace("Failed to render")?;
                 }
-                write!(writer, "<td class=\"col{}\">", col_index + 1).chain("Failed to render")?;
+                write!(writer, "<td class=\"col{}\">", col_index + 1)
+                    .replace("Failed to render")?;
 
                 scope.stack_mut().set(self.var_name.to_owned(), v);
                 self.item_template
@@ -414,9 +415,9 @@ impl Renderable for TableRow {
                     .context_key("index")
                     .value_with(|| format!("{}", i + 1).into())?;
 
-                write!(writer, "</td>").chain("Failed to render")?;
+                write!(writer, "</td>").replace("Failed to render")?;
                 if col_last {
-                    write!(writer, "</tr>").chain("Failed to render")?;
+                    write!(writer, "</tr>").replace("Failed to render")?;
                 }
             }
             Ok(())
@@ -430,7 +431,7 @@ pub fn tablerow_block(
     _tag_name: &str,
     mut arguments: TagTokenIter,
     mut tokens: TagBlock,
-    options: &LiquidOptions,
+    options: &Language,
 ) -> Result<Box<Renderable>> {
     let var_name = arguments
         .expect_next("Identifier expected.")?
@@ -505,8 +506,8 @@ mod test {
 
     use super::*;
 
-    fn options() -> LiquidOptions {
-        let mut options = LiquidOptions::default();
+    fn options() -> Language {
+        let mut options = Language::default();
         options
             .blocks
             .register("for", (for_block as compiler::FnParseBlock).into());

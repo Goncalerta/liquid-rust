@@ -27,8 +27,10 @@ pub trait Filter: Send + Sync + Debug {
 /// This function will be called whenever the parser encounters a tag and returns
 /// a new [Renderable](trait.Renderable.html) based on its parameters. The received parameters
 /// specify the name of the tag, the argument [Tokens](lexer/enum.Token.html) passed to
-/// the tag and the global [`LiquidOptions`](struct.LiquidOptions.html).
+
+/// the tag and the global [`Language`](struct.Language.html).
 pub trait ParseFilter: Send + Sync + ParseFilterClone + FilterReflection {
+
     /// Filter `input` based on `arguments`.
     fn parse(&self, arguments: FilterArguments) -> Result<Box<Filter>>;
 }

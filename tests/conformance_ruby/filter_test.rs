@@ -3,11 +3,11 @@ use liquid::compiler::FilterResult;
 use liquid::value::Value;
 
 fn money(input: &Value, _args: &[Value]) -> FilterResult {
-    Ok(Value::scalar(format!(" {}$ ", input)))
+    Ok(Value::scalar(format!(" {}$ ", input.render())))
 }
 
 fn money_with_underscore(input: &Value, _args: &[Value]) -> FilterResult {
-    Ok(Value::scalar(format!(" {}$ ", input)))
+    Ok(Value::scalar(format!(" {}$ ", input.render())))
 }
 
 fn liquid_money() -> liquid::Parser {
@@ -18,12 +18,13 @@ fn liquid_money() -> liquid::Parser {
             money_with_underscore as liquid::compiler::FnFilterValue,
         )
         .build()
+        .unwrap()
 }
 
 fn substitute(input: &Value, _args: &[Value]) -> FilterResult {
     Ok(Value::scalar(format!(
         "No keyword argument support: {}",
-        input
+        input.render()
     )))
 }
 
@@ -31,6 +32,7 @@ fn liquid_sub() -> liquid::Parser {
     liquid::ParserBuilder::with_liquid()
         .filter("substitute", substitute as liquid::compiler::FnFilterValue)
         .build()
+        .unwrap()
 }
 
 #[test]

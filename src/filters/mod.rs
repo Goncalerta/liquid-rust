@@ -621,7 +621,7 @@ fn canonicalize_slice(
 // pub fn remove(input: &Value, args: &[Value]) -> FilterResult {
 //     check_args_len(args, 1, 0)?;
 
-//     let input = input.to_str();
+//     let input = input.to_str().into_owned();;
 
 //     let string = args[0].to_str();
 
@@ -676,6 +676,36 @@ fn canonicalize_slice(
 //     let input = input.to_str();
 
 //     let mut string = args[0].to_string();
+
+//     string.push_str(input.as_ref());
+
+//     Ok(Value::scalar(input))
+// }
+
+// pub fn concat(input: &Value, args: &[Value]) -> FilterResult {
+//     check_args_len(args, 1, 0)?;
+
+//     let input = input
+//         .as_array()
+//         .ok_or_else(|| invalid_input("Array expected"))?;
+//     let input = input.iter().cloned();
+
+//     let array = args[0]
+//         .as_array()
+//         .ok_or_else(|| invalid_argument(0, "Array expected"))?;
+//     let array = array.iter().cloned();
+
+//     let result = input.chain(array);
+//     let result: Vec<_> = result.collect();
+//     Ok(Value::array(result))
+// }
+
+// pub fn prepend(input: &Value, args: &[Value]) -> FilterResult {
+//     check_args_len(args, 1, 0)?;
+
+//     let input = input.to_str();
+
+//     let mut string = args[0].to_str().into_owned();
 
 //     string.push_str(input.as_ref());
 

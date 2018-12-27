@@ -5,7 +5,7 @@ use liquid_error::{Result, ResultLiquidExt};
 use liquid_value::Value;
 
 use compiler::BlockElement;
-use compiler::LiquidOptions;
+use compiler::Language;
 use compiler::TagBlock;
 use compiler::TagTokenIter;
 use compiler::TryMatchToken;
@@ -64,7 +64,7 @@ impl Renderable for Case {
                     .trace_with(|| case.trace().into())
                     .trace_with(|| self.trace().into())
                     .context_key_with(|| self.target.to_string().into())
-                    .value_with(|| value.to_string().into());
+                    .value_with(|| value.to_str().into_owned().into());
             }
         }
 
@@ -74,7 +74,7 @@ impl Renderable for Case {
                 .trace("{{% else %}}")
                 .trace_with(|| self.trace().into())
                 .context_key_with(|| self.target.to_string().into())
-                .value_with(|| value.to_string().into());
+                .value_with(|| value.to_str().into_owned().into());
         }
 
         Ok(())
@@ -113,7 +113,7 @@ pub fn case_block(
     _tag_name: &str,
     mut arguments: TagTokenIter,
     mut tokens: TagBlock,
-    options: &LiquidOptions,
+    options: &Language,
 ) -> Result<Box<Renderable>> {
     let target = arguments
         .expect_next("Value expected.")?
@@ -170,8 +170,8 @@ mod test {
     use compiler;
     use interpreter;
 
-    fn options() -> LiquidOptions {
-        let mut options = LiquidOptions::default();
+    fn options() -> Language {
+        let mut options = Language::default();
         options
             .blocks
             .register("case", (case_block as compiler::FnParseBlock).into());

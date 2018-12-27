@@ -4,13 +4,13 @@
 //!
 //! ```toml
 //! [dependencies]
-//! liquid = "0.17"
+//! liquid = "0.18"
 //! ```
 //!
 //! ## Example
 //! ```rust
 //! let template = liquid::ParserBuilder::with_liquid()
-//!     .build()
+//!     .build().unwrap()
 //!     .parse("Liquid! {{num | minus: 2}}").unwrap();
 //!
 //! let mut globals = liquid::value::Object::new();
@@ -46,6 +46,9 @@ mod template;
 pub mod compiler {
     pub use liquid_compiler::*;
 }
+pub mod error {
+    pub use liquid_error::*;
+}
 pub mod interpreter {
     pub use liquid_interpreter::*;
 }
@@ -54,6 +57,7 @@ pub mod value {
 }
 
 pub mod filters;
+pub mod partials;
 pub mod tags;
 
 pub use interpreter::ValueStore;

@@ -3,13 +3,15 @@ use std::io::Write;
 
 use itertools;
 
-use liquid_error::{Result, ResultLiquidChainExt, ResultLiquidExt};
+use liquid_error::{Result, ResultLiquidExt, ResultLiquidReplaceExt};
 use liquid_interpreter::Context;
 use liquid_interpreter::Expression;
 use liquid_interpreter::Renderable;
 use liquid_value::Value;
 
+
 use super::Filter;
+
 
 /// A `Value` expression.
 #[derive(Debug)]
@@ -54,7 +56,7 @@ impl fmt::Display for FilterChain {
 impl Renderable for FilterChain {
     fn render_to(&self, writer: &mut Write, context: &mut Context) -> Result<()> {
         let entry = self.evaluate(context)?;
-        write!(writer, "{}", entry).chain("Failed to render")?;
+        write!(writer, "{}", entry.to_str()).replace("Failed to render")?;
         Ok(())
     }
 }
