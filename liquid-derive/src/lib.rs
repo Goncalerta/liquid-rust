@@ -110,8 +110,11 @@ fn generate_evaluated_definition(field: &Field, is_option: bool) -> Field {
 #[proc_macro_derive(FilterParameters)]
 pub fn derive_filter_parameters(item: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(item as syn::DeriveInput);
+
     let name = &input.ident;
+    // Should the user have control over the name of EvaluatedFilterParameters with an attribute? 
     let evaluated_name = Ident::new(&format!("Evaluated{}", name), proc_macro2::Span::call_site());
+    
     let data = match &input.data {
         Data::Struct(data) => data,
         _ => panic!("FilterParameters is only available to structs."),
@@ -126,14 +129,15 @@ pub fn derive_filter_parameters(item: TokenStream) -> TokenStream {
     let mut construct_fields = Vec::new();
     let mut evaluate_fields = Vec::new();
     let mut fields_list: punctuated::Punctuated<_, Token![,]> = punctuated::Punctuated::new();
-    let mut evaluated_definition = Vec::new();
+    let mut evaluated_definition: punctuated::Punctuated<_, Token![,]> = punctuated::Punctuated::new();
+
     for field in fields {
         let Field {
             attrs, ident, ty, ..
         } = field;
         let ident = match ident {
             Some(ident) => ident,
-            None => panic!("Must have ident; Unsupported otherwise"),
+            None => panic!("Unnamed fields are not yet supported"),
         };
         let ty = match ty {
             Type::Path(ty) => ty.path.segments.last().expect("Has a type.").into_value(),
@@ -145,16 +149,17 @@ pub fn derive_filter_parameters(item: TokenStream) -> TokenStream {
         construct_fields.push(generate_construct_field(ident, is_option));
         evaluate_fields.push(generate_evaluate_field(ident, is_option));
 
-        evaluated_definition.push(field);
+        evaluated_definition.push(generate_evaluated_definition(field, is_option));
 
         fields_list.push(ident.clone());
     }
+
+    // Turn Vec's into ToTokensVec so they can be used in `quote!`
     let construct_fields = ToTokensVec(construct_fields);
     let evaluate_fields = ToTokensVec(evaluate_fields);
-    let evaluated_definition = ToTokensVec(evaluated_definition);
+
 
     let implement = quote! {
-
         impl #name {
             fn new(mut args: FilterArguments) -> Result<Self> {
                 #construct_fields
@@ -174,5 +179,6 @@ pub fn derive_filter_parameters(item: TokenStream) -> TokenStream {
             #evaluated_definition
         }
     };
-    implement.into()
+
+    implement.into();
 }

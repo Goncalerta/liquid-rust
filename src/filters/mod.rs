@@ -69,13 +69,36 @@ fn check_args_len(args: &[Value], required: usize, optional: usize) -> Result<()
 
 // TEST MACROS
 
+// TODO keyword arg attribute
 #[derive(Debug, FilterParameters)]
 struct SliceParameters {
     offset: Expression,
     length: Option<Expression>,
 }
 
-
+// impl SliceParameters {
+//     fn new(mut args: FilterArguments) -> Result<Self> {
+//         let offset = args.positional.next(). ok_or_else (|| liquid_error::Error::with_msg("Required"))?;
+//         let length = args.positional.next();
+//
+//         args.check_args_exhausted()?;
+//         Ok( SliceParameters { offset, length } )
+//     }
+//
+//     fn evaluate(&self, context: &Context) -> Result<EvaluatedSliceParameters> {
+//         let offset = self.offset.evaluate(context)?.to_owned();
+//         let length = match &self.length {
+//             Some(length) => Some(length.evaluate(context)?.to_owned()),
+//             None => None,
+//         };
+//         Ok( EvaluatedSliceParameters { offset, length })
+//     }
+// }
+//
+// struct EvaluatedSliceParameters {
+//     offset: Value,
+//     length: Option<Value>,
+// }
 
 #[derive(Debug)]
 pub struct SliceFilter {
@@ -125,6 +148,7 @@ impl Filter for SliceFilter {
 }
 
 #[derive(Clone)]
+
 pub struct SliceFilterParser;
 impl ParseFilter for SliceFilterParser {
     fn parse(&self, args: FilterArguments) -> Result<Box<Filter>> {
@@ -132,6 +156,7 @@ impl ParseFilter for SliceFilterParser {
         Ok(Box::new(SliceFilter { args }))
     }
 }
+// TODO generate FilterReflection implementation from SliceParameters atributes
 impl FilterReflection for SliceFilterParser {
     fn name(&self) -> &'static str {
         "slice"
@@ -155,6 +180,36 @@ impl FilterReflection for SliceFilterParser {
         &[]
     }
 }
+
+// After macros are fully finished, the code is supposed to look like something similar to this
+// 
+//
+// #[derive(FilterParameters)]
+// struct SliceParameters {
+//     #[parameter(description="The offset of the slice.")]
+//     offset: Expression,
+//     #[parameter(description="The length of the slice.")]
+//     length: Option<Expression>,
+// }
+// 
+// #[derive(FilterParser)]
+// #[name="slice", description="Takes a slice of a given string or array.", parameters(SliceParameters)]
+// struct SliceFilterParser;
+// 
+// struct SliceFilter {
+//     args: SliceParameters,
+// }
+// impl Filter for SliceFilter {
+//     fn filter(&self, input: &Value, context: &Context) -> Result<Value> {
+//         let args = self.args.evaluate(context);
+//       
+//         ( ... )
+//     }
+// }
+
+
+
+
 
 // standardfilters.rb
 
