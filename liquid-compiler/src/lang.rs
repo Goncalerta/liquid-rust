@@ -1,8 +1,6 @@
 use super::BoxedBlockParser;
 use super::BoxedTagParser;
 use super::BoxedFilterParser;
-use super::Include;
-use super::NullInclude;
 use super::PluginRegistry;
 
 #[derive(Clone)]
@@ -10,7 +8,6 @@ pub struct Language {
     pub blocks: PluginRegistry<BoxedBlockParser>,
     pub tags: PluginRegistry<BoxedTagParser>,
     pub filters: PluginRegistry<BoxedFilterParser>,
-    pub include_source: Box<Include>,
     non_exhaustive: (),
 }
 

@@ -180,5 +180,5 @@ pub fn derive_filter_parameters(item: TokenStream) -> TokenStream {
         }
     };
 
-    implement.into();
+    implement.into()
 }
