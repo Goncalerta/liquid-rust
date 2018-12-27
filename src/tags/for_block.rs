@@ -802,38 +802,38 @@ mod test {
             );
     }
 
-    #[test]
-    fn use_filters() {
-        let text = concat!(
-            "{% for name in array %}",
-            "test {{name | shout}} ",
-            "{% endfor %}",
-        );
+    // #[test]
+    // fn use_filters() {
+    //     let text = concat!(
+    //         "{% for name in array %}",
+    //         "test {{name | shout}} ",
+    //         "{% endfor %}",
+    //     );
 
-        let mut options = options();
-        options.filters.register(
-            "shout",
-            ((|input, _args| Ok(Value::scalar(input.to_str().to_uppercase())))
-                as compiler::FnFilterValue)
-                .into(),
-        );
-        let template = compiler::parse(text, &options)
-            .map(interpreter::Template::new)
-            .unwrap();
+    //     let mut options = options();
+    //     options.filters.register(
+    //         "shout",
+    //         ((|input, _args| Ok(Value::scalar(input.to_str().to_uppercase())))
+    //             as compiler::FnFilterValue)
+    //             .into(),
+    //     );
+    //     let template = compiler::parse(text, &options)
+    //         .map(interpreter::Template::new)
+    //         .unwrap();
 
-        let mut context = ContextBuilder::new().build();
+    //     let mut context = ContextBuilder::new().build();
 
-        context.stack_mut().set_global(
-            "array",
-            Value::Array(vec![
-                Value::scalar("alpha"),
-                Value::scalar("beta"),
-                Value::scalar("gamma"),
-            ]),
-        );
-        let output = template.render(&mut context).unwrap();
-        assert_eq!(output, "test ALPHA test BETA test GAMMA ");
-    }
+    //     context.stack_mut().set_global(
+    //         "array",
+    //         Value::Array(vec![
+    //             Value::scalar("alpha"),
+    //             Value::scalar("beta"),
+    //             Value::scalar("gamma"),
+    //         ]),
+    //     );
+    //     let output = template.render(&mut context).unwrap();
+    //     assert_eq!(output, "test ALPHA test BETA test GAMMA ");
+    // }
 
     #[test]
     fn for_loop_parameters_with_variables() {

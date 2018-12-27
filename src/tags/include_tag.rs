@@ -88,49 +88,49 @@ mod test {
         options
     }
 
-    #[test]
-    fn include_tag_quotes() {
-        let text = "{% include 'example.txt' %}";
-        let mut options = options();
-        options
-            .filters
-            .register("size", (filters::size as compiler::FnFilterValue).into());
-        let template = compiler::parse(text, &options)
-            .map(interpreter::Template::new)
-            .unwrap();
+    // #[test]
+    // fn include_tag_quotes() {
+    //     let text = "{% include 'example.txt' %}";
+    //     let mut options = options();
+    //     options
+    //         .filters
+    //         .register("size", (filters::size as compiler::FnFilterValue).into());
+    //     let template = compiler::parse(text, &options)
+    //         .map(interpreter::Template::new)
+    //         .unwrap();
 
-        let mut context = ContextBuilder::new().build();
-        context
-            .stack_mut()
-            .set_global("num", value::Value::scalar(5f64));
-        context
-            .stack_mut()
-            .set_global("numTwo", value::Value::scalar(10f64));
-        let output = template.render(&mut context).unwrap();
-        assert_eq!(output, "5 wat wot\n");
-    }
+    //     let mut context = ContextBuilder::new().build();
+    //     context
+    //         .stack_mut()
+    //         .set_global("num", value::Value::scalar(5f64));
+    //     context
+    //         .stack_mut()
+    //         .set_global("numTwo", value::Value::scalar(10f64));
+    //     let output = template.render(&mut context).unwrap();
+    //     assert_eq!(output, "5 wat wot\n");
+    // }
 
-    #[test]
-    fn include_non_string() {
-        let text = "{% include example.txt %}";
-        let mut options = options();
-        options
-            .filters
-            .register("size", (filters::size as compiler::FnFilterValue).into());
-        let template = compiler::parse(text, &options)
-            .map(interpreter::Template::new)
-            .unwrap();
+    // #[test]
+    // fn include_non_string() {
+    //     let text = "{% include example.txt %}";
+    //     let mut options = options();
+    //     options
+    //         .filters
+    //         .register("size", (filters::size as compiler::FnFilterValue).into());
+    //     let template = compiler::parse(text, &options)
+    //         .map(interpreter::Template::new)
+    //         .unwrap();
 
-        let mut context = ContextBuilder::new().build();
-        context
-            .stack_mut()
-            .set_global("num", value::Value::scalar(5f64));
-        context
-            .stack_mut()
-            .set_global("numTwo", value::Value::scalar(10f64));
-        let output = template.render(&mut context).unwrap();
-        assert_eq!(output, "5 wat wot\n");
-    }
+    //     let mut context = ContextBuilder::new().build();
+    //     context
+    //         .stack_mut()
+    //         .set_global("num", value::Value::scalar(5f64));
+    //     context
+    //         .stack_mut()
+    //         .set_global("numTwo", value::Value::scalar(10f64));
+    //     let output = template.render(&mut context).unwrap();
+    //     assert_eq!(output, "5 wat wot\n");
+    // }
 
     #[test]
     fn no_file() {
