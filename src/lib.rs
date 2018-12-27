@@ -37,6 +37,8 @@ extern crate liquid_compiler;
 extern crate liquid_error;
 extern crate liquid_interpreter;
 extern crate liquid_value;
+#[macro_use]
+extern crate liquid_derive;
 
 mod parser;
 mod template;
