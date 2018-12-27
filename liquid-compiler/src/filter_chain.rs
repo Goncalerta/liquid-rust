@@ -9,67 +9,18 @@ use liquid_interpreter::Expression;
 use liquid_interpreter::Renderable;
 use liquid_value::Value;
 
-use super::BoxedValueFilter;
-use super::FilterValue;
-
-/// A `Value` filter.
-#[derive(Clone, Debug)]
-pub struct FilterCall {
-    name: String,
-    filter: BoxedValueFilter,
-    arguments: Vec<Expression>,
-}
-
-impl FilterCall {
-    /// Create filter expression.
-    pub fn new(name: &str, filter: BoxedValueFilter, arguments: Vec<Expression>) -> FilterCall {
-        FilterCall {
-            name: name.to_owned(),
-            filter,
-            arguments,
-        }
-    }
-
-    pub fn evaluate(&self, context: &Context, entry: &Value) -> Result<Value> {
-        let arguments: Result<Vec<Value>> = self
-            .arguments
-            .iter()
-            .map(|a| Ok(a.evaluate(context)?.to_owned()))
-            .collect();
-        let arguments = arguments?;
-        self.filter
-            .filter(entry, &*arguments)
-            .chain("Filter error")
-            .context_key("filter")
-            .value_with(|| format!("{}", self).into())
-            .context_key("input")
-            .value_with(|| format!("{}", &entry).into())
-            .context_key("args")
-            .value_with(|| itertools::join(&arguments, ", ").into())
-    }
-}
-
-impl fmt::Display for FilterCall {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}: {}",
-            self.name,
-            itertools::join(&self.arguments, ", ")
-        )
-    }
-}
+use super::Filter;
 
 /// A `Value` expression.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct FilterChain {
     entry: Expression,
-    filters: Vec<FilterCall>,
+    filters: Vec<Box<Filter>>,
 }
 
 impl FilterChain {
     /// Create a new expression.
-    pub fn new(entry: Expression, filters: Vec<FilterCall>) -> Self {
+    pub fn new(entry: Expression, filters: Vec<Box<Filter>>) -> Self {
         Self { entry, filters }
     }
 
@@ -80,7 +31,7 @@ impl FilterChain {
 
         // apply all specified filters
         for filter in &self.filters {
-            entry = filter.evaluate(context, &entry)?;
+            entry = filter.filter(&entry, context)?;
         }
 
         Ok(entry)
@@ -89,12 +40,14 @@ impl FilterChain {
 
 impl fmt::Display for FilterChain {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{} | {}",
-            self.entry,
-            itertools::join(&self.filters, " | ")
-        )
+        // TODO reimplement Display
+        unimplemented!()
+        // write!(
+        //     f,
+        //     "{} | {}",
+        //     self.entry,
+        //     itertools::join(&self.filters, " | ")
+        // )
     }
 }
 

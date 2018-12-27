@@ -4,6 +4,7 @@
 //! but should be ignored for simple usage.
 
 use std;
+use std::collections::HashMap;
 
 use itertools;
 use liquid_error::{Error, Result};
@@ -16,7 +17,7 @@ use super::LiquidOptions;
 use super::ParseBlock;
 use super::ParseTag;
 use super::Text;
-use super::{FilterCall, FilterChain};
+use super::{Filter, FilterChain};
 
 use pest::Parser;
 
@@ -175,14 +176,39 @@ fn parse_value(value: Pair) -> Expression {
 
 /// Parses a `FilterCall` from a `Pair` with a filter.
 /// This `Pair` must be `Rule::Filter`.
-fn parse_filter(filter: Pair, options: &LiquidOptions) -> Result<FilterCall> {
+fn parse_filter(filter: Pair, options: &LiquidOptions) -> Result<Box<Filter>> {
     if filter.as_rule() != Rule::Filter {
         panic!("Expected a filter.");
     }
 
     let mut filter = filter.into_inner();
     let name = filter.next().expect("A filter always has a name.").as_str();
-    let args = filter.map(parse_value).collect();
+
+    let mut keyword_args = HashMap::new();
+    let mut positional_args = Vec::new();
+
+    for arg in filter {
+        match arg.as_rule() {
+            Rule::PositionalFilterArgument => {
+                let value = arg.into_inner().next().expect("Rule ensures value.");
+                let value = parse_value(value);
+                positional_args.push(value);
+            },
+            Rule::KeywordFilterArgument => {
+                let mut arg = arg.into_inner();
+                let key = arg.next().expect("Rule ensures identifier.").as_str();
+                let value = arg.next().expect("Rule ensures value.");
+                let value = parse_value(value);
+                keyword_args.insert(key, value);
+            },
+            _ => unreachable!(),
+        }
+    }
+
+    let args = FilterArguments {
+        positional: Box::new(positional_args.into_iter()),
+        keyword: keyword_args,
+    };
 
     let f = options
         .filters
@@ -194,10 +220,25 @@ fn parse_filter(filter: Pair, options: &LiquidOptions) -> Result<FilterCall> {
             Error::with_msg("Unknown filter")
                 .context("requested filter", name.to_owned())
                 .context("available filters", available)
-        })?
-        .clone();
-    let f = FilterCall::new(name, f, args);
+        })?;
+    let f = f.parse(args)?;
+    
     Ok(f)
+}
+
+// TODO change HashMap and Vec into wrapped structs
+pub struct FilterArguments<'a> {
+    pub positional: Box<Iterator<Item=Expression>>,
+    pub keyword: HashMap<&'a str, Expression>,
+}
+impl<'a> FilterArguments<'a> {
+    pub fn check_args_exhausted(mut self) -> Result<()> {
+        if self.positional.next().is_none() && self.keyword.is_empty() {
+            Ok(())
+        } else {
+            Err(panic!("TODO ERROR"))
+        }
+    }
 }
 
 /// Parses a `FilterChain` from a `Pair` with a filter chain.

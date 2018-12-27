@@ -1,10 +1,26 @@
-use std::fmt::{self, Debug};
-
-use liquid_error;
+use liquid_error::Result;
 use liquid_value::Value;
+use std::fmt::Debug;
+use liquid_interpreter::Context;
+use super::FilterArguments;
 
-/// Expected return type of a `Filter`.
-pub type FilterResult = Result<Value, liquid_error::Error>;
+pub trait FilterReflection {
+    fn name(&self) -> &'static str;
+    fn description(&self) -> &'static str;
+    // Not sure on return type
+    // Goal is to return name and description
+    fn required_parameters(&self) -> &'static [(&'static str, &'static str)];
+    fn optional_parameters(&self) -> &'static [(&'static str, &'static str)];
+    // TODO does liquid have positional-only or keyword-only parameters?
+    fn positional_parameters(&self) -> &'static [(&'static str, &'static str)];
+    fn keyword_parameters(&self) -> &'static [(&'static str, &'static str)];
+}
+
+pub trait Filter: Send + Sync + Debug {
+    // This will evaluate the expressions and evaluate the filter.
+    fn filter(&self, input: &Value, context: &Context) -> Result<Value>;
+}
+
 
 /// A trait for creating custom tags. This is a simple type alias for a function.
 ///
@@ -12,90 +28,91 @@ pub type FilterResult = Result<Value, liquid_error::Error>;
 /// a new [Renderable](trait.Renderable.html) based on its parameters. The received parameters
 /// specify the name of the tag, the argument [Tokens](lexer/enum.Token.html) passed to
 /// the tag and the global [`LiquidOptions`](struct.LiquidOptions.html).
-pub trait FilterValue: Send + Sync + FilterValueClone + Debug {
+pub trait ParseFilter: Send + Sync + ParseFilterClone + FilterReflection {
     /// Filter `input` based on `arguments`.
-    fn filter(&self, input: &Value, arguments: &[Value]) -> FilterResult;
+    fn parse(&self, arguments: FilterArguments) -> Result<Box<Filter>>;
 }
 
-/// Support cloning of `Box<FilterValue>`.
-pub trait FilterValueClone {
-    /// Cloning of `dyn FilterValue`.
-    fn clone_box(&self) -> Box<FilterValue>;
+// TODO boxed optimization
+pub type BoxedFilterParser = Box<ParseFilter>;
+impl<T: ParseFilter+'static> From<Box<T>> for BoxedFilterParser {
+    fn from(filter: Box<T>) -> BoxedFilterParser {
+        filter
+    }
 }
 
-impl<T> FilterValueClone for T
+/// Support cloning of `Box<ParseFilter>`.
+pub trait ParseFilterClone {
+    /// Cloning of `dyn ParseFilter`.
+    fn clone_box(&self) -> Box<ParseFilter>;
+}
+
+impl<T> ParseFilterClone for T
 where
-    T: 'static + FilterValue + Clone,
+    T: 'static + ParseFilter + Clone,
 {
-    fn clone_box(&self) -> Box<FilterValue> {
+    fn clone_box(&self) -> Box<ParseFilter> {
         Box::new(self.clone())
     }
 }
 
-impl Clone for Box<FilterValue> {
-    fn clone(&self) -> Box<FilterValue> {
+impl Clone for Box<ParseFilter> {
+    fn clone(&self) -> Box<ParseFilter> {
         self.clone_box()
     }
 }
 
-/// Function signature that can act as a `FilterValue`.
-pub type FnFilterValue = fn(&Value, &[Value]) -> FilterResult;
+// /// Function signature that can act as a `ParseFilter`.
+// pub type FnParseFilter = fn(&Value, FilterArguments) -> Result<Box<Filter>>;
 
-#[derive(Clone)]
-struct FnValueFilter {
-    filter: FnFilterValue,
-}
+// #[derive(Clone)]
+// struct FnFilterParser {
+//     filter: FnParseFilter,
+// }
 
-impl FnValueFilter {
-    fn new(filter: FnFilterValue) -> Self {
-        Self { filter }
-    }
-}
+// impl FnFilterParser {
+//     fn new(filter: FnParseFilter) -> Self {
+//         Self { filter }
+//     }
+// }
 
-impl FilterValue for FnValueFilter {
-    fn filter(&self, input: &Value, arguments: &[Value]) -> FilterResult {
-        (self.filter)(input, arguments)
-    }
-}
+// impl ParseFilter for FnFilterParser {
+//     fn parse(&self, input: &Value, arguments: FilterArguments) -> Result<Box<Filter>> {
+//         (self.filter)(input, arguments)
+//     }
+// }
 
-impl Debug for FnValueFilter {
-    #[inline]
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        writeln!(formatter, "fn filter")
-    }
-}
+// #[derive(Clone)]
+// enum EnumValueFilter {
+//     Fun(FnFilterParser),
+//     Heap(Box<ParseFilter>),
+// }
 
-#[derive(Clone, Debug)]
-enum EnumValueFilter {
-    Fun(FnValueFilter),
-    Heap(Box<FilterValue>),
-}
+// /// Custom `Box<ParseFilter>` with a `FnParseFilter` optimization.
+// #[derive(Clone)]
+// pub struct BoxedParseFilter {
+//     filter: EnumValueFilter,
+// }
 
-/// Custom `Box<FilterValue>` with a `FnFilterValue` optimization.
-#[derive(Clone, Debug)]
-pub struct BoxedValueFilter {
-    filter: EnumValueFilter,
-}
+// impl ParseFilter for BoxedParseFilter {
+//     fn parse(&self, input: &Value, arguments: &[Value]) -> Result<Box<Filter>> {
+//         match self.filter {
+//             EnumValueFilter::Fun(ref f) => f.parse(input, arguments),
+//             EnumValueFilter::Heap(ref f) => f.parse(input, arguments),
+//         }
+//     }
+// }
 
-impl FilterValue for BoxedValueFilter {
-    fn filter(&self, input: &Value, arguments: &[Value]) -> FilterResult {
-        match self.filter {
-            EnumValueFilter::Fun(ref f) => f.filter(input, arguments),
-            EnumValueFilter::Heap(ref f) => f.filter(input, arguments),
-        }
-    }
-}
+// impl From<FnParseFilter> for BoxedValueFilter {
+//     fn from(filter: FnParseFilter) -> BoxedValueFilter {
+//         let filter = EnumValueFilter::Fun(FnFilterParser::new(filter));
+//         Self { filter }
+//     }
+// }
 
-impl From<fn(&Value, &[Value]) -> FilterResult> for BoxedValueFilter {
-    fn from(filter: FnFilterValue) -> BoxedValueFilter {
-        let filter = EnumValueFilter::Fun(FnValueFilter::new(filter));
-        Self { filter }
-    }
-}
-
-impl From<Box<FilterValue>> for BoxedValueFilter {
-    fn from(filter: Box<FilterValue>) -> BoxedValueFilter {
-        let filter = EnumValueFilter::Heap(filter);
-        Self { filter }
-    }
-}
+// impl From<Box<ParseFilter>> for BoxedValueFilter {
+//     fn from(filter: Box<ParseFilter>) -> BoxedValueFilter {
+//         let filter = EnumValueFilter::Heap(filter);
+//         Self { filter }
+//     }
+// }

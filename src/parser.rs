@@ -14,7 +14,7 @@ use tags;
 pub struct ParserBuilder {
     blocks: compiler::PluginRegistry<compiler::BoxedBlockParser>,
     tags: compiler::PluginRegistry<compiler::BoxedTagParser>,
-    filters: compiler::PluginRegistry<compiler::BoxedValueFilter>,
+    filters: compiler::PluginRegistry<compiler::BoxedFilterParser>,
     include_source: Option<Box<compiler::Include>>,
 }
 
@@ -168,7 +168,6 @@ impl ParserBuilder {
     }
 
     /// Inserts a new custom filter into the parser
-    pub fn filter<F: Into<compiler::BoxedValueFilter>>(
     pub fn filter<F: Into<compiler::BoxedFilterParser>>(
         mut self,
         name: &'static str,

@@ -1,6 +1,6 @@
 use super::BoxedBlockParser;
 use super::BoxedTagParser;
-use super::BoxedValueFilter;
+use super::BoxedFilterParser;
 use super::Include;
 use super::NullInclude;
 use super::PluginRegistry;
@@ -9,7 +9,7 @@ use super::PluginRegistry;
 pub struct LiquidOptions {
     pub blocks: PluginRegistry<BoxedBlockParser>,
     pub tags: PluginRegistry<BoxedTagParser>,
-    pub filters: PluginRegistry<BoxedValueFilter>,
+    pub filters: PluginRegistry<BoxedFilterParser>,
     pub include_source: Box<Include>,
 }
 
