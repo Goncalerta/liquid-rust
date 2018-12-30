@@ -226,7 +226,6 @@ fn parse_filter(filter: Pair, options: &Language) -> Result<Box<Filter>> {
     Ok(f)
 }
 
-// TODO change HashMap and Vec into wrapped structs
 pub struct FilterArguments<'a> {
     pub positional: Box<Iterator<Item=Expression>>,
     pub keyword: HashMap<&'a str, Expression>,
