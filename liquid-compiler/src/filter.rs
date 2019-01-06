@@ -4,19 +4,19 @@ use liquid_interpreter::Context;
 use liquid_value::Value;
 use std::fmt::Debug;
 
-pub enum ParameterType {
-    Positional,
-    Keyword,
-}
 
-// (name, description, type, is_optional)
-pub type ParameterReflection = (&'static str, &'static str, ParameterType, bool);
+pub struct ParameterReflection {
+    name: &'static str,
+    description: &'static str,
+    is_optiona: bool,
+}
 
 pub trait FilterReflection {
     fn name(&self) -> &'static str;
     fn description(&self) -> &'static str;
 
-    fn parameters(&self) -> &'static [ParameterReflection];
+    fn positional_parameters(&self) -> &'static [ParameterReflection];
+    fn keyword_parameters(&self) -> &'static [ParameterReflection];
 }
 
 pub trait Filter: Send + Sync + Debug {
