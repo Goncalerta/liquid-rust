@@ -184,7 +184,7 @@ fn parse_filter(filter: Pair, options: &Language) -> Result<Box<Filter>> {
     let mut filter = filter.into_inner();
     let name = filter.next().expect("A filter always has a name.").as_str();
 
-    let mut keyword_args = HashMap::new();
+    let mut keyword_args = Vec::new();
     let mut positional_args = Vec::new();
 
     for arg in filter {
@@ -193,46 +193,43 @@ fn parse_filter(filter: Pair, options: &Language) -> Result<Box<Filter>> {
                 let value = arg.into_inner().next().expect("Rule ensures value.");
                 let value = parse_value(value);
                 positional_args.push(value);
-            },
+            }
             Rule::KeywordFilterArgument => {
                 let mut arg = arg.into_inner();
                 let key = arg.next().expect("Rule ensures identifier.").as_str();
                 let value = arg.next().expect("Rule ensures value.");
                 let value = parse_value(value);
-                keyword_args.insert(key, value);
-            },
+                keyword_args.push((key, value));
+            }
             _ => unreachable!(),
         }
     }
 
     let args = FilterArguments {
         positional: Box::new(positional_args.into_iter()),
-        keyword: keyword_args,
+        keyword: Box::new(keyword_args.into_iter()),
     };
 
-    let f = options
-        .filters
-        .get(name)
-        .ok_or_else(|| {
-            let mut available: Vec<_> = options.filters.plugin_names().collect();
-            available.sort_unstable();
-            let available = itertools::join(available, ", ");
-            Error::with_msg("Unknown filter")
-                .context("requested filter", name.to_owned())
-                .context("available filters", available)
-        })?;
+    let f = options.filters.get(name).ok_or_else(|| {
+        let mut available: Vec<_> = options.filters.plugin_names().collect();
+        available.sort_unstable();
+        let available = itertools::join(available, ", ");
+        Error::with_msg("Unknown filter")
+            .context("requested filter", name.to_owned())
+            .context("available filters", available)
+    })?;
     let f = f.parse(args)?;
-    
+
     Ok(f)
 }
 
 pub struct FilterArguments<'a> {
     pub positional: Box<Iterator<Item=Expression>>,
-    pub keyword: HashMap<&'a str, Expression>,
+    pub keyword: Box<Iterator<Item=(&'a str, Expression)> + 'a>,
 }
 impl<'a> FilterArguments<'a> {
     pub fn check_args_exhausted(mut self) -> Result<()> {
-        if self.positional.next().is_none() && self.keyword.is_empty() {
+        if self.positional.next().is_none() && self.keyword.next().is_none() {
             Ok(())
         } else {
             Err(panic!("TODO ERROR"))
