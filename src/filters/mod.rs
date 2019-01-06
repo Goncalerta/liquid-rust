@@ -25,7 +25,9 @@ use liquid_value::Scalar;
 use liquid_value::Value;
 use unicode_segmentation::UnicodeSegmentation;
 
-use liquid_compiler::{Filter, FilterArguments, ParseFilter, FilterReflection};
+use liquid_compiler::{
+    Filter, FilterArguments, FilterReflection, ParameterReflection, ParameterType, ParseFilter,
+};
 
 use liquid_derive;
 
@@ -107,14 +109,16 @@ pub struct SliceFilter {
 impl Filter for SliceFilter {
     fn filter(&self, input: &Value, context: &Context) -> Result<Value> {
         let args = self.args.evaluate(context)?;
-        
-        let offset = args.offset
+
+        let offset = args
+            .offset
             .as_scalar()
             .and_then(Scalar::to_integer)
             .ok_or_else(|| invalid_argument(0, "Whole number expected"))?;
         let offset = offset as isize;
 
-        let length = args.length
+        let length = args
+            .length
             .unwrap_or(Value::scalar(1))
             .as_scalar()
             .and_then(Scalar::to_integer)
@@ -148,7 +152,6 @@ impl Filter for SliceFilter {
 }
 
 #[derive(Clone)]
-
 pub struct SliceFilterParser;
 impl ParseFilter for SliceFilterParser {
     fn parse(&self, args: FilterArguments) -> Result<Box<Filter>> {
@@ -164,25 +167,27 @@ impl FilterReflection for SliceFilterParser {
     fn description(&self) -> &'static str {
         "Takes a slice of a given string or array."
     }
-    // Not sure on return type
-    // Goal is to return name and description
-    fn required_parameters(&self) -> &'static [(&'static str, &'static str)] {
-        &[("offset", "The offset of the slice.")]
-    }
-    fn optional_parameters(&self) -> &'static [(&'static str, &'static str)] {
-        &[("length", "The length of the slice.")]
-    }
-    // TODO does liquid have positional-only or keyword-only parameters?
-    fn positional_parameters(&self) -> &'static [(&'static str, &'static str)] {
-        &[("offset", "The offset of the slice."), ("length", "The length of the slice.")]
-    }
-    fn keyword_parameters(&self) -> &'static [(&'static str, &'static str)] {
-        &[]
+
+    fn parameters(&self) -> &'static [ParameterReflection] {
+        &[
+            (
+                "offset",
+                "The offset of the slice.",
+                ParameterType::Positional,
+                false,
+            ),
+            (
+                "length",
+                "The length of the slice.",
+                ParameterType::Positional,
+                true,
+            ),
+        ]
     }
 }
 
 // After macros are fully finished, the code is supposed to look like something similar to this
-// 
+//
 //
 // #[derive(FilterParameters)]
 // struct SliceParameters {
@@ -191,25 +196,21 @@ impl FilterReflection for SliceFilterParser {
 //     #[parameter(description="The length of the slice.")]
 //     length: Option<Expression>,
 // }
-// 
+//
 // #[derive(FilterParser)]
 // #[name="slice", description="Takes a slice of a given string or array.", parameters(SliceParameters)]
 // struct SliceFilterParser;
-// 
+//
 // struct SliceFilter {
 //     args: SliceParameters,
 // }
 // impl Filter for SliceFilter {
 //     fn filter(&self, input: &Value, context: &Context) -> Result<Value> {
 //         let args = self.args.evaluate(context);
-//       
+//
 //         ( ... )
 //     }
 // }
-
-
-
-
 
 // standardfilters.rb
 

@@ -9,9 +9,7 @@ use liquid_interpreter::Expression;
 use liquid_interpreter::Renderable;
 use liquid_value::Value;
 
-
 use super::Filter;
-
 
 /// A `Value` expression.
 #[derive(Debug)]

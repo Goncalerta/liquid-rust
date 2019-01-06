@@ -1,26 +1,28 @@
+use super::FilterArguments;
 use liquid_error::Result;
+use liquid_interpreter::Context;
 use liquid_value::Value;
 use std::fmt::Debug;
-use liquid_interpreter::Context;
-use super::FilterArguments;
+
+pub enum ParameterType {
+    Positional,
+    Keyword,
+}
+
+// (name, description, type, is_optional)
+pub type ParameterReflection = (&'static str, &'static str, ParameterType, bool);
 
 pub trait FilterReflection {
     fn name(&self) -> &'static str;
     fn description(&self) -> &'static str;
-    // Not sure on return type
-    // Goal is to return name and description
-    fn required_parameters(&self) -> &'static [(&'static str, &'static str)];
-    fn optional_parameters(&self) -> &'static [(&'static str, &'static str)];
-    // TODO does liquid have positional-only or keyword-only parameters?
-    fn positional_parameters(&self) -> &'static [(&'static str, &'static str)];
-    fn keyword_parameters(&self) -> &'static [(&'static str, &'static str)];
+
+    fn parameters(&self) -> &'static [ParameterReflection];
 }
 
 pub trait Filter: Send + Sync + Debug {
     // This will evaluate the expressions and evaluate the filter.
     fn filter(&self, input: &Value, context: &Context) -> Result<Value>;
 }
-
 
 /// A trait for creating custom tags. This is a simple type alias for a function.
 ///
@@ -30,14 +32,13 @@ pub trait Filter: Send + Sync + Debug {
 
 /// the tag and the global [`Language`](struct.Language.html).
 pub trait ParseFilter: Send + Sync + ParseFilterClone + FilterReflection {
-
     /// Filter `input` based on `arguments`.
     fn parse(&self, arguments: FilterArguments) -> Result<Box<Filter>>;
 }
 
 // TODO boxed optimization
 pub type BoxedFilterParser = Box<ParseFilter>;
-impl<T: ParseFilter+'static> From<Box<T>> for BoxedFilterParser {
+impl<T: ParseFilter + 'static> From<Box<T>> for BoxedFilterParser {
     fn from(filter: Box<T>) -> BoxedFilterParser {
         filter
     }
