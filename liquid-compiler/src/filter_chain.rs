@@ -31,7 +31,7 @@ impl FilterChain {
 
         // apply all specified filters
         for filter in &self.filters {
-            entry = filter.filter(&entry, context)?;
+            entry = filter.evaluate(&entry, context)?;
         }
 
         Ok(entry)

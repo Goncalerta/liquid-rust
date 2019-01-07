@@ -224,8 +224,8 @@ fn parse_filter(filter: Pair, options: &Language) -> Result<Box<Filter>> {
 }
 
 pub struct FilterArguments<'a> {
-    pub positional: Box<Iterator<Item=Expression>>,
-    pub keyword: Box<Iterator<Item=(&'a str, Expression)> + 'a>,
+    pub positional: Box<Iterator<Item = Expression>>,
+    pub keyword: Box<Iterator<Item = (&'a str, Expression)> + 'a>,
 }
 impl<'a> FilterArguments<'a> {
     pub fn check_args_exhausted(mut self) -> Result<()> {

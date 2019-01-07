@@ -1,14 +1,14 @@
-use super::FilterArguments;
+use std::fmt::Debug;
+
 use liquid_error::Result;
 use liquid_interpreter::Context;
 use liquid_value::Value;
-use std::fmt::Debug;
-
+use super::FilterArguments;
 
 pub struct ParameterReflection {
-    name: &'static str,
-    description: &'static str,
-    is_optiona: bool,
+    pub name: &'static str,
+    pub description: &'static str,
+    pub is_optional: bool,
 }
 
 pub trait FilterReflection {
@@ -21,7 +21,7 @@ pub trait FilterReflection {
 
 pub trait Filter: Send + Sync + Debug {
     // This will evaluate the expressions and evaluate the filter.
-    fn filter(&self, input: &Value, context: &Context) -> Result<Value>;
+    fn evaluate(&self, input: &Value, context: &Context) -> Result<Value>;
 }
 
 /// A trait for creating custom tags. This is a simple type alias for a function.

@@ -160,7 +160,6 @@ mod test {
     //     assert_eq!(output, "5 wat wot");
     // }
 
-
     #[test]
     fn no_file() {
         let text = "{% include 'file_does_not_exist.liquid' %}";
