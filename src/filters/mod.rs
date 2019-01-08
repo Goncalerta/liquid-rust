@@ -26,7 +26,7 @@ use liquid_value::Value;
 use unicode_segmentation::UnicodeSegmentation;
 
 use liquid_compiler::{
-    Filter, FilterArguments, FilterReflection, ParameterReflection, ParameterType, ParseFilter,
+    Filter, FilterArguments, FilterReflection, ParameterReflection, ParseFilter,
 };
 
 use liquid_derive;
@@ -71,43 +71,47 @@ fn check_args_len(args: &[Value], required: usize, optional: usize) -> Result<()
 
 // TEST MACROS
 
-// TODO keyword arg attribute
-#[derive(Debug, FilterParameters)]
+#[derive(Debug,
+// FilterParameters
+)]
 struct SliceParameters {
     offset: Expression,
     length: Option<Expression>,
 }
 
-// impl SliceParameters {
-//     fn new(mut args: FilterArguments) -> Result<Self> {
-//         let offset = args.positional.next(). ok_or_else (|| liquid_error::Error::with_msg("Required"))?;
-//         let length = args.positional.next();
-//
-//         args.check_args_exhausted()?;
-//         Ok( SliceParameters { offset, length } )
-//     }
-//
-//     fn evaluate(&self, context: &Context) -> Result<EvaluatedSliceParameters> {
-//         let offset = self.offset.evaluate(context)?.to_owned();
-//         let length = match &self.length {
-//             Some(length) => Some(length.evaluate(context)?.to_owned()),
-//             None => None,
-//         };
-//         Ok( EvaluatedSliceParameters { offset, length })
-//     }
-// }
-//
-// struct EvaluatedSliceParameters {
-//     offset: Value,
-//     length: Option<Value>,
-// }
+impl SliceParameters {
+    fn new(mut args: FilterArguments) -> Result<Self> {
+        let offset = args
+            .positional
+            .next()
+            .ok_or_else(|| liquid_error::Error::with_msg("Required"))?;
+        let length = args.positional.next();
+
+        args.check_args_exhausted()?;
+        Ok(SliceParameters { offset, length })
+    }
+
+    fn evaluate<'a>(&'a self, context: &'a Context) -> Result<EvaluatedSliceParameters<'a>> {
+        let offset = self.offset.evaluate(context)?;
+        let length = match &self.length {
+            Some(length) => Some(length.evaluate(context)?),
+            None => None,
+        };
+        Ok(EvaluatedSliceParameters { offset, length })
+    }
+}
+
+struct EvaluatedSliceParameters<'a> {
+    offset: &'a Value,
+    length: Option<&'a Value>,
+}
 
 #[derive(Debug)]
 pub struct SliceFilter {
     args: SliceParameters,
 }
 impl Filter for SliceFilter {
-    fn filter(&self, input: &Value, context: &Context) -> Result<Value> {
+    fn evaluate(&self, input: &Value, context: &Context) -> Result<Value> {
         let args = self.args.evaluate(context)?;
 
         let offset = args
@@ -119,7 +123,7 @@ impl Filter for SliceFilter {
 
         let length = args
             .length
-            .unwrap_or(Value::scalar(1))
+            .unwrap_or(&Value::scalar(1))
             .as_scalar()
             .and_then(Scalar::to_integer)
             .ok_or_else(|| invalid_argument(0, "Whole number expected"))?;
@@ -159,7 +163,7 @@ impl ParseFilter for SliceFilterParser {
         Ok(Box::new(SliceFilter { args }))
     }
 }
-// TODO generate FilterReflection implementation from SliceParameters atributes
+
 impl FilterReflection for SliceFilterParser {
     fn name(&self) -> &'static str {
         "slice"
@@ -168,21 +172,23 @@ impl FilterReflection for SliceFilterParser {
         "Takes a slice of a given string or array."
     }
 
-    fn parameters(&self) -> &'static [ParameterReflection] {
+    fn positional_parameters(&self) -> &'static [ParameterReflection] {
         &[
-            (
-                "offset",
-                "The offset of the slice.",
-                ParameterType::Positional,
-                false,
-            ),
-            (
-                "length",
-                "The length of the slice.",
-                ParameterType::Positional,
-                true,
-            ),
+            ParameterReflection {
+                name: "offset",
+                description: "The offset of the slice.",
+                is_optional: false,
+            },
+            ParameterReflection {
+                name: "calength",
+                description: "The length of the slice.",
+                is_optional: true,
+            },
         ]
+    }
+
+    fn keyword_parameters(&self) -> &'static [ParameterReflection] {
+        &[]
     }
 }
 

@@ -1,9 +1,9 @@
 use std::fmt::Debug;
 
+use super::FilterArguments;
 use liquid_error::Result;
 use liquid_interpreter::Context;
 use liquid_value::Value;
-use super::FilterArguments;
 
 pub struct ParameterReflection {
     pub name: &'static str,
