@@ -14,7 +14,6 @@ fn generate_construct_field(ident: &Ident, is_option: bool) -> TokenStream {
         }
     } else {
         quote! {
-            // problem => doesnt work if liquid_error is not in use
             let #ident = args.positional.next().ok_or_else(|| liquid::error::Error::with_msg("Required"))?;
         }
     }
@@ -139,8 +138,6 @@ fn generate_impl_filter_parameters(
 /// Generates a field declaration for `EvaluatedFilterParameters` struct.
 /// name: Expression -> name: &'a Value
 /// name: Option<Expression> -> name: Option<&'a Value>
-///
-//possible error => liquid not a dependency (ex. liquid itself)
 fn generate_evaluated_field(ident: Option<&Ident>, is_option: bool) -> TokenStream {
     // Should attrs from SliceParameters fields be transfered to EvaluatedSliceParameters fields?
     // Should vis from SliceParameters fields be transfered to EvaluatedSliceParameters fields?
