@@ -99,10 +99,32 @@ struct SliceParameters {
 //     }
 // }
 
+impl SliceParameters {
+    fn positional_parameters_reflection() -> &'static [ParameterReflection] {
+        &[
+            ParameterReflection {
+                name: "offset",
+                description: "The offset of the slice.",
+                is_optional: false,
+            },
+            ParameterReflection {
+                name: "calength",
+                description: "The length of the slice.",
+                is_optional: true,
+            },
+        ]
+    }
+
+    fn keyword_parameters_reflection() -> &'static [ParameterReflection] {
+        &[]
+    }
+}
+
 // struct EvaluatedSliceParameters<'a> {
 //     offset: &'a Value,
 //     length: Option<&'a Value>,
 // }
+
 
 #[derive(Debug)]
 pub struct SliceFilter {
@@ -171,22 +193,11 @@ impl FilterReflection for SliceFilterParser {
     }
 
     fn positional_parameters(&self) -> &'static [ParameterReflection] {
-        &[
-            ParameterReflection {
-                name: "offset",
-                description: "The offset of the slice.",
-                is_optional: false,
-            },
-            ParameterReflection {
-                name: "calength",
-                description: "The length of the slice.",
-                is_optional: true,
-            },
-        ]
+        SliceParameters::positional_parameters_reflection()
     }
 
     fn keyword_parameters(&self) -> &'static [ParameterReflection] {
-        &[]
+        SliceParameters::keyword_parameters_reflection()
     }
 }
 
