@@ -43,6 +43,14 @@ extern crate liquid_derive;
 mod parser;
 mod template;
 
+/// Allows `liquid-derive` macros to work inside this crate.
+/// 
+/// This is necessary because paths to liquid items will 
+/// start with `::liquid` in those macros.
+mod liquid {
+    pub use ::*;
+}
+
 pub mod compiler {
     pub use liquid_compiler::*;
 }

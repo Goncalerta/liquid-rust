@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use syn::punctuated::Punctuated;
 use syn::*;
 
-// TODO pay close atention to paths (ex. liquid::error::Error::with_msg)
+// TODO pay close atention to paths (ex. ::liquid::error::Error::with_msg)
 
 /// Generates the statement that saves the next positional argument in the iterator in `ident`.
 fn generate_construct_field(ident: &Ident, is_option: bool) -> TokenStream {
@@ -14,7 +14,7 @@ fn generate_construct_field(ident: &Ident, is_option: bool) -> TokenStream {
         }
     } else {
         quote! {
-            let #ident = args.positional.next().ok_or_else(|| liquid::error::Error::with_msg("Required"))?;
+            let #ident = args.positional.next().ok_or_else(|| ::liquid::error::Error::with_msg("Required"))?;
         }
     }
 }
@@ -35,7 +35,7 @@ fn generate_evaluate_field(ident: &Ident, is_option: bool) -> TokenStream {
     }
 }
 
-/// Checks whether this time is `Option<Expression>` (true) or `Expression` (false)
+/// Checks whether this type is `Option<Expression>` (true) or `Expression` (false)
 fn is_type_option(ty: &Type) -> bool {
     if let Type::Path(ty) = ty {
         ty.path
@@ -119,14 +119,14 @@ fn generate_impl_filter_parameters(
 
     quote! {
         impl #name {
-            fn new(mut args: liquid::compiler::FilterArguments) -> liquid::error::Result<Self> {
+            fn new(mut args: ::liquid::compiler::FilterArguments) -> ::liquid::error::Result<Self> {
                 #(#construct_fields)*
 
                 args.check_args_exhausted()?;
                 Ok( #name #generate_constructor )
             }
 
-            fn evaluate<'a>(&'a self, context: &'a liquid::interpreter::Context) -> liquid::error::Result<#evaluated_name<'a>> {
+            fn evaluate<'a>(&'a self, context: &'a ::liquid::interpreter::Context) -> ::liquid::error::Result<#evaluated_name<'a>> {
                 #(#evaluate_fields)*
 
                 Ok( #evaluated_name #generate_constructor )
@@ -142,9 +142,9 @@ fn generate_evaluated_field(ident: Option<&Ident>, is_option: bool) -> TokenStre
     // Should attrs from SliceParameters fields be transfered to EvaluatedSliceParameters fields?
     // Should vis from SliceParameters fields be transfered to EvaluatedSliceParameters fields?
     let ty = if is_option {
-        quote! { Option<&'a liquid::value::Value> }
+        quote! { Option<&'a ::liquid::value::Value> }
     } else {
-        quote! { &'a liquid::value::Value }
+        quote! { &'a ::liquid::value::Value }
     };
 
     if let Some(ident) = ident {
@@ -207,7 +207,7 @@ fn generate_evaluated_struct(structure: &DeriveInput, evaluated_name: &Ident) ->
 }
 
 /// Helper function for `validate_filter_parameter_fields()`.
-/// Given "liquid::interpreter::Expression", returns "Expression"
+/// Given "::liquid::interpreter::Expression", returns "Expression"
 fn get_type_name<'a>(ty: &'a Type, msg: &str) -> Result<&'a PathSegment> {
     match ty {
         Type::Path(ty) => {
