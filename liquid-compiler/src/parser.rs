@@ -227,15 +227,6 @@ pub struct FilterArguments<'a> {
     pub positional: Box<Iterator<Item = Expression>>,
     pub keyword: Box<Iterator<Item = (&'a str, Expression)> + 'a>,
 }
-impl<'a> FilterArguments<'a> {
-    pub fn check_args_exhausted(mut self) -> Result<()> {
-        if self.positional.next().is_none() && self.keyword.next().is_none() {
-            Ok(())
-        } else {
-            Err(panic!("TODO ERROR"))
-        }
-    }
-}
 
 /// Parses a `FilterChain` from a `Pair` with a filter chain.
 /// This `Pair` must be `Rule::FilterChain`.

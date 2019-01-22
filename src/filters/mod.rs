@@ -71,9 +71,13 @@ fn check_args_len(args: &[Value], required: usize, optional: usize) -> Result<()
 
 // TEST MACROS
 
+
 #[derive(Debug, FilterParameters)]
 struct SliceParameters {
+    // mode = "keyword" just for debug purposes
+    #[parameter(description = "lol", mode = "keyword")]
     offset: Expression,
+    #[parameter(description = "lol")]
     length: Option<Expression>,
 }
 
@@ -99,32 +103,31 @@ struct SliceParameters {
 //     }
 // }
 
-impl SliceParameters {
-    fn positional_parameters_reflection() -> &'static [ParameterReflection] {
-        &[
-            ParameterReflection {
-                name: "offset",
-                description: "The offset of the slice.",
-                is_optional: false,
-            },
-            ParameterReflection {
-                name: "calength",
-                description: "The length of the slice.",
-                is_optional: true,
-            },
-        ]
-    }
+// impl SliceParameters {
+//     fn positional_parameters_reflection() -> &'static [ParameterReflection] {
+//         &[
+//             ParameterReflection {
+//                 name: "offset",
+//                 description: "The offset of the slice.",
+//                 is_optional: false,
+//             },
+//             ParameterReflection {
+//                 name: "calength",
+//                 description: "The length of the slice.",
+//                 is_optional: true,
+//             },
+//         ]
+//     }
 
-    fn keyword_parameters_reflection() -> &'static [ParameterReflection] {
-        &[]
-    }
-}
+//     fn keyword_parameters_reflection() -> &'static [ParameterReflection] {
+//         &[]
+//     }
+// }
 
 // struct EvaluatedSliceParameters<'a> {
 //     offset: &'a Value,
 //     length: Option<&'a Value>,
 // }
-
 
 #[derive(Debug)]
 pub struct SliceFilter {

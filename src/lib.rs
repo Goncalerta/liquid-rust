@@ -44,11 +44,11 @@ mod parser;
 mod template;
 
 /// Allows `liquid-derive` macros to work inside this crate.
-/// 
-/// This is necessary because paths to liquid items will 
+///
+/// This is necessary because paths to liquid items will
 /// start with `::liquid` in those macros.
 mod liquid {
-    pub use ::*;
+    pub use *;
 }
 
 pub mod compiler {
