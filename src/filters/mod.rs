@@ -80,6 +80,7 @@ struct SliceParameters {
     length: Option<Expression>,
 }
 
+
 #[derive(Clone, FilterParser)]
 #[filter(
     name = "slice",
@@ -88,6 +89,7 @@ struct SliceParameters {
     parsed(SliceFilter)
 )]
 pub struct SliceFilterParser;
+
 
 #[derive(Debug)]
 pub struct SliceFilter {
@@ -137,33 +139,6 @@ impl Filter for SliceFilter {
         }
     }
 }
-
-
-// After macros are fully finished, the code is supposed to look like something similar to this
-//
-//
-// #[derive(FilterParameters)]
-// struct SliceParameters {
-//     #[parameter(description="The offset of the slice.")]
-//     offset: Expression,
-//     #[parameter(description="The length of the slice.")]
-//     length: Option<Expression>,
-// }
-//
-// #[derive(FilterParser)]
-// #[name="slice", description="Takes a slice of a given string or array.", parameters(SliceParameters)]
-// struct SliceFilterParser;
-//
-// struct SliceFilter {
-//     args: SliceParameters,
-// }
-// impl Filter for SliceFilter {
-//     fn filter(&self, input: &Value, context: &Context) -> Result<Value> {
-//         let args = self.args.evaluate(context);
-//
-//         ( ... )
-//     }
-// }
 
 // standardfilters.rb
 

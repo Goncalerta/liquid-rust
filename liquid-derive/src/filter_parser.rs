@@ -12,8 +12,6 @@ struct FilterParser<'a> {
 struct FilterParserMeta {
     filter_name: String,
     filter_description: String,
-    // If the user declares FilterParameters and Filter structures in a different module
-    // it will not be found
     parameters_struct_name: Ident,
     filter_struct_name: Ident,
 }
