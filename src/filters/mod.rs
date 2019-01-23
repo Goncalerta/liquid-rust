@@ -80,7 +80,6 @@ struct SliceParameters {
     length: Option<Expression>,
 }
 
-
 #[derive(Clone, FilterParser)]
 #[filter(
     name = "slice",
@@ -89,7 +88,6 @@ struct SliceParameters {
     parsed(SliceFilter)
 )]
 pub struct SliceFilterParser;
-
 
 #[derive(Debug)]
 pub struct SliceFilter {
