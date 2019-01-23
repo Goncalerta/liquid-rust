@@ -71,7 +71,6 @@ fn check_args_len(args: &[Value], required: usize, optional: usize) -> Result<()
 
 // TEST MACROS
 
-
 #[derive(Debug, FilterParameters)]
 struct SliceParameters {
     // mode = "keyword" just for debug purposes
@@ -81,53 +80,14 @@ struct SliceParameters {
     length: Option<Expression>,
 }
 
-// impl SliceParameters {
-//     fn new(mut args: FilterArguments) -> Result<Self> {
-//         let offset = args
-//             .positional
-//             .next()
-//             .ok_or_else(|| liquid_error::Error::with_msg("Required"))?;
-//         let length = args.positional.next();
-
-//         args.check_args_exhausted()?;
-//         Ok(SliceParameters { offset, length })
-//     }
-
-//     fn evaluate<'a>(&'a self, context: &'a Context) -> Result<EvaluatedSliceParameters<'a>> {
-//         let offset = self.offset.evaluate(context)?;
-//         let length = match &self.length {
-//             Some(length) => Some(length.evaluate(context)?),
-//             None => None,
-//         };
-//         Ok(EvaluatedSliceParameters { offset, length })
-//     }
-// }
-
-// impl SliceParameters {
-//     fn positional_parameters_reflection() -> &'static [ParameterReflection] {
-//         &[
-//             ParameterReflection {
-//                 name: "offset",
-//                 description: "The offset of the slice.",
-//                 is_optional: false,
-//             },
-//             ParameterReflection {
-//                 name: "calength",
-//                 description: "The length of the slice.",
-//                 is_optional: true,
-//             },
-//         ]
-//     }
-
-//     fn keyword_parameters_reflection() -> &'static [ParameterReflection] {
-//         &[]
-//     }
-// }
-
-// struct EvaluatedSliceParameters<'a> {
-//     offset: &'a Value,
-//     length: Option<&'a Value>,
-// }
+#[derive(Clone, FilterParser)]
+#[filter(
+    name = "slice",
+    description = "Takes a slice of a given string or array.",
+    parameters(SliceParameters),
+    parsed(SliceFilter)
+)]
+pub struct SliceFilterParser;
 
 #[derive(Debug)]
 pub struct SliceFilter {
@@ -178,31 +138,6 @@ impl Filter for SliceFilter {
     }
 }
 
-#[derive(Clone)]
-pub struct SliceFilterParser;
-impl ParseFilter for SliceFilterParser {
-    fn parse(&self, args: FilterArguments) -> Result<Box<Filter>> {
-        let args = SliceParameters::new(args)?;
-        Ok(Box::new(SliceFilter { args }))
-    }
-}
-
-impl FilterReflection for SliceFilterParser {
-    fn name(&self) -> &'static str {
-        "slice"
-    }
-    fn description(&self) -> &'static str {
-        "Takes a slice of a given string or array."
-    }
-
-    fn positional_parameters(&self) -> &'static [ParameterReflection] {
-        SliceParameters::positional_parameters_reflection()
-    }
-
-    fn keyword_parameters(&self) -> &'static [ParameterReflection] {
-        SliceParameters::keyword_parameters_reflection()
-    }
-}
 
 // After macros are fully finished, the code is supposed to look like something similar to this
 //

@@ -385,12 +385,12 @@ fn is_parameter_attribute(attr: &Attribute) -> bool {
 }
 
 fn parse_parameter_attribute(attr: &Attribute) -> Result<FilterParameterMeta> {
-    let meta = match attr.parse_meta() {
-        Ok(meta) => meta,
-        Err(_) => panic!(
-            "TODO find out if this breaks at all and why, in order to write a proper error message"
-        ),
-    };
+    let meta = attr.parse_meta().map_err(|err| {
+        Error::new(
+            err.span(),
+            format!("Could not parse `parameter` attribute: {}", err),
+        )
+    })?;
 
     match meta {
         Meta::Word(meta) => Err(Error::new_spanned(
