@@ -113,26 +113,6 @@ impl<'a> FilterParametersFields<'a> {
             FilterParametersFieldsType::Unit => quote! {},
         }
     }
-
-    fn keyword_parameters_idents(&'a self) -> Box<Iterator<Item = &Ident> + 'a> {
-        Box::new(
-            self.parameters
-                .iter()
-                .filter(|parameter| &parameter.meta.ty == &FilterParameterType::Keyword)
-                .map(|parameter| &parameter.name as &Ident),
-        )
-    }
-
-    fn required_keyword_parameters_idents(&'a self) -> Box<Iterator<Item = &Ident> + 'a> {
-        Box::new(
-            self.parameters
-                .iter()
-                .filter(|parameter| {
-                    &parameter.meta.ty == &FilterParameterType::Keyword && !&parameter.is_optional
-                })
-                .map(|parameter| &parameter.name as &Ident),
-        )
-    }
 }
 
 enum FilterParametersFieldsType {
@@ -223,6 +203,22 @@ impl<'a> FilterParameter<'a> {
             meta,
         })
     }
+
+    fn is_optional(&self) -> bool {
+        self.is_optional
+    }
+
+    fn is_required(&self) -> bool {
+        !self.is_optional
+    }
+
+    fn is_postional(&self) -> bool {
+        self.meta.ty == FilterParameterType::Positional
+    }
+
+    fn is_keyword(&self) -> bool {
+        self.meta.ty == FilterParameterType::Keyword
+    }
 }
 
 impl<'a> ToTokens for FilterParameter<'a> {
@@ -246,7 +242,8 @@ struct FilterParameterMeta {
 }
 
 impl FilterParameterMeta {
-    fn parse_parameter_attribute(attr: &Attribute) -> Result<FilterParameterMeta> {
+    // TODO more modular parsing
+    fn parse_parameter_attribute(attr: &Attribute) -> Result<Self> {
         let meta = attr.parse_meta().map_err(|err| {
             Error::new(
                 err.span(),
@@ -334,7 +331,6 @@ impl FilterParameterMeta {
         }
     }
 
-    // Maybe this can be obtained more reliably in Meta idents
     fn is_parameter_attribute(attr: &Attribute) -> bool {
         &attr
             .path
@@ -400,13 +396,7 @@ fn generate_keyword_match_arm(keyword: &Ident) -> TokenStream {
     }
 }
 
-fn generate_unwrap_keyword_field(ident: &Ident) -> TokenStream {
-    quote! {
-        let #ident = #ident.ok_or_else(|| ::liquid::error::Error::with_msg("Required"))?;
-    }
-}
-
-/// Generates `new()` and `evaluate()` methods for the struct named `name`
+/// Generates `new()` and `evaluate()` methods for the given struct.
 fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> TokenStream {
     let FilterParameters {
         name,
@@ -416,40 +406,48 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
 
     let generate_constructor = fields.generate_constructor();
 
-    let construct_fields = fields
-        .parameters
-        .iter()
-        .map(|field| generate_construct_positional_field(&field.name, field.is_optional));
-
     let evaluate_fields = fields
         .parameters
         .iter()
-        .map(|field| generate_evaluate_field(&field.name, field.is_optional));
+        .map(|field| generate_evaluate_field(&field.name, field.is_optional()));
 
-    let keyword_parameters_idents = fields.keyword_parameters_idents();
+    let construct_positional_fields = fields
+        .parameters
+        .iter()
+        .map(|field| generate_construct_positional_field(&field.name, field.is_optional()));
+
+    let keyword_fields = fields
+        .parameters
+        .iter()
+        .filter(|parameter| parameter.is_keyword());
+
     let match_keyword_parameters_arms = fields
-        .keyword_parameters_idents()
-        .map(generate_keyword_match_arm);
-    let unwrap_required_keyword_fields = fields
-        .required_keyword_parameters_idents()
-        .map(generate_unwrap_keyword_field);
+        .parameters
+        .iter()
+        .filter(|parameter| parameter.is_keyword())
+        .map(|field| generate_keyword_match_arm(&field.name));
+
+    let required_keyword_fields = fields
+        .parameters
+        .iter()
+        .filter(|parameter| parameter.is_keyword() && parameter.is_required());
 
     quote! {
         impl #name {
             fn new(mut args: ::liquid::compiler::FilterArguments) -> ::liquid::error::Result<Self> {
-                #(#construct_fields)*
+                #(#construct_positional_fields)*
                 if let Some(arg) = args.positional.next() {
                     return Err(::liquid::error::Error::with_msg("Too many positional parameters."));
                 }
 
-                #(let mut #keyword_parameters_idents = None;)*
+                #(let mut #keyword_fields = None;)*
                 for arg in args.keyword {
                     match arg.0 {
                         #(#match_keyword_parameters_arms)*
                         keyword => return Err(::liquid::error::Error::with_msg(format!("Unexpected keyword parameter `{}`.", keyword))),
                     }
                 }
-                #(#unwrap_required_keyword_fields)*
+                #(let #required_keyword_fields = #required_keyword_fields.ok_or_else(|| ::liquid::error::Error::with_msg("Required"))?;)*
 
                 Ok( #name #generate_constructor )
             }
