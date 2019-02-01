@@ -4,6 +4,261 @@ use std::borrow::Cow;
 use syn::punctuated::Punctuated;
 use syn::*;
 
+struct FilterParameters<'a> {
+    name: &'a Ident,
+    evaluated_name: Ident,
+    fields: FilterParametersFields<'a>,
+}
+
+impl<'a> FilterParameters<'a> {
+    /// Validates a field inside the structure derived with `FilterParameters`
+    fn validate_filter_parameter_fields(fields: &Fields, msg: &str) -> Result<()> {
+        for field in fields.iter() {
+            let Field {
+                attrs,  // Attributes of the field : Is this relevant to validate?
+                vis: _, // Visibility of the field : Is this relevant to validate?
+                ty,
+                ..
+            } = field;
+
+            // TODO Meta is being redundantly called twice
+            for attr in attrs {
+                parse_parameter_attribute(attr);
+            }
+
+            let path = get_type_name(ty, msg)?;
+            match path.ident.to_string().as_str() {
+                "Option" => match &path.arguments {
+                    PathArguments::AngleBracketed(arguments) => {
+                        let args = &arguments.args;
+                        if args.len() != 1 {
+                            return Err(Error::new_spanned(ty, msg));
+                        }
+                        let arg = match args.last() {
+                            Some(arg) => arg.into_value(),
+                            None => return Err(Error::new_spanned(ty, msg)),
+                        };
+
+                        if let GenericArgument::Type(ty) = arg {
+                            let path = get_type_name(ty, msg)?;
+                            if path.ident.to_string().as_str() == "Expression" {
+                                if path.arguments.is_empty() {
+                                    return Ok(());
+                                }
+                            }
+                        }
+                        return Err(Error::new_spanned(ty, msg));
+                    }
+                    _ => return Err(Error::new_spanned(ty, msg)),
+                },
+                "Expression" => {
+                    if !path.arguments.is_empty() {
+                        return Err(Error::new_spanned(ty, msg));
+                    }
+                }
+                _ => return Err(Error::new_spanned(ty, msg)),
+            };
+        }
+        Ok(())
+    }
+
+    /// Validates the structure derived with `FilterParameters`
+    fn validate_filter_parameter_struct(input: &DeriveInput) -> Result<()> {
+        let DeriveInput {
+            attrs: _, // Attributes of the struct : Is this relevant to validate?
+            vis: _,   // Visibility of the struct : Is this relevant to validate?
+            generics,
+            data,
+            ..
+        } = input;
+
+        if !generics.params.is_empty() {
+            return Err(Error::new_spanned(
+                generics,
+                "Generics are cannot be used in FilterParameters.",
+            ));
+        }
+
+        match data {
+            Data::Struct(data) => Self::validate_filter_parameter_fields(
+                &data.fields,
+                "Invalid type. All fields in FilterParameters must be either of type `Expression` or `Option<Expression>`"
+            ),
+            Data::Enum(data) => Err(Error::new_spanned(
+                data.enum_token,
+                "Enums cannot be FilterParameters.",
+            )),
+            Data::Union(data) => Err(Error::new_spanned(
+                data.union_token,
+                "Unions cannot be FilterParameters.",
+            )),
+        }
+    }
+
+    fn from_input(input: &'a DeriveInput) -> Result<Self> {
+        let DeriveInput {
+            attrs, data, ident, .. // TODO what's needed here?
+        } = input;
+
+        // TODO validate at the same time as create
+        Self::validate_filter_parameter_struct(input)?;
+
+        let name = ident;
+        let evaluated_name = Ident::new(&format!("Evaluated{}", name), Span::call_site()); // Should it be overridable with an attribute?
+
+        let fields = if let Data::Struct(data) = data {
+            &data.fields
+        } else {
+            panic!("Struct already validated.")
+        };
+
+        let fields = FilterParametersFields::from_fields(fields)?;
+
+        Ok(FilterParameters {
+            name,
+            evaluated_name,
+            fields,
+        })
+    }
+}
+
+struct FilterParametersFields<'a> {
+    ty: FilterParametersFieldsType,
+    parameters: Punctuated<FilterParameter<'a>, Token![,]>,
+}
+impl<'a> FilterParametersFields<'a> {
+    /// Tries to create a new `FilterParametersFields` from the given `Fields`
+    fn from_fields(fields: &'a Fields) -> Result<Self> {
+        match fields {
+            Fields::Named(fields) => {
+                let parameters = fields
+                    .named
+                    .iter()
+                    .map(|field| {
+                        let name = Cow::Borrowed(field.ident.as_ref().expect("Fields are named."));
+                        let is_optional = is_type_option(&field.ty);
+                        let meta = FilterParameterMeta::new(&field)?;
+
+                        Ok(FilterParameter {
+                            name,
+                            is_optional,
+                            meta,
+                        })
+                    })
+                    .collect::<Result<Punctuated<_, Token![,]>>>()?;
+
+                let ty = FilterParametersFieldsType::Named;
+
+                Ok(Self { parameters, ty })
+            }
+
+            Fields::Unnamed(fields) => {
+                let parameters = fields
+                    .unnamed
+                    .iter()
+                    .enumerate()
+                    .map(|(pos, field)| {
+                        let name =
+                            Cow::Owned(Ident::new(&format!("arg_{}", pos), Span::call_site()));
+                        let is_optional = is_type_option(&field.ty);
+                        let meta = FilterParameterMeta::new(&field)?;
+
+                        Ok(FilterParameter {
+                            name,
+                            is_optional,
+                            meta,
+                        })
+                    })
+                    .collect::<Result<Punctuated<_, Token![,]>>>()?;
+
+                let ty = FilterParametersFieldsType::Unnamed;
+
+                Ok(Self { parameters, ty })
+            }
+
+            Fields::Unit => {
+                let parameters = Punctuated::new();
+                let ty = FilterParametersFieldsType::Unit;
+
+                Ok(Self { parameters, ty })
+            }
+        }
+    }
+
+    fn generate_constructor(&self) -> TokenStream {
+        let fields = &self.parameters;
+        match &self.ty {
+            FilterParametersFieldsType::Named => quote! { { #fields } },
+            FilterParametersFieldsType::Unnamed => quote! { ( #fields ) },
+            FilterParametersFieldsType::Unit => quote! {},
+        }
+    }
+
+    fn keyword_parameters_idents(&'a self) -> Box<Iterator<Item = &Ident> + 'a> {
+        Box::new(
+            self.parameters
+                .iter()
+                .filter(|parameter| &parameter.meta.ty == &FilterParameterType::Keyword)
+                .map(|parameter| &parameter.name as &Ident),
+        )
+    }
+
+    fn required_keyword_parameters_idents(&'a self) -> Box<Iterator<Item = &Ident> + 'a> {
+        Box::new(
+            self.parameters
+                .iter()
+                .filter(|parameter| {
+                    &parameter.meta.ty == &FilterParameterType::Keyword && !&parameter.is_optional
+                })
+                .map(|parameter| &parameter.name as &Ident),
+        )
+    }
+}
+
+enum FilterParametersFieldsType {
+    Named,
+    Unnamed,
+    Unit,
+}
+
+struct FilterParameter<'a> {
+    name: Cow<'a, Ident>,
+    is_optional: bool,
+    meta: FilterParameterMeta,
+}
+impl<'a> ToTokens for FilterParameter<'a> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.name.to_tokens(tokens);
+    }
+}
+
+#[derive(PartialEq)]
+enum FilterParameterType {
+    Keyword,
+    Positional,
+}
+
+struct FilterParameterMeta {
+    // name: &'a str, // Should there be a rename attribute?
+    // is_optional: bool, // Should there be an explicit required/optional attribute?
+    description: String,
+    ty: FilterParameterType,
+}
+
+impl FilterParameterMeta {
+    fn new(field: &Field) -> Result<Self> {
+        for attr in field.attrs.iter() {
+            if is_parameter_attribute(attr) {
+                return parse_parameter_attribute(attr);
+            }
+        }
+        Err(Error::new_spanned(
+            field,
+            "Found parameter without #[parameter] attribute. All filter parameters must be accompanied by this attribute.",
+        ))
+    }
+}
+
 /// Generates the statement that saves the next positional argument in the iterator in `ident`.
 fn generate_construct_positional_field(ident: &Ident, is_option: bool) -> TokenStream {
     if is_option {
@@ -66,165 +321,31 @@ fn is_type_option(ty: &Type) -> bool {
     }
 }
 
-enum FilterParametersFieldsType {
-    Named,
-    Unnamed,
-    Unit,
-}
-
-struct FilterParametersFields<'a> {
-    ty: FilterParametersFieldsType,
-    parameters: Punctuated<FilterParameter<'a>, Token![,]>,
-}
-impl<'a> FilterParametersFields<'a> {
-    fn new(fields: &'a Fields) -> Result<Self> {
-        match fields {
-            Fields::Named(fields) => {
-                let parameters = fields
-                    .named
-                    .iter()
-                    .map(|field| {
-                        Ok(FilterParameter {
-                            name: Cow::Borrowed(&field.ident.as_ref().expect("Fields are named.")),
-                            is_optional: is_type_option(&field.ty),
-                            meta: FilterParameterMeta::new(&field)?,
-                        })
-                    })
-                    .collect::<Result<Punctuated<_, Token![,]>>>()?;
-
-                Ok(Self {
-                    parameters,
-                    ty: FilterParametersFieldsType::Named,
-                })
-            }
-
-            Fields::Unnamed(fields) => {
-                let parameters = fields
-                    .unnamed
-                    .iter()
-                    .enumerate()
-                    .map(|(pos, field)| {
-                        Ok(FilterParameter {
-                            // TODO If there is no name keyword attribute should not be valid
-                            name: Cow::Owned(Ident::new(
-                                &format!("arg_{}", pos),
-                                Span::call_site(),
-                            )),
-                            is_optional: is_type_option(&field.ty),
-                            meta: FilterParameterMeta::new(&field)?,
-                        })
-                    })
-                    .collect::<Result<Punctuated<_, Token![,]>>>()?;
-
-                Ok(Self {
-                    parameters,
-                    ty: FilterParametersFieldsType::Unnamed,
-                })
-            }
-
-            Fields::Unit => {
-                let parameters = Punctuated::new();
-
-                Ok(Self {
-                    parameters,
-                    ty: FilterParametersFieldsType::Unit,
-                })
-            }
-        }
-    }
-
-    fn generate_constructor(&self) -> TokenStream {
-        let fields = &self.parameters;
-        match &self.ty {
-            FilterParametersFieldsType::Named => quote! { { #fields } },
-            FilterParametersFieldsType::Unnamed => quote! { ( #fields ) },
-            FilterParametersFieldsType::Unit => quote! {},
-        }
-    }
-
-    fn keyword_parameters_idents(&'a self) -> Box<Iterator<Item = &Ident> + 'a> {
-        Box::new(
-            self.parameters
-                .iter()
-                .filter(|parameter| &parameter.meta.ty == &FilterParameterType::Keyword)
-                .map(|parameter| &parameter.name as &Ident),
-        )
-    }
-
-    fn required_keyword_parameters_idents(&'a self) -> Box<Iterator<Item = &Ident> + 'a> {
-        Box::new(
-            self.parameters
-                .iter()
-                .filter(|parameter| {
-                    &parameter.meta.ty == &FilterParameterType::Keyword && !&parameter.is_optional
-                })
-                .map(|parameter| &parameter.name as &Ident),
-        )
-    }
-}
-
-/// Helper struct for `generate_impl_filter_parameters`
-struct FilterParameter<'a> {
-    name: Cow<'a, Ident>,
-    is_optional: bool,
-    meta: FilterParameterMeta,
-}
-impl<'a> ToTokens for FilterParameter<'a> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.name.to_tokens(tokens);
-    }
-}
-
-#[derive(PartialEq)]
-enum FilterParameterType {
-    Keyword,
-    Positional,
-}
-
-struct FilterParameterMeta {
-    // name: &'a str, // Should there be a rename attribute?
-    // is_optional: bool, // Should there be an explicit required/optional attribute?
-    description: String,
-    ty: FilterParameterType,
-}
-
-impl FilterParameterMeta {
-    fn new(field: &Field) -> Result<Self> {
-        for attr in field.attrs.iter() {
-            if is_parameter_attribute(attr) {
-                return parse_parameter_attribute(attr);
-            }
-        }
-        Err(Error::new_spanned(
-            field,
-            "Found parameter without #[parameter] attribute. All filter parameters must be accompanied by this attribute.",
-        ))
-    }
-}
-
 /// Generates `new()` and `evaluate()` methods for the struct named `name`
-fn generate_impl_filter_parameters(
-    name: &Ident,
-    evaluated_name: &Ident,
-    parameters: &FilterParametersFields,
-) -> TokenStream {
-    let generate_constructor = parameters.generate_constructor();
+fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> TokenStream {
+    let FilterParameters {
+        name,
+        evaluated_name,
+        fields,
+    } = filter_parameters;
 
-    let construct_fields = parameters
+    let generate_constructor = fields.generate_constructor();
+
+    let construct_fields = fields
         .parameters
         .iter()
         .map(|field| generate_construct_positional_field(&field.name, field.is_optional));
 
-    let evaluate_fields = parameters
+    let evaluate_fields = fields
         .parameters
         .iter()
         .map(|field| generate_evaluate_field(&field.name, field.is_optional));
 
-    let keyword_parameters_idents = parameters.keyword_parameters_idents();
-    let match_keyword_parameters_arms = parameters
+    let keyword_parameters_idents = fields.keyword_parameters_idents();
+    let match_keyword_parameters_arms = fields
         .keyword_parameters_idents()
         .map(generate_keyword_match_arm);
-    let unwrap_required_keyword_fields = parameters
+    let unwrap_required_keyword_fields = fields
         .required_keyword_parameters_idents()
         .map(generate_unwrap_keyword_field);
 
@@ -345,14 +466,16 @@ fn generate_parameter_reflection(field: &FilterParameter) -> TokenStream {
     }
 }
 
-fn generate_reflection_helpers(name: &Ident, parameters: &FilterParametersFields) -> TokenStream {
-    let kw_params_reflection = parameters
+fn generate_reflection_helpers(filter_parameters: &FilterParameters) -> TokenStream {
+    let FilterParameters { name, fields, .. } = filter_parameters;
+
+    let kw_params_reflection = fields
         .parameters
         .iter()
         .filter(|parameter| &parameter.meta.ty == &FilterParameterType::Keyword)
         .map(generate_parameter_reflection);
 
-    let pos_params_reflection = parameters
+    let pos_params_reflection = fields
         .parameters
         .iter()
         .filter(|parameter| &parameter.meta.ty == &FilterParameterType::Positional)
@@ -492,120 +615,43 @@ fn get_type_name<'a>(ty: &'a Type, msg: &str) -> Result<&'a PathSegment> {
     }
 }
 
-/// Validates a field inside the structure derived with `FilterParameters`
-fn validate_filter_parameter_fields(fields: &Fields, msg: &str) -> Result<()> {
-    for field in fields.iter() {
-        let Field {
-            attrs,  // Attributes of the field : Is this relevant to validate?
-            vis: _, // Visibility of the field : Is this relevant to validate?
-            ty,
-            ..
-        } = field;
-
-        // TODO Meta must not be lost
-        for attr in attrs {
-            parse_parameter_attribute(attr);
-        }
-
-        let path = get_type_name(ty, msg)?;
-        match path.ident.to_string().as_str() {
-            "Option" => match &path.arguments {
-                PathArguments::AngleBracketed(arguments) => {
-                    let args = &arguments.args;
-                    if args.len() != 1 {
-                        return Err(Error::new_spanned(ty, msg));
-                    }
-                    let arg = match args.last() {
-                        Some(arg) => arg.into_value(),
-                        None => return Err(Error::new_spanned(ty, msg)),
-                    };
-
-                    if let GenericArgument::Type(ty) = arg {
-                        let path = get_type_name(ty, msg)?;
-                        if path.ident.to_string().as_str() == "Expression" {
-                            if path.arguments.is_empty() {
-                                return Ok(());
-                            }
-                        }
-                    }
-                    return Err(Error::new_spanned(ty, msg));
-                }
-                _ => return Err(Error::new_spanned(ty, msg)),
-            },
-            "Expression" => {
-                if !path.arguments.is_empty() {
-                    return Err(Error::new_spanned(ty, msg));
-                }
-            }
-            _ => return Err(Error::new_spanned(ty, msg)),
-        };
-    }
-    Ok(())
-}
-
-/// Validates the structure derived with `FilterParameters`
-fn validate_filter_parameter_struct(input: &DeriveInput) -> Result<()> {
-    let DeriveInput {
-        attrs: _, // Attributes of the struct : Is this relevant to validate?
-        vis: _,   // Visibility of the struct : Is this relevant to validate?
-        generics,
-        data,
-        ..
-    } = input;
-
-    if !generics.params.is_empty() {
-        return Err(Error::new_spanned(
-            generics,
-            "Generics are cannot be used in FilterParameters.",
-        ));
-    }
-
-    match data {
-        Data::Struct(data) => validate_filter_parameter_fields(
-            &data.fields, 
-            "Invalid type. All fields in FilterParameters must be either of type `Expression` or `Option<Expression>`"
-        ),
-        Data::Enum(data) => Err(Error::new_spanned(
-            data.enum_token,
-            "Enums cannot be FilterParameters.",
-        )),
-        Data::Union(data) => Err(Error::new_spanned(
-            data.union_token,
-            "Unions cannot be FilterParameters.",
-        )),
-    }
-}
-
 pub fn derive(input: &DeriveInput) -> TokenStream {
-    if let Err(error) = validate_filter_parameter_struct(input) {
-        return error.to_compile_error();
-    }
-
-    let name = &input.ident;
-    let evaluated_name = Ident::new(&format!("Evaluated{}", name), Span::call_site());
-    let fields = if let Data::Struct(data) = &input.data {
-        &data.fields
-    } else {
-        panic!("Struct already validated.")
-    };
-    let fields = match FilterParametersFields::new(fields) {
-        Ok(fields) => fields,
-        Err(error) => return error.to_compile_error(),
+    let filter_parameters = match FilterParameters::from_input(input) {
+        Ok(filter_parser) => filter_parser,
+        Err(err) => return err.to_compile_error(),
     };
 
     let mut output = TokenStream::new();
-    output.extend(generate_impl_filter_parameters(
-        name,
-        &evaluated_name,
-        &fields,
+    output.extend(generate_impl_filter_parameters(&filter_parameters));
+    output.extend(generate_reflection_helpers(&filter_parameters));
+    output.extend(generate_evaluated_struct(
+        &input,
+        &filter_parameters.evaluated_name,
     ));
-    output.extend(generate_reflection_helpers(name, &fields));
-    output.extend(generate_evaluated_struct(input, &evaluated_name));
 
-    // Temporary
+    // Temporary TODO remove
     // This println! shows the code that was generated by this macro when compiling
     println!("--------------------\n{}\n------------\n\n", output);
 
     output
 }
 
+// TODO how to do unit tests with this?
+// mod tests {
+//     use super::*;
+
+//     fn get_slice_filter_stream() -> TokenStream {
+//         quote! {
+//             #[derive(Debug,
+//             //FilterParameters
+//             )]
+//             struct SliceParameters {
+//                 offset: Expression,
+//                 length: Option<Expression>,
+//             }
+//         }
+//     }
+
+//     #[test]
+//     fn unit_test() {}
+// }

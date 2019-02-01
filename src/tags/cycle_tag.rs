@@ -65,7 +65,7 @@ fn parse_cycle(mut arguments: TagTokenIter, _options: &Language) -> Result<Cycle
         Some(_) => {
             return Err(second
                 .expect("is some")
-                .raise_custom_error("\":\" or \",\" expected."))
+                .raise_custom_error("\":\" or \",\" expected."));
         }
     }
 

@@ -2,6 +2,7 @@ use proc_macro2::*;
 use quote::*;
 use std::borrow::Cow;
 use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
 use syn::*;
 
 /// Struct that contains information to generate the necessary code for `FilterParser`.
@@ -11,45 +12,37 @@ struct FilterParser<'a> {
 }
 
 impl<'a> FilterParser<'a> {
-    /// Tries to create a new `FilterParser` from the given `DeriveInput`
-    fn from_input(input: &'a DeriveInput) -> Result<Self> {
-        let DeriveInput {
-            attrs, data, ident, ..
-        } = input;
-
+    /// Asserts that this is an empty struct.
+    fn validate_data(data: &Data) -> Result<()> {
         match data {
             Data::Struct(data) => match &data.fields {
-                Fields::Named(fields) => {
-                    return Err(Error::new_spanned(
-                        fields,
-                        "FilterParserMeta may not have fields.",
-                    ))
-                }
-                Fields::Unnamed(fields) => {
-                    return Err(Error::new_spanned(
-                        fields,
-                        "FilterParserMeta may not have fields.",
-                    ))
-                }
-                Fields::Unit => {}
+                Fields::Named(fields) => Err(Error::new_spanned(
+                    fields,
+                    "FilterParserMeta may not have fields.",
+                )),
+                Fields::Unnamed(fields) => Err(Error::new_spanned(
+                    fields,
+                    "FilterParserMeta may not have fields.",
+                )),
+                Fields::Unit => Ok(()),
             },
-            Data::Enum(data) => {
-                return Err(Error::new_spanned(
-                    data.enum_token,
-                    "Enums cannot be FilterParsers.",
-                ))
-            }
-            Data::Union(data) => {
-                return Err(Error::new_spanned(
-                    data.union_token,
-                    "Unions cannot be FilterParsers.",
-                ))
-            }
+            Data::Enum(data) => Err(Error::new_spanned(
+                data.enum_token,
+                "Enums cannot be FilterParsers.",
+            )),
+            Data::Union(data) => Err(Error::new_spanned(
+                data.union_token,
+                "Unions cannot be FilterParsers.",
+            )),
         }
+    }
 
+    /// Searches for `#[filter(...)]` in order to parse `FilterParserMeta`
+    /// If attribute is not found, error message will use span in `input_span`
+    fn parse_attrs(attrs: &Vec<Attribute>) -> Result<FilterParserMeta> {
         let mut filter_attrs = attrs.iter().filter(|attr| attr.path.is_ident("filter"));
 
-        let meta = match (filter_attrs.next(), filter_attrs.next()) {
+        match (filter_attrs.next(), filter_attrs.next()) {
             (Some(attr), None) => FilterParserMeta::from_attr(attr),
 
             (_, Some(attr)) => Err(Error::new_spanned(
@@ -57,11 +50,21 @@ impl<'a> FilterParser<'a> {
                 "Found multiple definitions for `filter` attribute.",
             )),
 
-            _ => Err(Error::new_spanned(
-                input,
-                "FilterParserMeta does not have a `filter` attribute. Have you tried adding `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
+            _ => Err(Error::new(
+                Span::call_site(),
+                "Cannot find `filter` attribute in target struct. Have you tried adding `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
             )),
-        }?;
+        }
+    }
+
+    /// Tries to create a new `FilterParser` from the given `DeriveInput`
+    fn from_input(input: &'a DeriveInput) -> Result<Self> {
+        let DeriveInput {
+            attrs, data, ident, ..
+        } = input;
+
+        Self::validate_data(&data)?;
+        let meta = Self::parse_attrs(attrs)?;
 
         Ok(FilterParser { name: ident, meta })
     }
@@ -77,6 +80,7 @@ struct FilterParserMeta {
 
 impl FilterParserMeta {
     /// Tries to create a new `FilterParserMeta` from the given `DeriveInput`
+    // TODO more modular parsing
     fn from_attr(attr: &Attribute) -> Result<Self> {
         let meta = attr.parse_meta().map_err(|err| {
             Error::new(
@@ -85,7 +89,6 @@ impl FilterParserMeta {
             )
         })?;
 
-        // TODO more modular parsing
         match meta {
             Meta::Word(meta) => Err(Error::new_spanned(
                 meta,
@@ -271,7 +274,7 @@ fn generate_reflection(filter_parser: &FilterParser) -> TokenStream {
             }
 
             fn keyword_parameters(&self) -> &'static [::liquid::compiler::ParameterReflection] {
-                 #parameters_struct_name::keyword_parameters_reflection()
+                #parameters_struct_name::keyword_parameters_reflection()
             }
         }
     }
