@@ -17,8 +17,8 @@ appveyor  = { repository = "johannhof/liquid-rust" }
 
 [dependencies]
 syn = "0.15"
-quote = "0.6"
-proc-macro2 = "0.4.24"
+proc-quote = "0.1"
+proc-macro2 = "0.4.27"
 
 # Exposed in API
 liquid-error = { version = "0.18", path = "../liquid-error" }

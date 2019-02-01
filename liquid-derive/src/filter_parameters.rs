@@ -1,5 +1,5 @@
 use proc_macro2::*;
-use quote::*;
+use proc_quote::*;
 use std::borrow::Cow;
 use syn::punctuated::Punctuated;
 use syn::*;
