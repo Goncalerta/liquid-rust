@@ -4,6 +4,9 @@ use std::borrow::Cow;
 use syn::punctuated::Punctuated;
 use syn::*;
 
+// TODO should visibility in the original matter for the new structs?
+// TODO should other attributes be taken into account (allowed, transfered to evaluated struct, ...)?
+// TODO create trait for filter parameters and make filter_parser call using that trait
 struct FilterParameters<'a> {
     name: &'a Ident,
     evaluated_name: Ident,
@@ -11,64 +14,13 @@ struct FilterParameters<'a> {
 }
 
 impl<'a> FilterParameters<'a> {
-    /// Validates a field inside the structure derived with `FilterParameters`
-    fn validate_filter_parameter_fields(fields: &Fields, msg: &str) -> Result<()> {
-        for field in fields.iter() {
-            let Field {
-                attrs,  // Attributes of the field : Is this relevant to validate?
-                vis: _, // Visibility of the field : Is this relevant to validate?
-                ty,
-                ..
-            } = field;
-
-            // TODO Meta is being redundantly called twice
-            for attr in attrs {
-                parse_parameter_attribute(attr);
-            }
-
-            let path = get_type_name(ty, msg)?;
-            match path.ident.to_string().as_str() {
-                "Option" => match &path.arguments {
-                    PathArguments::AngleBracketed(arguments) => {
-                        let args = &arguments.args;
-                        if args.len() != 1 {
-                            return Err(Error::new_spanned(ty, msg));
-                        }
-                        let arg = match args.last() {
-                            Some(arg) => arg.into_value(),
-                            None => return Err(Error::new_spanned(ty, msg)),
-                        };
-
-                        if let GenericArgument::Type(ty) = arg {
-                            let path = get_type_name(ty, msg)?;
-                            if path.ident.to_string().as_str() == "Expression" {
-                                if path.arguments.is_empty() {
-                                    return Ok(());
-                                }
-                            }
-                        }
-                        return Err(Error::new_spanned(ty, msg));
-                    }
-                    _ => return Err(Error::new_spanned(ty, msg)),
-                },
-                "Expression" => {
-                    if !path.arguments.is_empty() {
-                        return Err(Error::new_spanned(ty, msg));
-                    }
-                }
-                _ => return Err(Error::new_spanned(ty, msg)),
-            };
-        }
-        Ok(())
-    }
-
-    /// Validates the structure derived with `FilterParameters`
-    fn validate_filter_parameter_struct(input: &DeriveInput) -> Result<()> {
+    fn from_input(input: &'a DeriveInput) -> Result<Self> {
         let DeriveInput {
-            attrs: _, // Attributes of the struct : Is this relevant to validate?
-            vis: _,   // Visibility of the struct : Is this relevant to validate?
+            attrs, // Is this relevant to validate?
+            vis: _,   // Is this relevant to validate?
             generics,
             data,
+            ident,
             ..
         } = input;
 
@@ -79,40 +31,21 @@ impl<'a> FilterParameters<'a> {
             ));
         }
 
-        match data {
-            Data::Struct(data) => Self::validate_filter_parameter_fields(
-                &data.fields,
-                "Invalid type. All fields in FilterParameters must be either of type `Expression` or `Option<Expression>`"
-            ),
-            Data::Enum(data) => Err(Error::new_spanned(
+        let fields = match data {
+            Data::Struct(data) => FilterParametersFields::from_fields(&data.fields)?,
+            Data::Enum(data) => return Err(Error::new_spanned(
                 data.enum_token,
                 "Enums cannot be FilterParameters.",
             )),
-            Data::Union(data) => Err(Error::new_spanned(
+            Data::Union(data) => return Err(Error::new_spanned(
                 data.union_token,
                 "Unions cannot be FilterParameters.",
             )),
-        }
-    }
-
-    fn from_input(input: &'a DeriveInput) -> Result<Self> {
-        let DeriveInput {
-            attrs, data, ident, .. // TODO what's needed here?
-        } = input;
-
-        // TODO validate at the same time as create
-        Self::validate_filter_parameter_struct(input)?;
-
-        let name = ident;
-        let evaluated_name = Ident::new(&format!("Evaluated{}", name), Span::call_site()); // Should it be overridable with an attribute?
-
-        let fields = if let Data::Struct(data) = data {
-            &data.fields
-        } else {
-            panic!("Struct already validated.")
         };
 
-        let fields = FilterParametersFields::from_fields(fields)?;
+        let name = ident;
+        // TODO Should evaluated_name be overridable with an attribute?
+        let evaluated_name = Ident::new(&format!("Evaluated{}", name), Span::call_site()); 
 
         Ok(FilterParameters {
             name,
@@ -126,6 +59,7 @@ struct FilterParametersFields<'a> {
     ty: FilterParametersFieldsType,
     parameters: Punctuated<FilterParameter<'a>, Token![,]>,
 }
+
 impl<'a> FilterParametersFields<'a> {
     /// Tries to create a new `FilterParametersFields` from the given `Fields`
     fn from_fields(fields: &'a Fields) -> Result<Self> {
@@ -136,14 +70,7 @@ impl<'a> FilterParametersFields<'a> {
                     .iter()
                     .map(|field| {
                         let name = Cow::Borrowed(field.ident.as_ref().expect("Fields are named."));
-                        let is_optional = is_type_option(&field.ty);
-                        let meta = FilterParameterMeta::new(&field)?;
-
-                        Ok(FilterParameter {
-                            name,
-                            is_optional,
-                            meta,
-                        })
+                        FilterParameter::new(name, &field)
                     })
                     .collect::<Result<Punctuated<_, Token![,]>>>()?;
 
@@ -160,14 +87,7 @@ impl<'a> FilterParametersFields<'a> {
                     .map(|(pos, field)| {
                         let name =
                             Cow::Owned(Ident::new(&format!("arg_{}", pos), Span::call_site()));
-                        let is_optional = is_type_option(&field.ty);
-                        let meta = FilterParameterMeta::new(&field)?;
-
-                        Ok(FilterParameter {
-                            name,
-                            is_optional,
-                            meta,
-                        })
+                        FilterParameter::new(name, &field)
                     })
                     .collect::<Result<Punctuated<_, Token![,]>>>()?;
 
@@ -226,6 +146,85 @@ struct FilterParameter<'a> {
     is_optional: bool,
     meta: FilterParameterMeta,
 }
+
+impl<'a> FilterParameter<'a> {
+    /// This message is used a lot in other associated functions
+    const ERROR_INVALID_TYPE: &'static str = "Invalid type. All fields in FilterParameters must be either of type `Expression` or `Option<Expression>`";
+
+    /// Helper function for `validate_filter_parameter_fields()`.
+    /// Given "::liquid::interpreter::Expression", returns "Expression"
+    fn get_type_name(ty: &Type) -> Result<&PathSegment> {
+        match ty {
+            Type::Path(ty) => {
+                // ty.qself : Is this relevant to validate?
+
+                // what if `Expression` is not the actual name of the expected type? (ex. lack of `use`)
+                // `Expression` could even be a whole different structure than expected
+                let path = match ty.path.segments.last() {
+                    Some(path) => path.into_value(),
+                    None => return Err(Error::new_spanned(ty, Self::ERROR_INVALID_TYPE)),
+                };
+
+                Ok(path)
+            }
+            ty => return Err(Error::new_spanned(ty, Self::ERROR_INVALID_TYPE)),
+        }
+    }
+    
+    /// Returns Some(true) if type is optional, Some(false) if it's not and Err if not a valid type.
+    /// 
+    /// `Expression` => Some(false),
+    /// `Option<Expression>` => Some(true),
+    ///  _ => Err(...),
+    fn parse_type_is_optional(ty: &Type) -> Result<bool> {
+        let path = Self::get_type_name(ty)?;
+        match path.ident.to_string().as_str() {
+            "Option" => match &path.arguments {
+                PathArguments::AngleBracketed(arguments) => {
+                    let args = &arguments.args;
+                    if args.len() != 1 {
+                        return Err(Error::new_spanned(ty, Self::ERROR_INVALID_TYPE));
+                    }
+                    let arg = match args.last() {
+                        Some(arg) => arg.into_value(),
+                        None => return Err(Error::new_spanned(ty, Self::ERROR_INVALID_TYPE)),
+                    };
+
+                    if let GenericArgument::Type(ty) = arg {
+                        let path = Self::get_type_name(ty)?;
+                        if path.ident.to_string().as_str() == "Expression" {
+                            if path.arguments.is_empty() {
+                                return Ok(true);
+                            }
+                        }
+                    }
+                    return Err(Error::new_spanned(ty, Self::ERROR_INVALID_TYPE));
+                }
+                _ => return Err(Error::new_spanned(ty, Self::ERROR_INVALID_TYPE)),
+            },
+            "Expression" => {
+                if !path.arguments.is_empty() {
+                    return Err(Error::new_spanned(ty, Self::ERROR_INVALID_TYPE))
+                } else {
+                    return Ok(false)
+                }
+            }
+            _ => return Err(Error::new_spanned(ty, Self::ERROR_INVALID_TYPE)),
+        }
+    }
+
+    fn new(name: Cow<'a, Ident>, field: &Field) -> Result<Self> {
+        let is_optional = Self::parse_type_is_optional(&field.ty)?;
+        let meta = FilterParameterMeta::from_field(&field)?;
+
+        Ok(FilterParameter {
+            name,
+            is_optional,
+            meta,
+        })
+    }
+}
+
 impl<'a> ToTokens for FilterParameter<'a> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.name.to_tokens(tokens);
@@ -240,16 +239,118 @@ enum FilterParameterType {
 
 struct FilterParameterMeta {
     // name: &'a str, // Should there be a rename attribute?
+    // evaluated_name: &'a str, // Should there be an attribute to rename evaluated filter parameters?
     // is_optional: bool, // Should there be an explicit required/optional attribute?
     description: String,
     ty: FilterParameterType,
 }
 
 impl FilterParameterMeta {
-    fn new(field: &Field) -> Result<Self> {
+    fn parse_parameter_attribute(attr: &Attribute) -> Result<FilterParameterMeta> {
+        let meta = attr.parse_meta().map_err(|err| {
+            Error::new(
+                err.span(),
+                format!("Could not parse `parameter` attribute: {}", err),
+            )
+        })?;
+
+        match meta {
+            Meta::Word(meta) => Err(Error::new_spanned(
+                meta,
+                "Found parameter without description. Description is necessary in order to properly generate ParameterReflection.",
+            )),
+            Meta::NameValue(meta) => Err(Error::new_spanned(
+                meta,
+                "Couldn't parse this parameter attribute. Have you tried `#[parameter(description=\"...\")]`?",
+            )),
+            Meta::List(meta) => {
+                let mut description = None;
+                let mut ty = None;
+
+                for meta in meta.nested.iter() {
+                    if let NestedMeta::Meta(meta) = meta {
+                        if let Meta::NameValue(meta) = meta {
+                            let key = &meta.ident.to_string();
+                            let value = &meta.lit;
+
+                            match key.as_str() {
+                                "description" => {
+                                    if let Lit::Str(value) = value {
+                                        description = Some(value.value());
+                                    } else {
+                                        return Err(Error::new_spanned(
+                                            value,
+                                            "Expected string literal.",
+                                        ));
+                                    }
+                                },
+                                "mode" => {
+                                    if let Lit::Str(value) = value {
+                                        ty = match value.value().as_str() {
+                                            "keyword" => Some(FilterParameterType::Keyword),
+                                            "positional" => Some(FilterParameterType::Positional),
+                                            _ => return Err(Error::new_spanned(
+                                                value,
+                                                "Expected either \"keyword\" or \"positional\".",
+                                            )),
+                                        };
+                                    } else {
+                                        return Err(Error::new_spanned(
+                                            value,
+                                            "Expected string literal.",
+                                        ));
+                                    }
+                                },
+                                _ => return Err(Error::new_spanned(
+                                    key,
+                                    "Unknown element in parameter attribute.",
+                                )),
+                            }
+                        } else {
+                            return Err(Error::new_spanned(
+                                meta,
+                                "Unknown element in parameter attribute. All elements should be key=value pairs.",
+                            ));
+                        }
+                    } else {
+                        return Err(Error::new_spanned(
+                            meta,
+                            "Unknown element in parameter attribute. All elements should be key=value pairs.",
+                        ));
+                    }
+                }
+
+                let description = description.ok_or_else(|| Error::new_spanned(
+                    meta,
+                    "Found parameter without description. Description is necessary in order to properly generate ParameterReflection.",
+                ))?;
+                let ty = ty.unwrap_or(FilterParameterType::Positional);
+
+                Ok(FilterParameterMeta {
+                    description,
+                    ty,
+                })
+            }
+        }
+    }
+
+    // Maybe this can be obtained more reliably in Meta idents
+    fn is_parameter_attribute(attr: &Attribute) -> bool {
+        &attr
+            .path
+            .segments
+            .last()
+            .expect("An attribute has a name.")
+            .into_value()
+            .ident
+            .to_string()
+            == "parameter"
+    }
+
+    fn from_field(field: &Field) -> Result<Self> {
         for attr in field.attrs.iter() {
-            if is_parameter_attribute(attr) {
-                return parse_parameter_attribute(attr);
+            if Self::is_parameter_attribute(attr) {
+                return Self::parse_parameter_attribute(attr);
             }
         }
         Err(Error::new_spanned(
@@ -302,22 +403,6 @@ fn generate_keyword_match_arm(keyword: &Ident) -> TokenStream {
 fn generate_unwrap_keyword_field(ident: &Ident) -> TokenStream {
     quote! {
         let #ident = #ident.ok_or_else(|| ::liquid::error::Error::with_msg("Required"))?;
-    }
-}
-
-/// Checks whether this type is `Option<Expression>` (true) or `Expression` (false)
-fn is_type_option(ty: &Type) -> bool {
-    if let Type::Path(ty) = ty {
-        ty.path
-            .segments
-            .last()
-            .expect("is_type_option must be used in a valid FilterParameters struct.")
-            .into_value()
-            .ident
-            .to_string()
-            == "Option"
-    } else {
-        panic!("is_type_option must be used in a valid FilterParameters struct.")
     }
 }
 
@@ -394,6 +479,22 @@ fn generate_evaluated_field(ident: Option<&Ident>, is_option: bool) -> TokenStre
         quote! { #ident : #ty }
     } else {
         quote! { #ty }
+    }
+}
+
+/// Checks whether this type is `Option<Expression>` (true) or `Expression` (false)
+fn is_type_option(ty: &Type) -> bool {
+    if let Type::Path(ty) = ty {
+        ty.path
+            .segments
+            .last()
+            .expect("is_type_option must be used in a valid FilterParameters struct.")
+            .into_value()
+            .ident
+            .to_string()
+            == "Option"
+    } else {
+        panic!("is_type_option must be used in a valid FilterParameters struct.")
     }
 }
 
@@ -494,126 +595,9 @@ fn generate_reflection_helpers(filter_parameters: &FilterParameters) -> TokenStr
     }
 }
 
-// Maybe this can be obtained more reliably in Meta idents
-fn is_parameter_attribute(attr: &Attribute) -> bool {
-    &attr
-        .path
-        .segments
-        .last()
-        .expect("An attribute has a name.")
-        .into_value()
-        .ident
-        .to_string()
-        == "parameter"
-}
 
-fn parse_parameter_attribute(attr: &Attribute) -> Result<FilterParameterMeta> {
-    let meta = attr.parse_meta().map_err(|err| {
-        Error::new(
-            err.span(),
-            format!("Could not parse `parameter` attribute: {}", err),
-        )
-    })?;
 
-    match meta {
-        Meta::Word(meta) => Err(Error::new_spanned(
-            meta,
-            "Found parameter without description. Description is necessary in order to properly generate ParameterReflection.",
-        )),
-        Meta::NameValue(meta) => Err(Error::new_spanned(
-            meta,
-            "Couldn't parse this parameter attribute. Have you tried `#[parameter(description=\"...\")]`?",
-        )),
-        Meta::List(meta) => {
-            let mut description = None;
-            let mut ty = None;
 
-            for meta in meta.nested.iter() {
-                if let NestedMeta::Meta(meta) = meta {
-                    if let Meta::NameValue(meta) = meta {
-                        let key = &meta.ident.to_string();
-                        let value = &meta.lit;
-
-                        match key.as_str() {
-                            "description" => {
-                                if let Lit::Str(value) = value {
-                                    description = Some(value.value());
-                                } else {
-                                    return Err(Error::new_spanned(
-                                        value,
-                                        "Expected string literal.",
-                                    ));
-                                }
-                            },
-                            "mode" => {
-                                if let Lit::Str(value) = value {
-                                    ty = match value.value().as_str() {
-                                        "keyword" => Some(FilterParameterType::Keyword),
-                                        "positional" => Some(FilterParameterType::Positional),
-                                        _ => return Err(Error::new_spanned(
-                                            value,
-                                            "Expected either \"keyword\" or \"positional\".",
-                                        )),
-                                    };
-                                } else {
-                                    return Err(Error::new_spanned(
-                                        value,
-                                        "Expected string literal.",
-                                    ));
-                                }
-                            },
-                            _ => return Err(Error::new_spanned(
-                                key,
-                                "Unknown element in parameter attribute.",
-                            )),
-                        }
-                    } else {
-                        return Err(Error::new_spanned(
-                            meta,
-                            "Unknown element in parameter attribute. All elements should be key=value pairs.",
-                        ));
-                    }
-                } else {
-                    return Err(Error::new_spanned(
-                        meta,
-                        "Unknown element in parameter attribute. All elements should be key=value pairs.",
-                    ));
-                }
-            }
-
-            let description = description.ok_or_else(|| Error::new_spanned(
-                meta,
-                "Found parameter without description. Description is necessary in order to properly generate ParameterReflection.",
-            ))?;
-            let ty = ty.unwrap_or(FilterParameterType::Positional);
-
-            Ok(FilterParameterMeta {
-                description,
-                ty,
-            })
-        }
-    }
-}
-
-/// Helper function for `validate_filter_parameter_fields()`.
-/// Given "::liquid::interpreter::Expression", returns "Expression"
-fn get_type_name<'a>(ty: &'a Type, msg: &str) -> Result<&'a PathSegment> {
-    match ty {
-        Type::Path(ty) => {
-            // ty.qself : Is this relevant to validate?
-
-            // what if `Expression` is not the actual name of the expected type? (ex. lack of `use`)
-            // `Expression` could even be a whole different structure than expected
-            let path = match ty.path.segments.last() {
-                Some(path) => path.into_value(),
-                None => return Err(Error::new_spanned(ty, msg)),
-            };
-
-            Ok(path)
-        }
-        ty => return Err(Error::new_spanned(ty, msg)),
-    }
-}
 
 pub fn derive(input: &DeriveInput) -> TokenStream {
     let filter_parameters = match FilterParameters::from_input(input) {
