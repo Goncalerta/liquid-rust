@@ -460,6 +460,7 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
 /// Generates `EvaluatedFilterParameters` struct with name `evaluated_name`, from input `structure`.
 // TODO Should evaluated_name be changeable by the user with an attribute?
 // TODO Should evaluated_name be "__EvaluatedSliceParameters" instead "EvaluatedSliceParameters" to avoid (already unlikely) name collisions?
+// TODO Should debug be added by default??
 fn generate_evaluated_struct(filter_parameters: &FilterParameters) -> TokenStream {
     let evaluated_name = &filter_parameters.evaluated_name;
     let fields = &filter_parameters.fields;
@@ -502,7 +503,7 @@ fn generate_evaluated_struct(filter_parameters: &FilterParameters) -> TokenStrea
 fn generate_parameter_reflection(field: &FilterParameter) -> TokenStream {
     let name = &field.name.to_string();
     let description = &field.meta.description.to_string();
-    let is_optional = &field.is_optional;
+    let is_optional = field.is_optional();
 
     quote! {
         ParameterReflection {
@@ -519,13 +520,13 @@ fn generate_reflection_helpers(filter_parameters: &FilterParameters) -> TokenStr
     let kw_params_reflection = fields
         .parameters
         .iter()
-        .filter(|parameter| &parameter.meta.ty == &FilterParameterType::Keyword)
+        .filter(|parameter| parameter.is_keyword())
         .map(generate_parameter_reflection);
 
     let pos_params_reflection = fields
         .parameters
         .iter()
-        .filter(|parameter| &parameter.meta.ty == &FilterParameterType::Positional)
+        .filter(|parameter| parameter.is_positional())
         .map(generate_parameter_reflection);
 
     quote! {
@@ -540,10 +541,6 @@ fn generate_reflection_helpers(filter_parameters: &FilterParameters) -> TokenStr
         }
     }
 }
-
-
-
-
 
 pub fn derive(input: &DeriveInput) -> TokenStream {
     let filter_parameters = match FilterParameters::from_input(input) {
