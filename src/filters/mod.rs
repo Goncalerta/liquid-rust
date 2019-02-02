@@ -70,7 +70,6 @@ fn check_args_len(args: &[Value], required: usize, optional: usize) -> Result<()
 }
 
 // TEST MACROS
-
 #[derive(Debug, FilterParameters)]
 struct SliceParameters {
     // mode = "keyword" just for debug purposes

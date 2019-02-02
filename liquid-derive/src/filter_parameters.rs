@@ -156,6 +156,7 @@ impl<'a> FilterParameter<'a> {
     fn parse_type_is_optional(ty: &Type) -> Result<bool> {
         let path = Self::get_type_name(ty)?;
         match path.ident.to_string().as_str() {
+            // TODO what if Option and Expression mean different structures (because of `use`, or by having a path before)
             "Option" => match &path.arguments {
                 PathArguments::AngleBracketed(arguments) => {
                     let args = &arguments.args;
@@ -239,7 +240,6 @@ enum FilterParameterType {
 struct FilterParameterMeta {
     // name: &'a str, // TODO Should there be a rename attribute?
     // evaluated_name: &'a str, // TODO Should there be an attribute to rename evaluated filter parameters?
-    // is_optional: bool, // TODO Should there be an explicit required/optional attribute?
     description: String,
     ty: FilterParameterType,
 }
@@ -264,6 +264,7 @@ impl FilterParameterMeta {
                 "Couldn't parse this parameter attribute. Have you tried `#[parameter(description=\"...\")]`?",
             )),
             Meta::List(meta) => {
+                // TODO don't allow multiple definitions
                 let mut description = None;
                 let mut ty = None;
 

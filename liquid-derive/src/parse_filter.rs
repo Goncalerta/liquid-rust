@@ -173,7 +173,7 @@ impl ParseFilterMeta {
                                     }
                                 },
                                 (_, Some(meta)) => return Err(Error::new_spanned(
-                                    meta, // TODO parenteses
+                                    meta,
                                     "Unexpected element.",
                                 )),
                                 _ => return Err(Error::new_spanned(
