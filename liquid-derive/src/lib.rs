@@ -1,4 +1,3 @@
-#![recursion_limit = "128"]
 extern crate liquid_compiler;
 extern crate liquid_error;
 extern crate proc_macro;
