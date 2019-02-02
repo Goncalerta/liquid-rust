@@ -278,6 +278,17 @@ impl<'a> FilterParameter<'a> {
     fn is_keyword(&self) -> bool {
         self.meta.ty == FilterParameterType::Keyword
     }
+
+    /// Returns the name of this parameter in liquid.
+    /// 
+    /// That is, by default, the name of the field as a string. However,
+    /// this name may be overriden by `rename` attribute.
+    fn liquid_name(&self) -> String {
+        match &self.meta.rename {
+            Some(name) => name.clone(),
+            None => self.name.to_string(),
+        }
+    }
 }
 
 impl<'a> ToTokens for FilterParameter<'a> {
@@ -294,6 +305,7 @@ enum FilterParameterType {
 
 /// Struct that contains information parsed in `#[parameter(...)]` attribute.
 struct FilterParameterMeta {
+    rename: Option<String>,
     description: String,
     ty: FilterParameterType,
 }
@@ -319,6 +331,7 @@ impl FilterParameterMeta {
             )),
             Meta::List(meta) => {
                 // TODO don't allow multiple definitions
+                let mut rename = None;
                 let mut description = None;
                 let mut ty = None;
 
@@ -329,6 +342,16 @@ impl FilterParameterMeta {
                             let value = &meta.lit;
 
                             match key.as_str() {
+                                "rename" => {
+                                    if let Lit::Str(value) = value {
+                                        rename = Some(value.value());
+                                    } else {
+                                        return Err(Error::new_spanned(
+                                            value,
+                                            "Expected string literal.",
+                                        ));
+                                    }
+                                },
                                 "description" => {
                                     if let Lit::Str(value) = value {
                                         description = Some(value.value());
@@ -382,6 +405,7 @@ impl FilterParameterMeta {
                 let ty = ty.unwrap_or(FilterParameterType::Positional);
 
                 Ok(FilterParameterMeta {
+                    rename,
                     description,
                     ty,
                 })
@@ -442,13 +466,15 @@ fn generate_evaluate_field(ident: &Ident, is_option: bool) -> TokenStream {
 }
 
 /// Generates the match arm that assigns the given keyword argument.
-fn generate_keyword_match_arm(keyword: &Ident) -> TokenStream {
-    let keyword_string = keyword.to_string();
+fn generate_keyword_match_arm(field: &FilterParameter) -> TokenStream {
+    let rust_name = &field.name;
+    let liquid_name = field.liquid_name();
+    
     quote! {
-        #keyword_string => if #keyword.is_none() {
-            #keyword = Some(arg.1);
+        #liquid_name => if #rust_name.is_none() {
+            #rust_name = Some(arg.1);
         } else {
-            return Err(::liquid::error::Error::with_msg(concat!("Multiple definitions of ", #keyword_string, ".")));
+            return Err(::liquid::error::Error::with_msg(concat!("Multiple definitions of ", #liquid_name, ".")));
         },
     }
 }
@@ -488,7 +514,7 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
         .parameters
         .iter()
         .filter(|parameter| parameter.is_keyword())
-        .map(|field| generate_keyword_match_arm(&field.name));
+        .map(|field| generate_keyword_match_arm(&field));
 
     let required_keyword_fields = fields
         .parameters
@@ -568,7 +594,7 @@ fn generate_evaluated_struct(filter_parameters: &FilterParameters) -> TokenStrea
 
 /// Constructs `ParameterReflection` for the given parameter.
 fn generate_parameter_reflection(field: &FilterParameter) -> TokenStream {
-    let name = &field.name.to_string();
+    let name = field.liquid_name();
     let description = &field.meta.description.to_string();
     let is_optional = field.is_optional();
 
