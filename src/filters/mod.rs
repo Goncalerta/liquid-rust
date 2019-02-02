@@ -73,10 +73,10 @@ fn check_args_len(args: &[Value], required: usize, optional: usize) -> Result<()
 #[derive(Debug, FilterParameters)]
 #[evaluated(MyCustomEvaluatedName)]
 struct SliceParameters {
-    // mode = "keyword" just for debug purposes
-    #[parameter(description = "lol", mode = "keyword")]
+    // mode and keyword for debug purposes
+    #[parameter(description = "The offset of the slice.", mode = "keyword", rename = "type")]
     offset: Expression,
-    #[parameter(description = "lol")]
+    #[parameter(description = "The length of the slice.")]
     length: Option<Expression>,
 }
 
