@@ -26,7 +26,7 @@ use liquid_value::Value;
 use unicode_segmentation::UnicodeSegmentation;
 
 use liquid_compiler::{
-    Filter, FilterArguments, FilterReflection, ParameterReflection, ParseFilter, FilterParameters
+    Filter, FilterArguments, FilterParameters, FilterReflection, ParameterReflection, ParseFilter,
 };
 
 use liquid_derive;
@@ -71,6 +71,7 @@ fn check_args_len(args: &[Value], required: usize, optional: usize) -> Result<()
 
 // TEST MACROS
 #[derive(Debug, FilterParameters)]
+#[evaluated(MyCustomEvaluatedName)]
 struct SliceParameters {
     // mode = "keyword" just for debug purposes
     #[parameter(description = "lol", mode = "keyword")]

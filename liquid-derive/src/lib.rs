@@ -10,7 +10,7 @@ mod parse_filter;
 
 use proc_macro::TokenStream;
 
-#[proc_macro_derive(FilterParameters, attributes(parameter))]
+#[proc_macro_derive(FilterParameters, attributes(parameter, evaluated))]
 pub fn derive_filter_parameters(item: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(item as syn::DeriveInput);
     filter_parameters::derive(&input).into()

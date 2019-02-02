@@ -2,28 +2,83 @@ use proc_macro2::*;
 use proc_quote::*;
 use std::borrow::Cow;
 use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
 use syn::*;
 
-// TODO should visibility in the original matter for the new structs?
 // TODO should other attributes be taken into account (allowed, transfered to evaluated struct, ...)?
-// TODO create trait for filter parameters and make filter_parser call using that trait
+
 /// Struct that contains information to generate the necessary code for `FilterParameters`.
 struct FilterParameters<'a> {
     name: &'a Ident,
     evaluated_name: Ident,
     fields: FilterParametersFields<'a>,
+    vis: &'a Visibility
 }
 
 impl<'a> FilterParameters<'a> {
+    /// Searches for `#[evaluated(...)]` in order to parse `evaluated_name`
+    /// If attribute is not found, error message will use span in `input_span`
+    fn parse_attrs(attrs: &Vec<Attribute>) -> Result<Option<Ident>> {
+        let mut evaluated_attrs = attrs.iter().filter(|attr| attr.path.is_ident("evaluated"));
+
+        match (evaluated_attrs.next(), evaluated_attrs.next()) {
+            (Some(attr), None) => Ok(Some(Self::parse_evaluated_attr(attr)?)),
+
+            (_, Some(attr)) => Err(Error::new_spanned(
+                attr,
+                "Found multiple definitions for `evaluated` attribute.",
+            )),
+
+            _ => Ok(None),
+        }
+    }
+
+    fn parse_evaluated_attr(attr: &Attribute) -> Result<Ident> {
+        let meta = attr.parse_meta().map_err(|err| {
+            Error::new(
+                err.span(),
+                format!("Could not parse `evaluated` attribute: {}", err),
+            )
+        })?;
+
+        match meta {
+            Meta::Word(meta) => Err(Error::new_spanned(
+                meta,
+                "Couldn't parse evaluated attribute. Have you tried `#[evaluated(\"...\")]`?",
+            )),
+            Meta::NameValue(meta) => Err(Error::new_spanned(
+                meta,
+                "Couldn't parse evaluated attribute. Have you tried `#[evaluated(\"...\")]`?",
+            )),
+            Meta::List(meta) => {
+                let meta_span = meta.span();
+                let mut inner = meta.nested.into_iter();
+
+                match (inner.next(), inner.next()) {
+                    (Some(inner), None) => {
+                        if let NestedMeta::Meta(Meta::Word(ident)) = inner {
+                            Ok(ident)
+                        } else {
+                            Err(Error::new_spanned(inner, "Expected ident."))
+                        }
+                    }
+
+                    (_, Some(inner)) => Err(Error::new_spanned(inner, "Unexpected element.")),
+
+                    _ => Err(Error::new(meta_span, "Expected ident.")),
+                }
+            }
+        }
+    }
+
     /// Tries to create a new `FilterParameters` from the given `DeriveInput`
     fn from_input(input: &'a DeriveInput) -> Result<Self> {
         let DeriveInput {
-            attrs,  // TODO Is this relevant to validate?
-            vis: _, // TODO Is this relevant to validate?
+            attrs,
+            vis,
             generics,
             data,
             ident,
-            ..
         } = input;
 
         if !generics.params.is_empty() {
@@ -50,13 +105,14 @@ impl<'a> FilterParameters<'a> {
         };
 
         let name = ident;
-        // TODO Should evaluated_name be overridable with an attribute?
-        let evaluated_name = Ident::new(&format!("Evaluated{}", name), Span::call_site());
+        let evaluated_name = Self::parse_attrs(attrs)?
+            .unwrap_or_else(|| Ident::new(&format!("Evaluated{}", name), Span::call_site()));
 
         Ok(FilterParameters {
             name,
             evaluated_name,
             fields,
+            vis,
         })
     }
 }
@@ -238,8 +294,6 @@ enum FilterParameterType {
 
 /// Struct that contains information parsed in `#[parameter(...)]` attribute.
 struct FilterParameterMeta {
-    // name: &'a str, // TODO Should there be a rename attribute?
-    // evaluated_name: &'a str, // TODO Should there be an attribute to rename evaluated filter parameters?
     description: String,
     ty: FilterParameterType,
 }
@@ -335,30 +389,26 @@ impl FilterParameterMeta {
         }
     }
 
-    /// Returns whether the given attribute is `#[parameter(...)]`.
-    fn is_parameter_attribute(attr: &Attribute) -> bool {
-        &attr
-            .path
-            .segments
-            .last()
-            .expect("An attribute has a name.")
-            .into_value()
-            .ident
-            .to_string()
-            == "parameter"
-    }
-
     /// Tries to create a new `FilterParserMeta` from the given field.
     fn from_field(field: &Field) -> Result<Self> {
-        for attr in field.attrs.iter() {
-            if Self::is_parameter_attribute(attr) {
-                return Self::parse_parameter_attribute(attr);
-            }
+        let mut parameter_attrs = field
+            .attrs
+            .iter()
+            .filter(|attr| attr.path.is_ident("parameter"));
+
+        match (parameter_attrs.next(), parameter_attrs.next()) {
+            (Some(attr), None) => Self::parse_parameter_attribute(attr),
+
+            (_, Some(attr)) => Err(Error::new_spanned(
+                attr,
+                "Found multiple definitions for `parameter` attribute.",
+            )),
+
+            _ => Err(Error::new_spanned(
+                field,
+                "Found parameter without #[parameter] attribute. All filter parameters must be accompanied by this attribute.",
+            )),
         }
-        Err(Error::new_spanned(
-            field,
-            "Found parameter without #[parameter] attribute. All filter parameters must be accompanied by this attribute.",
-        ))
     }
 }
 
@@ -409,6 +459,7 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
         name,
         evaluated_name,
         fields,
+        ..
     } = filter_parameters;
 
     let field_names = fields.parameters.iter().map(|field| &field.name);
@@ -476,11 +527,9 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
 }
 
 /// Generates `EvaluatedFilterParameters` struct.
-// TODO Should evaluated_name be changeable by the user with an attribute?
-// TODO Should debug be added by default??
+// TODO Should debug be added by default?
 fn generate_evaluated_struct(filter_parameters: &FilterParameters) -> TokenStream {
-    let evaluated_name = &filter_parameters.evaluated_name;
-    let fields = &filter_parameters.fields;
+    let FilterParameters { evaluated_name, fields, vis, .. } = filter_parameters;
 
     let field_types = fields.parameters.iter().map(|field| {
         if field.is_optional() {
@@ -495,7 +544,7 @@ fn generate_evaluated_struct(filter_parameters: &FilterParameters) -> TokenStrea
             let field_names = fields.parameters.iter().map(|field| &field.name);
             quote! {
                 #[derive(Debug)]
-                struct #evaluated_name <'a>{
+                #vis struct #evaluated_name <'a>{
                     #(#field_names : #field_types,)*
                 }
             }
@@ -503,7 +552,7 @@ fn generate_evaluated_struct(filter_parameters: &FilterParameters) -> TokenStrea
         FilterParametersFieldsType::Unnamed => {
             quote! {
                 #[derive(Debug)]
-                struct #evaluated_name <'a>(
+                #vis struct #evaluated_name <'a>(
                     #(#field_types,)*
                 )
             }
@@ -511,7 +560,7 @@ fn generate_evaluated_struct(filter_parameters: &FilterParameters) -> TokenStrea
         FilterParametersFieldsType::Unit => {
             quote! {
                 #[derive(Debug)]
-                struct #evaluated_name;
+                #vis struct #evaluated_name;
             }
         }
     }
