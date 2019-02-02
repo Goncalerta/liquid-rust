@@ -5,45 +5,45 @@ use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::*;
 
-/// Struct that contains information to generate the necessary code for `FilterParser`.
-struct FilterParser<'a> {
+/// Struct that contains information to generate the necessary code for `ParseFilter`.
+struct ParseFilter<'a> {
     name: &'a Ident,
-    meta: FilterParserMeta,
+    meta: ParseFilterMeta,
 }
 
-impl<'a> FilterParser<'a> {
+impl<'a> ParseFilter<'a> {
     /// Asserts that this is an empty struct.
     fn validate_data(data: &Data) -> Result<()> {
         match data {
             Data::Struct(data) => match &data.fields {
                 Fields::Named(fields) => Err(Error::new_spanned(
                     fields,
-                    "FilterParserMeta may not have fields.",
+                    "ParseFilterMeta may not have fields.",
                 )),
                 Fields::Unnamed(fields) => Err(Error::new_spanned(
                     fields,
-                    "FilterParserMeta may not have fields.",
+                    "ParseFilterMeta may not have fields.",
                 )),
                 Fields::Unit => Ok(()),
             },
             Data::Enum(data) => Err(Error::new_spanned(
                 data.enum_token,
-                "Enums cannot be FilterParsers.",
+                "Enums cannot be ParseFilter.",
             )),
             Data::Union(data) => Err(Error::new_spanned(
                 data.union_token,
-                "Unions cannot be FilterParsers.",
+                "Unions cannot be ParseFilter.",
             )),
         }
     }
 
-    /// Searches for `#[filter(...)]` in order to parse `FilterParserMeta`
+    /// Searches for `#[filter(...)]` in order to parse `ParseFilterMeta`
     /// If attribute is not found, error message will use span in `input_span`
-    fn parse_attrs(attrs: &Vec<Attribute>) -> Result<FilterParserMeta> {
+    fn parse_attrs(attrs: &Vec<Attribute>) -> Result<ParseFilterMeta> {
         let mut filter_attrs = attrs.iter().filter(|attr| attr.path.is_ident("filter"));
 
         match (filter_attrs.next(), filter_attrs.next()) {
-            (Some(attr), None) => FilterParserMeta::from_attr(attr),
+            (Some(attr), None) => ParseFilterMeta::from_attr(attr),
 
             (_, Some(attr)) => Err(Error::new_spanned(
                 attr,
@@ -57,7 +57,7 @@ impl<'a> FilterParser<'a> {
         }
     }
 
-    /// Tries to create a new `FilterParser` from the given `DeriveInput`
+    /// Tries to create a new `ParseFilter` from the given `DeriveInput`
     fn from_input(input: &'a DeriveInput) -> Result<Self> {
         let DeriveInput {
             attrs, data, ident, ..
@@ -66,20 +66,20 @@ impl<'a> FilterParser<'a> {
         Self::validate_data(&data)?;
         let meta = Self::parse_attrs(attrs)?;
 
-        Ok(FilterParser { name: ident, meta })
+        Ok(ParseFilter { name: ident, meta })
     }
 }
 
 /// Struct that contains information parsed in `#[filter(...)]` attribute.
-struct FilterParserMeta {
+struct ParseFilterMeta {
     filter_name: String,
     filter_description: String,
     parameters_struct_name: Ident,
     filter_struct_name: Ident,
 }
 
-impl FilterParserMeta {
-    /// Tries to create a new `FilterParserMeta` from the given `DeriveInput`
+impl ParseFilterMeta {
+    /// Tries to create a new `ParseFilterMeta` from the given `DeriveInput`
     // TODO more modular parsing
     fn from_attr(attr: &Attribute) -> Result<Self> {
         let meta = attr.parse_meta().map_err(|err| {
@@ -206,15 +206,15 @@ impl FilterParserMeta {
                 ))?;
                 let parameters_struct_name = parameters.ok_or_else(|| Error::new_spanned(
                     attr,
-                    "FilterParserMeta does not declare `FilterParameters` struct. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
+                    "ParseFilterMeta does not declare `FilterParameters` struct. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
                 ))?;
                 let filter_struct_name = parsed.ok_or_else(|| Error::new_spanned(
                     attr,
-                    "FilterParserMeta does not have a Filter to return. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
+                    "ParseFilterMeta does not have a Filter to return. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
                 ))?;
                 
 
-                Ok(FilterParserMeta {
+                Ok(ParseFilterMeta {
                     filter_name,
                     filter_description,
                     parameters_struct_name,
@@ -225,12 +225,12 @@ impl FilterParserMeta {
     }
 }
 
-/// Generates implementation of `ParseFilter` for the given `FilterParser`
-fn generate_parse_filter(filter_parser: &FilterParser) -> TokenStream {
-    let FilterParser {
+/// Generates implementation of `ParseFilter` for the given `ParseFilter`
+fn generate_parse_filter(filter_parser: &ParseFilter) -> TokenStream {
+    let ParseFilter {
         name: parser_name,
         meta:
-            FilterParserMeta {
+            ParseFilterMeta {
                 parameters_struct_name,
                 filter_struct_name,
                 ..
@@ -247,12 +247,12 @@ fn generate_parse_filter(filter_parser: &FilterParser) -> TokenStream {
     }
 }
 
-/// Generates implementation of `FilterReflection` for the given `FilterParser`
-fn generate_reflection(filter_parser: &FilterParser) -> TokenStream {
-    let FilterParser {
+/// Generates implementation of `FilterReflection` for the given `ParseFilter`
+fn generate_reflection(filter_parser: &ParseFilter) -> TokenStream {
+    let ParseFilter {
         name: parser_name,
         meta:
-            FilterParserMeta {
+            ParseFilterMeta {
                 filter_name,
                 filter_description,
                 parameters_struct_name,
@@ -281,7 +281,7 @@ fn generate_reflection(filter_parser: &FilterParser) -> TokenStream {
 }
 
 pub fn derive(input: &DeriveInput) -> TokenStream {
-    let filter_parser = match FilterParser::from_input(input) {
+    let filter_parser = match ParseFilter::from_input(input) {
         Ok(filter_parser) => filter_parser,
         Err(err) => return err.to_compile_error(),
     };

@@ -7,7 +7,7 @@ extern crate proc_quote;
 extern crate syn;
 
 mod filter_parameters;
-mod filter_parser;
+mod parse_filter;
 
 use proc_macro::TokenStream;
 
@@ -17,8 +17,8 @@ pub fn derive_filter_parameters(item: TokenStream) -> TokenStream {
     filter_parameters::derive(&input).into()
 }
 
-#[proc_macro_derive(FilterParser, attributes(filter))]
-pub fn derive_filter_parser(item: TokenStream) -> TokenStream {
+#[proc_macro_derive(ParseFilter, attributes(filter))]
+pub fn derive_parse_filter(item: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(item as syn::DeriveInput);
-    filter_parser::derive(&input).into()
+    parse_filter::derive(&input).into()
 }
