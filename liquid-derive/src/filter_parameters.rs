@@ -7,6 +7,7 @@ use syn::*;
 // TODO should visibility in the original matter for the new structs?
 // TODO should other attributes be taken into account (allowed, transfered to evaluated struct, ...)?
 // TODO create trait for filter parameters and make filter_parser call using that trait
+/// Struct that contains information to generate the necessary code for `FilterParameters`.
 struct FilterParameters<'a> {
     name: &'a Ident,
     evaluated_name: Ident,
@@ -14,10 +15,11 @@ struct FilterParameters<'a> {
 }
 
 impl<'a> FilterParameters<'a> {
+    /// Tries to create a new `FilterParameters` from the given `DeriveInput`
     fn from_input(input: &'a DeriveInput) -> Result<Self> {
         let DeriveInput {
-            attrs,  // Is this relevant to validate?
-            vis: _, // Is this relevant to validate?
+            attrs,  // TODO Is this relevant to validate?
+            vis: _, // TODO Is this relevant to validate?
             generics,
             data,
             ident,
@@ -188,6 +190,7 @@ impl<'a> FilterParameter<'a> {
         }
     }
 
+    /// Creates a new `FilterParameter` from the given `field`, with the given `name`.
     fn new(name: Cow<'a, Ident>, field: &Field) -> Result<Self> {
         let is_optional = Self::parse_type_is_optional(&field.ty)?;
         let meta = FilterParameterMeta::from_field(&field)?;
@@ -199,18 +202,22 @@ impl<'a> FilterParameter<'a> {
         })
     }
 
+    /// Returns whether this field is optional.
     fn is_optional(&self) -> bool {
         self.is_optional
     }
 
+    /// Returns whether this field is required (not optional).
     fn is_required(&self) -> bool {
         !self.is_optional
     }
 
+    /// Returns whether this is a positional field.
     fn is_positional(&self) -> bool {
         self.meta.ty == FilterParameterType::Positional
     }
 
+    /// Returns whether this is a keyword field.
     fn is_keyword(&self) -> bool {
         self.meta.ty == FilterParameterType::Keyword
     }
@@ -228,10 +235,11 @@ enum FilterParameterType {
     Positional,
 }
 
+/// Struct that contains information parsed in `#[parameter(...)]` attribute.
 struct FilterParameterMeta {
-    // name: &'a str, // Should there be a rename attribute?
-    // evaluated_name: &'a str, // Should there be an attribute to rename evaluated filter parameters?
-    // is_optional: bool, // Should there be an explicit required/optional attribute?
+    // name: &'a str, // TODO Should there be a rename attribute?
+    // evaluated_name: &'a str, // TODO Should there be an attribute to rename evaluated filter parameters?
+    // is_optional: bool, // TODO Should there be an explicit required/optional attribute?
     description: String,
     ty: FilterParameterType,
 }
@@ -326,6 +334,7 @@ impl FilterParameterMeta {
         }
     }
 
+    /// Returns whether the given attribute is `#[parameter(...)]`.
     fn is_parameter_attribute(attr: &Attribute) -> bool {
         &attr
             .path
@@ -338,6 +347,7 @@ impl FilterParameterMeta {
             == "parameter"
     }
 
+    /// Tries to create a new `FilterParserMeta` from the given field.
     fn from_field(field: &Field) -> Result<Self> {
         for attr in field.attrs.iter() {
             if Self::is_parameter_attribute(attr) {
@@ -351,7 +361,7 @@ impl FilterParameterMeta {
     }
 }
 
-/// Generates the statement that saves the next positional argument in the iterator in `ident`.
+/// Generates the statement that assigns the next positional argument in the iterator to `ident`.
 fn generate_construct_positional_field(ident: &Ident, is_option: bool) -> TokenStream {
     if is_option {
         quote! {
@@ -380,6 +390,7 @@ fn generate_evaluate_field(ident: &Ident, is_option: bool) -> TokenStream {
     }
 }
 
+/// Generates the match arm that assigns the given keyword argument.
 fn generate_keyword_match_arm(keyword: &Ident) -> TokenStream {
     let keyword_string = keyword.to_string();
     quote! {
@@ -391,7 +402,7 @@ fn generate_keyword_match_arm(keyword: &Ident) -> TokenStream {
     }
 }
 
-/// Generates `new()` and `evaluate()` methods for the given struct.
+/// Implements `FilterParameters`.
 fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> TokenStream {
     let FilterParameters {
         name,
@@ -463,9 +474,8 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
     }
 }
 
-/// Generates `EvaluatedFilterParameters` struct with name `evaluated_name`, from input `structure`.
+/// Generates `EvaluatedFilterParameters` struct.
 // TODO Should evaluated_name be changeable by the user with an attribute?
-// TODO Should evaluated_name be "__EvaluatedSliceParameters" instead "EvaluatedSliceParameters" to avoid (already unlikely) name collisions?
 // TODO Should debug be added by default??
 fn generate_evaluated_struct(filter_parameters: &FilterParameters) -> TokenStream {
     let evaluated_name = &filter_parameters.evaluated_name;
@@ -506,6 +516,7 @@ fn generate_evaluated_struct(filter_parameters: &FilterParameters) -> TokenStrea
     }
 }
 
+/// Constructs `ParameterReflection` for the given parameter.
 fn generate_parameter_reflection(field: &FilterParameter) -> TokenStream {
     let name = &field.name.to_string();
     let description = &field.meta.description.to_string();
@@ -520,6 +531,7 @@ fn generate_parameter_reflection(field: &FilterParameter) -> TokenStream {
     }
 }
 
+/// Implements `FilterParametersReflection`.
 fn generate_reflection_helpers(filter_parameters: &FilterParameters) -> TokenStream {
     let FilterParameters { name, fields, .. } = filter_parameters;
 
