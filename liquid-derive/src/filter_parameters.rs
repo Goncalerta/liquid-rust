@@ -104,15 +104,6 @@ impl<'a> FilterParametersFields<'a> {
             }
         }
     }
-
-    fn generate_constructor(&self) -> TokenStream {
-        let fields = &self.parameters;
-        match &self.ty {
-            FilterParametersFieldsType::Named => quote! { { #fields } },
-            FilterParametersFieldsType::Unnamed => quote! { ( #fields ) },
-            FilterParametersFieldsType::Unit => quote! {},
-        }
-    }
 }
 
 enum FilterParametersFieldsType {
@@ -404,7 +395,12 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
         fields,
     } = filter_parameters;
 
-    let generate_constructor = fields.generate_constructor();
+    let field_names = fields.parameters.iter().map(|field| &field.name);
+    let generate_constructor = match &fields.ty {
+        FilterParametersFieldsType::Named => quote! { { #(#field_names,)* } },
+        FilterParametersFieldsType::Unnamed => quote! { ( #(#field_names,)* ) },
+        FilterParametersFieldsType::Unit => quote! {},
+    };
 
     let evaluate_fields = fields
         .parameters
@@ -461,93 +457,45 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
     }
 }
 
-/// Generates a field declaration for `EvaluatedFilterParameters` struct.
-/// name: Expression -> name: &'a Value
-/// name: Option<Expression> -> name: Option<&'a Value>
-fn generate_evaluated_field(ident: Option<&Ident>, is_option: bool) -> TokenStream {
-    // Should attrs from SliceParameters fields be transfered to EvaluatedSliceParameters fields?
-    // Should vis from SliceParameters fields be transfered to EvaluatedSliceParameters fields?
-    let ty = if is_option {
-        quote! { Option<&'a ::liquid::value::Value> }
-    } else {
-        quote! { &'a ::liquid::value::Value }
-    };
-
-    if let Some(ident) = ident {
-        quote! { #ident : #ty }
-    } else {
-        quote! { #ty }
-    }
-}
-
-/// Checks whether this type is `Option<Expression>` (true) or `Expression` (false)
-fn is_type_option(ty: &Type) -> bool {
-    if let Type::Path(ty) = ty {
-        ty.path
-            .segments
-            .last()
-            .expect("is_type_option must be used in a valid FilterParameters struct.")
-            .into_value()
-            .ident
-            .to_string()
-            == "Option"
-    } else {
-        panic!("is_type_option must be used in a valid FilterParameters struct.")
-    }
-}
-
 /// Generates `EvaluatedFilterParameters` struct with name `evaluated_name`, from input `structure`.
-// Should evaluated_name be changeable by the user with an attribute?
-// Should evaluated_name be "__EvaluatedSliceParameters" instead "EvaluatedSliceParameters" to avoid (already unlikely) name collisions?
-fn generate_evaluated_struct(structure: &DeriveInput, evaluated_name: &Ident) -> TokenStream {
-    // Should attrs from SliceParameters be transfered to EvaluatedSliceParameters?
-    // Should vis from SliceParameters be transfered to EvaluatedSliceParameters?
+// TODO Should evaluated_name be changeable by the user with an attribute?
+// TODO Should evaluated_name be "__EvaluatedSliceParameters" instead "EvaluatedSliceParameters" to avoid (already unlikely) name collisions?
+fn generate_evaluated_struct(filter_parameters: &FilterParameters) -> TokenStream {
+    let evaluated_name = &filter_parameters.evaluated_name;
+    let fields = &filter_parameters.fields;
 
-    if let Data::Struct(data) = &structure.data {
-        match &data.fields {
-            Fields::Named(fields) => {
-                let mut evaluated_fields: Punctuated<_, Token![,]> = Punctuated::new();
-                for field in fields.named.iter() {
-                    let ident = &field.ident;
-                    evaluated_fields.push(generate_evaluated_field(
-                        ident.as_ref(),
-                        is_type_option(&field.ty),
-                    ));
-                }
-
-                quote! {
-                    #[derive(Debug)]
-                    struct #evaluated_name <'a>{
-                        #evaluated_fields
-                    }
-                }
-            }
-            Fields::Unnamed(fields) => {
-                let mut evaluated_fields: Punctuated<_, Token![,]> = Punctuated::new();
-                for field in fields.unnamed.iter() {
-                    let ident = &field.ident;
-                    evaluated_fields.push(generate_evaluated_field(
-                        ident.as_ref(),
-                        is_type_option(&field.ty),
-                    ));
-                }
-
-                quote! {
-                    #[derive(Debug)]
-                    struct #evaluated_name <'a>(
-                        #evaluated_fields
-                    )
-                }
-            }
-            Fields::Unit => {
-                quote! {
-                    #[derive(Debug)]
-                    struct #evaluated_name;
-                }
-            }
+    let field_types = fields.parameters.iter().map(|field| {
+        if field.is_optional() { 
+            quote! { Option<&'a ::liquid::value::Value> } 
+        } else { 
+            quote! { &'a ::liquid::value::Value }
         }
-    } else {
-        panic!("generate_evaluated_struct must be used in a valid FilterParameters struct.");
+    });
+    
+    match &fields.ty {
+        FilterParametersFieldsType::Named => {
+            let field_names = fields.parameters.iter().map(|field| &field.name);
+            quote! {
+                #[derive(Debug)]
+                struct #evaluated_name <'a>{
+                    #(#field_names : #field_types,)* 
+                }
+            }
+        },
+        FilterParametersFieldsType::Unnamed => {
+            quote! {
+                #[derive(Debug)]
+                struct #evaluated_name <'a>(
+                    #(#field_types,)* 
+                )
+            }
+        },
+        FilterParametersFieldsType::Unit => {
+            quote! {
+                #[derive(Debug)]
+                struct #evaluated_name;
+            }
+        },
     }
 }
 
@@ -606,10 +554,7 @@ pub fn derive(input: &DeriveInput) -> TokenStream {
     let mut output = TokenStream::new();
     output.extend(generate_impl_filter_parameters(&filter_parameters));
     output.extend(generate_reflection_helpers(&filter_parameters));
-    output.extend(generate_evaluated_struct(
-        &input,
-        &filter_parameters.evaluated_name,
-    ));
+    output.extend(generate_evaluated_struct(&filter_parameters));
 
     // Temporary TODO remove
     // This println! shows the code that was generated by this macro when compiling
