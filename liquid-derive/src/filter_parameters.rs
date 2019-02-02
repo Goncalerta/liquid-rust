@@ -16,8 +16,8 @@ struct FilterParameters<'a> {
 impl<'a> FilterParameters<'a> {
     fn from_input(input: &'a DeriveInput) -> Result<Self> {
         let DeriveInput {
-            attrs, // Is this relevant to validate?
-            vis: _,   // Is this relevant to validate?
+            attrs,  // Is this relevant to validate?
+            vis: _, // Is this relevant to validate?
             generics,
             data,
             ident,
@@ -33,19 +33,23 @@ impl<'a> FilterParameters<'a> {
 
         let fields = match data {
             Data::Struct(data) => FilterParametersFields::from_fields(&data.fields)?,
-            Data::Enum(data) => return Err(Error::new_spanned(
-                data.enum_token,
-                "Enums cannot be FilterParameters.",
-            )),
-            Data::Union(data) => return Err(Error::new_spanned(
-                data.union_token,
-                "Unions cannot be FilterParameters.",
-            )),
+            Data::Enum(data) => {
+                return Err(Error::new_spanned(
+                    data.enum_token,
+                    "Enums cannot be FilterParameters.",
+                ));
+            }
+            Data::Union(data) => {
+                return Err(Error::new_spanned(
+                    data.union_token,
+                    "Unions cannot be FilterParameters.",
+                ));
+            }
         };
 
         let name = ident;
         // TODO Should evaluated_name be overridable with an attribute?
-        let evaluated_name = Ident::new(&format!("Evaluated{}", name), Span::call_site()); 
+        let evaluated_name = Ident::new(&format!("Evaluated{}", name), Span::call_site());
 
         Ok(FilterParameters {
             name,
@@ -141,9 +145,9 @@ impl<'a> FilterParameter<'a> {
             ty => return Err(Error::new_spanned(ty, Self::ERROR_INVALID_TYPE)),
         }
     }
-    
+
     /// Returns Some(true) if type is optional, Some(false) if it's not and Err if not a valid type.
-    /// 
+    ///
     /// `Expression` => Some(false),
     /// `Option<Expression>` => Some(true),
     ///  _ => Err(...),
@@ -175,9 +179,9 @@ impl<'a> FilterParameter<'a> {
             },
             "Expression" => {
                 if !path.arguments.is_empty() {
-                    return Err(Error::new_spanned(ty, Self::ERROR_INVALID_TYPE))
+                    return Err(Error::new_spanned(ty, Self::ERROR_INVALID_TYPE));
                 } else {
-                    return Ok(false)
+                    return Ok(false);
                 }
             }
             _ => return Err(Error::new_spanned(ty, Self::ERROR_INVALID_TYPE)),
@@ -203,7 +207,7 @@ impl<'a> FilterParameter<'a> {
         !self.is_optional
     }
 
-    fn is_postional(&self) -> bool {
+    fn is_positional(&self) -> bool {
         self.meta.ty == FilterParameterType::Positional
     }
 
@@ -429,8 +433,10 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
         .filter(|parameter| parameter.is_keyword() && parameter.is_required());
 
     quote! {
-        impl #name {
-            fn new(mut args: ::liquid::compiler::FilterArguments) -> ::liquid::error::Result<Self> {
+        impl<'a> ::liquid::compiler::FilterParameters<'a> for #name {
+            type EvaluatedFilterParameters = #evaluated_name<'a>;
+
+            fn from_args(mut args: ::liquid::compiler::FilterArguments) -> ::liquid::error::Result<Self> {
                 #(#construct_positional_fields)*
                 if let Some(arg) = args.positional.next() {
                     return Err(::liquid::error::Error::with_msg("Too many positional parameters."));
@@ -448,7 +454,7 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
                 Ok( #name #generate_constructor )
             }
 
-            fn evaluate<'a>(&'a self, context: &'a ::liquid::interpreter::Context) -> ::liquid::error::Result<#evaluated_name<'a>> {
+            fn evaluate(&'a self, context: &'a ::liquid::interpreter::Context) -> ::liquid::error::Result<Self::EvaluatedFilterParameters> {
                #(#evaluate_fields)*
 
                 Ok( #evaluated_name #generate_constructor )
@@ -466,37 +472,37 @@ fn generate_evaluated_struct(filter_parameters: &FilterParameters) -> TokenStrea
     let fields = &filter_parameters.fields;
 
     let field_types = fields.parameters.iter().map(|field| {
-        if field.is_optional() { 
-            quote! { Option<&'a ::liquid::value::Value> } 
-        } else { 
+        if field.is_optional() {
+            quote! { Option<&'a ::liquid::value::Value> }
+        } else {
             quote! { &'a ::liquid::value::Value }
         }
     });
-    
+
     match &fields.ty {
         FilterParametersFieldsType::Named => {
             let field_names = fields.parameters.iter().map(|field| &field.name);
             quote! {
                 #[derive(Debug)]
                 struct #evaluated_name <'a>{
-                    #(#field_names : #field_types,)* 
+                    #(#field_names : #field_types,)*
                 }
             }
-        },
+        }
         FilterParametersFieldsType::Unnamed => {
             quote! {
                 #[derive(Debug)]
                 struct #evaluated_name <'a>(
-                    #(#field_types,)* 
+                    #(#field_types,)*
                 )
             }
-        },
+        }
         FilterParametersFieldsType::Unit => {
             quote! {
                 #[derive(Debug)]
                 struct #evaluated_name;
             }
-        },
+        }
     }
 }
 
@@ -530,12 +536,12 @@ fn generate_reflection_helpers(filter_parameters: &FilterParameters) -> TokenStr
         .map(generate_parameter_reflection);
 
     quote! {
-        impl #name {
-            fn positional_parameters_reflection() -> &'static [::liquid::compiler::ParameterReflection] {
+        impl ::liquid::compiler::FilterParametersReflection for #name {
+            fn positional_parameters() -> &'static [::liquid::compiler::ParameterReflection] {
                 &[ #(#pos_params_reflection)* ]
             }
 
-            fn keyword_parameters_reflection() -> &'static [::liquid::compiler::ParameterReflection] {
+            fn keyword_parameters() -> &'static [::liquid::compiler::ParameterReflection] {
                 &[ #(#kw_params_reflection)* ]
             }
         }

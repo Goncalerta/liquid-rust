@@ -240,7 +240,7 @@ fn generate_parse_filter(filter_parser: &FilterParser) -> TokenStream {
     quote! {
         impl ::liquid::compiler::ParseFilter for #parser_name {
             fn parse(&self, args: ::liquid::compiler::FilterArguments) -> Result<Box<::liquid::compiler::Filter>> {
-                let args = #parameters_struct_name::new(args)?;
+                let args = <#parameters_struct_name as ::liquid::compiler::FilterParameters>::from_args(args)?;
                 Ok(Box::new(#filter_struct_name { args }))
             }
         }
@@ -270,11 +270,11 @@ fn generate_reflection(filter_parser: &FilterParser) -> TokenStream {
             }
 
             fn positional_parameters(&self) -> &'static [::liquid::compiler::ParameterReflection] {
-                #parameters_struct_name::positional_parameters_reflection()
+                <#parameters_struct_name as ::liquid::compiler::FilterParametersReflection>::positional_parameters()
             }
 
             fn keyword_parameters(&self) -> &'static [::liquid::compiler::ParameterReflection] {
-                #parameters_struct_name::keyword_parameters_reflection()
+                <#parameters_struct_name as ::liquid::compiler::FilterParametersReflection>::keyword_parameters()
             }
         }
     }

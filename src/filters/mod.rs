@@ -26,7 +26,7 @@ use liquid_value::Value;
 use unicode_segmentation::UnicodeSegmentation;
 
 use liquid_compiler::{
-    Filter, FilterArguments, FilterReflection, ParameterReflection, ParseFilter,
+    Filter, FilterArguments, FilterReflection, ParameterReflection, ParseFilter, FilterParameters
 };
 
 use liquid_derive;
