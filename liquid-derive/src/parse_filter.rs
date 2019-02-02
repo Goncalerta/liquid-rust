@@ -5,6 +5,8 @@ use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::*;
 
+// TODO make parameters optional
+
 /// Struct that contains information to generate the necessary code for `ParseFilter`.
 struct ParseFilter<'a> {
     name: &'a Ident,

@@ -24,7 +24,6 @@ use liquid_interpreter::Expression;
 use liquid_value::Scalar;
 use liquid_value::Value;
 use unicode_segmentation::UnicodeSegmentation;
-
 use liquid_compiler::{
     Filter, FilterArguments, FilterParameters, FilterReflection, ParameterReflection, ParseFilter,
 };

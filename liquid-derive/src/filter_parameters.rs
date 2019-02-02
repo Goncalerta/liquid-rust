@@ -5,6 +5,7 @@ use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::*;
 
+// TODO #[parameter(value = "...")]
 // TODO should other attributes be taken into account (allowed, transfered to evaluated struct, ...)?
 
 /// Struct that contains information to generate the necessary code for `FilterParameters`.
@@ -212,7 +213,6 @@ impl<'a> FilterParameter<'a> {
     fn parse_type_is_optional(ty: &Type) -> Result<bool> {
         let path = Self::get_type_name(ty)?;
         match path.ident.to_string().as_str() {
-            // TODO what if Option and Expression mean different structures (because of `use`, or by having a path before)
             "Option" => match &path.arguments {
                 PathArguments::AngleBracketed(arguments) => {
                     let args = &arguments.args;
@@ -553,7 +553,6 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
 }
 
 /// Generates `EvaluatedFilterParameters` struct.
-// TODO Should debug be added by default?
 fn generate_evaluated_struct(filter_parameters: &FilterParameters) -> TokenStream {
     let FilterParameters { evaluated_name, fields, vis, .. } = filter_parameters;
 
@@ -569,7 +568,6 @@ fn generate_evaluated_struct(filter_parameters: &FilterParameters) -> TokenStrea
         FilterParametersFieldsType::Named => {
             let field_names = fields.parameters.iter().map(|field| &field.name);
             quote! {
-                #[derive(Debug)]
                 #vis struct #evaluated_name <'a>{
                     #(#field_names : #field_types,)*
                 }
@@ -577,7 +575,6 @@ fn generate_evaluated_struct(filter_parameters: &FilterParameters) -> TokenStrea
         }
         FilterParametersFieldsType::Unnamed => {
             quote! {
-                #[derive(Debug)]
                 #vis struct #evaluated_name <'a>(
                     #(#field_types,)*
                 )
@@ -585,7 +582,6 @@ fn generate_evaluated_struct(filter_parameters: &FilterParameters) -> TokenStrea
         }
         FilterParametersFieldsType::Unit => {
             quote! {
-                #[derive(Debug)]
                 #vis struct #evaluated_name;
             }
         }

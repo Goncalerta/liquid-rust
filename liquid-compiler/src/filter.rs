@@ -11,7 +11,7 @@ pub trait FilterParametersReflection {
 }
 
 pub trait FilterParameters<'a>: Sized + FilterParametersReflection {
-    type EvaluatedFilterParameters: Debug;
+    type EvaluatedFilterParameters;
     fn from_args(args: FilterArguments) -> Result<Self>;
     fn evaluate(&'a self, context: &'a Context) -> Result<Self::EvaluatedFilterParameters>;
 }
