@@ -559,23 +559,3 @@ pub fn derive(input: &DeriveInput) -> TokenStream {
 
     output
 }
-
-// TODO how to do unit tests with this?
-// mod tests {
-//     use super::*;
-
-//     fn get_slice_filter_stream() -> TokenStream {
-//         quote! {
-//             #[derive(Debug,
-//             //FilterParameters
-//             )]
-//             struct SliceParameters {
-//                 offset: Expression,
-//                 length: Option<Expression>,
-//             }
-//         }
-//     }
-
-//     #[test]
-//     fn unit_test() {}
-// }
