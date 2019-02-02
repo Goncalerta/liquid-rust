@@ -18,15 +18,15 @@ use std::borrow::Cow;
 use std::cmp;
 
 use itertools;
+use liquid_compiler::{
+    Filter, FilterArguments, FilterParameters, FilterReflection, ParameterReflection, ParseFilter,
+};
 use liquid_error::{self, Result};
 use liquid_interpreter::Context;
 use liquid_interpreter::Expression;
 use liquid_value::Scalar;
 use liquid_value::Value;
 use unicode_segmentation::UnicodeSegmentation;
-use liquid_compiler::{
-    Filter, FilterArguments, FilterParameters, FilterReflection, ParameterReflection, ParseFilter,
-};
 
 use liquid_derive;
 
@@ -73,7 +73,11 @@ fn check_args_len(args: &[Value], required: usize, optional: usize) -> Result<()
 #[evaluated(MyCustomEvaluatedName)]
 struct SliceParameters {
     // mode and keyword for debug purposes
-    #[parameter(description = "The offset of the slice.", mode = "keyword", rename = "type")]
+    #[parameter(
+        description = "The offset of the slice.",
+        mode = "keyword",
+        rename = "type"
+    )]
     offset: Expression,
     #[parameter(description = "The length of the slice.")]
     length: Option<Expression>,

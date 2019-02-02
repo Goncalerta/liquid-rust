@@ -6,14 +6,13 @@ use syn::spanned::Spanned;
 use syn::*;
 
 // TODO #[parameter(value = "...")]
-// TODO should other attributes be taken into account (allowed, transfered to evaluated struct, ...)?
 
 /// Struct that contains information to generate the necessary code for `FilterParameters`.
 struct FilterParameters<'a> {
     name: &'a Ident,
     evaluated_name: Ident,
     fields: FilterParametersFields<'a>,
-    vis: &'a Visibility
+    vis: &'a Visibility,
 }
 
 impl<'a> FilterParameters<'a> {
@@ -280,7 +279,7 @@ impl<'a> FilterParameter<'a> {
     }
 
     /// Returns the name of this parameter in liquid.
-    /// 
+    ///
     /// That is, by default, the name of the field as a string. However,
     /// this name may be overriden by `rename` attribute.
     fn liquid_name(&self) -> String {
@@ -469,7 +468,7 @@ fn generate_evaluate_field(ident: &Ident, is_option: bool) -> TokenStream {
 fn generate_keyword_match_arm(field: &FilterParameter) -> TokenStream {
     let rust_name = &field.name;
     let liquid_name = field.liquid_name();
-    
+
     quote! {
         #liquid_name => if #rust_name.is_none() {
             #rust_name = Some(arg.1);
@@ -554,7 +553,12 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
 
 /// Generates `EvaluatedFilterParameters` struct.
 fn generate_evaluated_struct(filter_parameters: &FilterParameters) -> TokenStream {
-    let FilterParameters { evaluated_name, fields, vis, .. } = filter_parameters;
+    let FilterParameters {
+        evaluated_name,
+        fields,
+        vis,
+        ..
+    } = filter_parameters;
 
     let field_types = fields.parameters.iter().map(|field| {
         if field.is_optional() {

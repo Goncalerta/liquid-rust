@@ -10,7 +10,7 @@ pub trait FilterParametersReflection {
     fn keyword_parameters() -> &'static [ParameterReflection];
 }
 
-pub trait FilterParameters<'a>: Sized + FilterParametersReflection {
+pub trait FilterParameters<'a>: Sized + FilterParametersReflection + Debug {
     type EvaluatedFilterParameters;
     fn from_args(args: FilterArguments) -> Result<Self>;
     fn evaluate(&'a self, context: &'a Context) -> Result<Self::EvaluatedFilterParameters>;
