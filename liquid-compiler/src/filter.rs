@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use super::FilterArguments;
 use liquid_error::Result;
@@ -10,7 +10,7 @@ pub trait FilterParametersReflection {
     fn keyword_parameters() -> &'static [ParameterReflection];
 }
 
-pub trait FilterParameters<'a>: Sized + FilterParametersReflection + Debug {
+pub trait FilterParameters<'a>: Sized + FilterParametersReflection + Debug + Display {
     type EvaluatedFilterParameters;
     fn from_args(args: FilterArguments) -> Result<Self>;
     fn evaluate(&'a self, context: &'a Context) -> Result<Self::EvaluatedFilterParameters>;
@@ -30,7 +30,9 @@ pub trait FilterReflection {
     fn keyword_parameters(&self) -> &'static [ParameterReflection];
 }
 
-pub trait Filter: Send + Sync + Debug {
+pub trait Filter: Send + Sync + Debug + Display {
+    
+
     // This will evaluate the expressions and evaluate the filter.
     fn evaluate(&self, input: &Value, context: &Context) -> Result<Value>;
 }

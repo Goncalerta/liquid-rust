@@ -243,7 +243,8 @@ fn generate_parse_filter(filter_parser: &ParseFilter) -> TokenStream {
         impl ::liquid::compiler::ParseFilter for #parser_name {
             fn parse(&self, args: ::liquid::compiler::FilterArguments) -> Result<Box<::liquid::compiler::Filter>> {
                 let args = <#parameters_struct_name as ::liquid::compiler::FilterParameters>::from_args(args)?;
-                Ok(Box::new(#filter_struct_name { args }))
+                let name = ::liquid::compiler::FilterReflection::name(self);
+                Ok(Box::new(#filter_struct_name { args, name }))
             }
         }
     }

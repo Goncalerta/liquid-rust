@@ -40,14 +40,12 @@ impl FilterChain {
 
 impl fmt::Display for FilterChain {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // TODO reimplement Display
-        unimplemented!()
-        // write!(
-        //     f,
-        //     "{} | {}",
-        //     self.entry,
-        //     itertools::join(&self.filters, " | ")
-        // )
+        write!(
+            f,
+            "{} | {}",
+            self.entry,
+            itertools::join(&self.filters, " | ")
+        )
     }
 }
 

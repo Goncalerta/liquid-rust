@@ -16,6 +16,7 @@
 
 use std::borrow::Cow;
 use std::cmp;
+use std::fmt::{self, Display};
 
 use itertools;
 use liquid_compiler::{
@@ -83,6 +84,27 @@ struct SliceParameters {
     length: Option<Expression>,
 }
 
+impl Display for SliceParameters {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let positional = [self.length.as_ref()];
+        let keyword = [("type", Some(&self.offset))];
+
+        let positional = positional.iter().filter_map(|p| p.as_ref()).map(|p| p.to_string());
+        let keyword = keyword.iter().filter_map(|p| match p.1 {
+            Some(p1) => Some(format!("{}: {}", p.0, p1)),
+            None => None,
+        });
+
+        let parameters = positional.chain(keyword);
+
+        write!(
+            f,
+            "{}",
+            itertools::join(parameters, ", ")
+        )
+    }
+}
+
 #[derive(Clone, ParseFilter)]
 #[filter(
     name = "slice",
@@ -94,8 +116,21 @@ pub struct SliceFilterParser;
 
 #[derive(Debug)]
 pub struct SliceFilter {
+    name: &'static str,
     args: SliceParameters,
 }
+
+impl Display for SliceFilter {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}: {}",
+            &self.name,
+            &self.args,
+        )
+    }
+}
+
 impl Filter for SliceFilter {
     fn evaluate(&self, input: &Value, context: &Context) -> Result<Value> {
         let args = self.args.evaluate(context)?;
