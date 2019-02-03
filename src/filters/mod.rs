@@ -71,17 +71,15 @@ fn check_args_len(args: &[Value], required: usize, optional: usize) -> Result<()
 
 // TEST MACROS
 #[derive(Debug, FilterParameters)]
-#[evaluated(MyCustomEvaluatedName)]
 struct SliceParameters {
-    // mode and keyword for debug purposes
     #[parameter(
         description = "The offset of the slice.",
         mode = "keyword",
-        rename = "type"
+        value = "whole number"
     )]
     offset: Expression,
 
-    #[parameter(description = "The length of the slice.")]
+    #[parameter(description = "The length of the slice.", value = "whole number")]
     length: Option<Expression>,
 }
 
@@ -110,23 +108,12 @@ impl Filter for SliceFilter {
     fn evaluate(&self, input: &Value, context: &Context) -> Result<Value> {
         let args = self.args.evaluate(context)?;
 
-        let offset = args
-            .offset
-            .as_scalar()
-            .and_then(Scalar::to_integer)
-            .ok_or_else(|| invalid_argument(0, "Whole number expected"))?;
-        let offset = offset as isize;
+        let offset = args.offset as isize;
 
-        let length = args
-            .length
-            .unwrap_or(&Value::scalar(1))
-            .as_scalar()
-            .and_then(Scalar::to_integer)
-            .ok_or_else(|| invalid_argument(0, "Whole number expected"))?;
+        let length = args.length.unwrap_or(1) as isize;
         if length < 1 {
             return Err(invalid_argument(1, "Positive number expected"));
         }
-        let length = length as isize;
 
         if let Value::Array(ref input) = *input {
             let (offset, length) = canonicalize_slice(offset, length, input.len());

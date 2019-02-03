@@ -5,7 +5,6 @@ use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::*;
 
-// TODO #[parameter(value = "...")]
 // TODO #[parameter(default = "...")]
 // TODO generate better liquid::errors.
 
@@ -325,11 +324,24 @@ enum FilterParameterMode {
     Positional,
 }
 
+enum FilterParameterType {
+    // Any value, the default type
+    Value,
+
+    // Scalars
+    Integer,
+    Float,
+    Bool,
+    Date,
+    Str,
+}
+
 /// Struct that contains information parsed in `#[parameter(...)]` attribute.
 struct FilterParameterMeta {
     rename: Option<String>,
     description: String,
     mode: FilterParameterMode,
+    ty: FilterParameterType,
 }
 
 impl FilterParameterMeta {
@@ -356,6 +368,7 @@ impl FilterParameterMeta {
                 let mut rename = None;
                 let mut description = None;
                 let mut mode = None;
+                let mut ty = None;
 
                 for meta in meta.nested.iter() {
                     if let NestedMeta::Meta(meta) = meta {
@@ -401,6 +414,31 @@ impl FilterParameterMeta {
                                         ));
                                     }
                                 },
+                                "value" => {
+                                    if let Lit::Str(value) = value {
+                                        ty = match value.value().as_str() {
+                                            "any" => Some(FilterParameterType::Value),
+                                            "whole number" => Some(FilterParameterType::Integer),
+                                            "fractional number" => Some(FilterParameterType::Float),
+                                            "boolean" => Some(FilterParameterType::Bool),
+                                            "date" => Some(FilterParameterType::Date),
+                                            "string" => Some(FilterParameterType::Str),
+                                            _ => return Err(Error::new_spanned(
+                                                value,
+                                                "Expected one of the following: \"any\", \"whole number\", \"fractional number\", \"boolean\", \"date\" or \"string\".",
+                                            )),
+                                        };
+                                    } else {
+                                        return Err(Error::new_spanned(
+                                            value,
+                                            "Expected string literal.",
+                                        ));
+                                    }
+                                },
+                                "default" => {
+                                    // TODO
+                                    unimplemented!()
+                                },
                                 _ => return Err(Error::new_spanned(
                                     key,
                                     "Unknown element in parameter attribute.",
@@ -425,11 +463,13 @@ impl FilterParameterMeta {
                     "Found parameter without description. Description is necessary in order to properly generate ParameterReflection.",
                 ))?;
                 let mode = mode.unwrap_or(FilterParameterMode::Positional);
+                let ty = ty.unwrap_or(FilterParameterType::Value);
 
                 Ok(FilterParameterMeta {
                     rename,
                     description,
                     mode,
+                    ty,
                 })
             }
         }
@@ -458,9 +498,10 @@ impl FilterParameterMeta {
     }
 }
 
-/// Generates the statement that assigns the next positional argument in the iterator to `ident`.
+/// Generates the statement that assigns the next positional argument.
 fn generate_construct_positional_field(field: &FilterParameter) -> TokenStream {
     let name = &field.name;
+
     if field.is_optional() {
         quote! {
             let #name = args.positional.next();
@@ -472,20 +513,60 @@ fn generate_construct_positional_field(field: &FilterParameter) -> TokenStream {
     }
 }
 
-/// Generates the statement that evaluates the `Expression` in `ident`
+/// Generates the statement that evaluates the `Expression`
 fn generate_evaluate_field(field: &FilterParameter) -> TokenStream {
     let name = &field.name;
-    
+    let ty = &field.meta.ty;
+
+    let to_type = match ty {
+        FilterParameterType::Value => quote! {},
+        FilterParameterType::Integer => quote! {
+            .as_scalar()
+            .and_then(::liquid::value::Scalar::to_integer)
+            .ok_or_else(||
+                ::liquid::error::Error::with_msg("Invalid argument")
+                    .context("cause", "Whole number expected"))?
+        },
+        FilterParameterType::Float => quote! {
+            .as_scalar()
+            .and_then(::liquid::value::Scalar::to_float)
+            .ok_or_else(||
+                ::liquid::error::Error::with_msg("Invalid argument")
+                    .context("cause", "Fractional number expected"))?
+        },
+        FilterParameterType::Bool => quote! {
+            .as_scalar()
+            .and_then(::liquid::value::Scalar::to_bool)
+            .ok_or_else(||
+                ::liquid::error::Error::with_msg("Invalid argument")
+                    .context("cause", "Boolean expected"))?
+        },
+        FilterParameterType::Date => quote! {
+            .as_scalar()
+            .and_then(::liquid::value::Scalar::to_date)
+            .ok_or_else(||
+                ::liquid::error::Error::with_msg("Invalid argument")
+                    .context("cause", "Date expected"))?
+        },
+        FilterParameterType::Str => quote! {
+            .as_scalar()
+            .map(::liquid::value::Scalar::to_str)
+            .ok_or_else(||
+                ::liquid::error::Error::with_msg("Invalid argument")
+                    .context("cause", "String expected"))?
+        },
+    };
+
     if field.is_optional() {
         quote! {
             let #name = match &self.#name {
-                Some(field) => Some(field.evaluate(context)?),
+                Some(field) => Some(field.evaluate(context)? #to_type),
                 None => None,
             };
         }
     } else {
         quote! {
-            let #name = &self.#name.evaluate(context)?;
+            let #name = self.#name.evaluate(context)? #to_type ;
         }
     }
 }
@@ -514,10 +595,23 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
     } = filter_parameters;
 
     let field_names = fields.parameters.iter().map(|field| &field.name);
+    let comma_separated_field_names = quote! { #(#field_names,)* };
     let generate_constructor = match &fields.ty {
-        FilterParametersFieldsType::Named => quote! { { #(#field_names,)* } },
-        FilterParametersFieldsType::Unnamed => quote! { ( #(#field_names,)* ) },
+        FilterParametersFieldsType::Named => quote! { { #comma_separated_field_names } },
+        FilterParametersFieldsType::Unnamed => quote! { ( #comma_separated_field_names ) },
         FilterParametersFieldsType::Unit => quote! {},
+    };
+
+    let generate_evaluated_constructor = match &fields.ty {
+        FilterParametersFieldsType::Named => {
+            quote! { { #comma_separated_field_names __phantom_data: ::std::marker::PhantomData } }
+        }
+        FilterParametersFieldsType::Unnamed => {
+            quote! { ( #comma_separated_field_names __phantom_data: ::std::marker::PhantomData ) }
+        }
+        FilterParametersFieldsType::Unit => {
+            quote! { { __phantom_data: ::std::marker::PhantomData } }
+        }
     };
 
     let evaluate_fields = fields
@@ -572,7 +666,7 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
             fn evaluate(&'a self, context: &'a ::liquid::interpreter::Context) -> ::liquid::error::Result<Self::EvaluatedFilterParameters> {
                #(#evaluate_fields)*
 
-                Ok( #evaluated_name #generate_constructor )
+                Ok( #evaluated_name #generate_evaluated_constructor )
             }
         }
     }
@@ -588,10 +682,19 @@ fn generate_evaluated_struct(filter_parameters: &FilterParameters) -> TokenStrea
     } = filter_parameters;
 
     let field_types = fields.parameters.iter().map(|field| {
+        let ty = match &field.meta.ty {
+            FilterParameterType::Value => quote! {&'a ::liquid::value::Value},
+            FilterParameterType::Integer => quote! { i32 },
+            FilterParameterType::Float => quote! { f64 },
+            FilterParameterType::Bool => quote! { bool },
+            FilterParameterType::Date => quote! { ::liquid::value::Date },
+            FilterParameterType::Str => quote! { ::std::borrow::Cow<'a, str> },
+        };
+
         if field.is_optional() {
-            quote! { Option<&'a ::liquid::value::Value> }
+            quote! { Option< #ty > }
         } else {
-            quote! { &'a ::liquid::value::Value }
+            quote! { #ty }
         }
     });
 
@@ -601,6 +704,7 @@ fn generate_evaluated_struct(filter_parameters: &FilterParameters) -> TokenStrea
             quote! {
                 #vis struct #evaluated_name <'a>{
                     #(#field_names : #field_types,)*
+                    __phantom_data: ::std::marker::PhantomData<&'a ()>
                 }
             }
         }
@@ -608,12 +712,15 @@ fn generate_evaluated_struct(filter_parameters: &FilterParameters) -> TokenStrea
             quote! {
                 #vis struct #evaluated_name <'a>(
                     #(#field_types,)*
+                    __phantom_data: ::std::marker::PhantomData<&'a ()>
                 )
             }
         }
         FilterParametersFieldsType::Unit => {
             quote! {
-                #vis struct #evaluated_name;
+                #vis struct #evaluated_name <'a> {
+                    __phantom_data: ::std::marker::PhantomData<&'a ()>
+                }
             }
         }
     }
