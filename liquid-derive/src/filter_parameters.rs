@@ -6,6 +6,7 @@ use syn::spanned::Spanned;
 use syn::*;
 
 // TODO #[parameter(value = "...")]
+// TODO #[parameter(default = "...")]
 // TODO generate better liquid::errors.
 
 /// Struct that contains information to generate the necessary code for `FilterParameters`.
@@ -292,12 +293,12 @@ impl<'a> FilterParameter<'a> {
 
     /// Returns whether this is a positional field.
     fn is_positional(&self) -> bool {
-        self.meta.ty == FilterParameterType::Positional
+        self.meta.mode == FilterParameterMode::Positional
     }
 
     /// Returns whether this is a keyword field.
     fn is_keyword(&self) -> bool {
-        self.meta.ty == FilterParameterType::Keyword
+        self.meta.mode == FilterParameterMode::Keyword
     }
 
     /// Returns the name of this parameter in liquid.
@@ -319,7 +320,7 @@ impl<'a> ToTokens for FilterParameter<'a> {
 }
 
 #[derive(PartialEq)]
-enum FilterParameterType {
+enum FilterParameterMode {
     Keyword,
     Positional,
 }
@@ -328,7 +329,7 @@ enum FilterParameterType {
 struct FilterParameterMeta {
     rename: Option<String>,
     description: String,
-    ty: FilterParameterType,
+    mode: FilterParameterMode,
 }
 
 impl FilterParameterMeta {
@@ -354,7 +355,7 @@ impl FilterParameterMeta {
                 // TODO don't allow multiple definitions
                 let mut rename = None;
                 let mut description = None;
-                let mut ty = None;
+                let mut mode = None;
 
                 for meta in meta.nested.iter() {
                     if let NestedMeta::Meta(meta) = meta {
@@ -385,9 +386,9 @@ impl FilterParameterMeta {
                                 },
                                 "mode" => {
                                     if let Lit::Str(value) = value {
-                                        ty = match value.value().as_str() {
-                                            "keyword" => Some(FilterParameterType::Keyword),
-                                            "positional" => Some(FilterParameterType::Positional),
+                                        mode = match value.value().as_str() {
+                                            "keyword" => Some(FilterParameterMode::Keyword),
+                                            "positional" => Some(FilterParameterMode::Positional),
                                             _ => return Err(Error::new_spanned(
                                                 value,
                                                 "Expected either \"keyword\" or \"positional\".",
@@ -423,12 +424,12 @@ impl FilterParameterMeta {
                     meta,
                     "Found parameter without description. Description is necessary in order to properly generate ParameterReflection.",
                 ))?;
-                let ty = ty.unwrap_or(FilterParameterType::Positional);
+                let mode = mode.unwrap_or(FilterParameterMode::Positional);
 
                 Ok(FilterParameterMeta {
                     rename,
                     description,
-                    ty,
+                    mode,
                 })
             }
         }
