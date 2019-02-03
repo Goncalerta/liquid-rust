@@ -80,6 +80,7 @@ struct SliceParameters {
         rename = "type"
     )]
     offset: Expression,
+    
     #[parameter(description = "The length of the slice.")]
     length: Option<Expression>,
 }

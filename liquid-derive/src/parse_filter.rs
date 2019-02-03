@@ -1,8 +1,5 @@
 use proc_macro2::*;
 use proc_quote::*;
-use std::borrow::Cow;
-use syn::punctuated::Punctuated;
-use syn::spanned::Spanned;
 use syn::*;
 
 // TODO make parameters optional
