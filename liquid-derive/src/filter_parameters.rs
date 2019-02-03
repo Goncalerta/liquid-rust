@@ -502,6 +502,7 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
     let construct_positional_fields = fields
         .parameters
         .iter()
+        .filter(|parameter| parameter.is_positional())
         .map(|field| generate_construct_positional_field(&field.name, field.is_optional()));
 
     let keyword_fields = fields

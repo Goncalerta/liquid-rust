@@ -33,7 +33,7 @@ Filter = { Identifier ~ (":" ~ FilterArgument ~ ("," ~ FilterArgument)*)? }
 FilterChain = { Value ~ ("|" ~ Filter)* }
 PositionalFilterArgument = {Value}
 KeywordFilterArgument = {Identifier ~ ":" ~ Value}
-FilterArgument = _{PositionalFilterArgument | KeywordFilterArgument}
+FilterArgument = _{KeywordFilterArgument | PositionalFilterArgument }
 
 // Literals
 NilLiteral = @{ "nil" | "null" }
