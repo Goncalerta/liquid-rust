@@ -6,6 +6,7 @@ use syn::spanned::Spanned;
 use syn::*;
 
 // TODO #[parameter(value = "...")]
+// TODO force required_pos_args to go before optional_pos_args
 
 /// Struct that contains information to generate the necessary code for `FilterParameters`.
 struct FilterParameters<'a> {
@@ -637,6 +638,80 @@ fn generate_impl_filter_parameters_reflection(filter_parameters: &FilterParamete
     }
 }
 
+/// Helper function for `generate_impl_display`
+fn generate_access_positional_field_for_display(field: &FilterParameter) -> TokenStream {
+    let rust_name = &field.name;
+
+    if field.is_optional() {
+        quote! {
+            self.#rust_name.as_ref()
+        }
+    } else {
+        quote! {
+            Some(&self.#rust_name)
+        }
+    }
+}
+
+/// Helper function for `generate_impl_display`
+fn generate_access_keyword_field_for_display(field: &FilterParameter) -> TokenStream {
+    let rust_name = &field.name;
+    let liquid_name = field.liquid_name();
+
+    if field.is_optional() {
+        quote! {
+            (#liquid_name, self.#rust_name.as_ref())
+        }
+    } else {
+        quote! {
+            (#liquid_name, Some(&self.#rust_name))
+        }
+    }
+}
+
+/// Implements `Display`
+fn generate_impl_display(filter_parameters: &FilterParameters) -> TokenStream {
+    let FilterParameters {name, fields, ..} = filter_parameters;
+
+    let positional_fields = fields
+        .parameters
+        .iter()
+        .filter(|parameter| parameter.is_positional())
+        .map(|field| generate_access_positional_field_for_display(&field));
+
+    let keyword_fields = fields
+        .parameters
+        .iter()
+        .filter(|parameter| parameter.is_keyword())
+        .map(|field| generate_access_keyword_field_for_display(&field));
+
+    quote! {
+        impl ::std::fmt::Display for #name {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                let positional = [#(#positional_fields ,)*];
+                let keyword = [#(#keyword_fields ,)*];
+
+                let positional = positional.iter().filter_map(|p| p.as_ref()).map(|p| p.to_string());
+                let keyword = keyword.iter().filter_map(|p| match p.1 {
+                    Some(p1) => Some(format!("{}: {}", p.0, p1)),
+                    None => None,
+                });
+
+                let parameters = positional
+                    .chain(keyword)
+                    .collect::<Vec<String>>()
+                    .join(", ");
+
+                write!(
+                    f,
+                    "{}",
+                    parameters
+                )
+            }
+        }
+    }
+}
+
 pub fn derive(input: &DeriveInput) -> TokenStream {
     let filter_parameters = match FilterParameters::from_input(input) {
         Ok(filter_parser) => filter_parser,
@@ -646,6 +721,7 @@ pub fn derive(input: &DeriveInput) -> TokenStream {
     let mut output = TokenStream::new();
     output.extend(generate_impl_filter_parameters(&filter_parameters));
     output.extend(generate_impl_filter_parameters_reflection(&filter_parameters));
+    output.extend(generate_impl_display(&filter_parameters));
     output.extend(generate_evaluated_struct(&filter_parameters));
 
     // Temporary TODO remove
