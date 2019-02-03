@@ -7,6 +7,7 @@ use syn::*;
 
 // TODO #[parameter(value = "...")]
 // TODO force required_pos_args to go before optional_pos_args
+// TODO generate better liquid::errors.
 
 /// Struct that contains information to generate the necessary code for `FilterParameters`.
 struct FilterParameters<'a> {
@@ -610,7 +611,7 @@ fn generate_parameter_reflection(field: &FilterParameter) -> TokenStream {
 }
 
 /// Implements `FilterParametersReflection`.
-fn generate_impl_filter_parameters_reflection(filter_parameters: &FilterParameters) -> TokenStream {
+fn generate_impl_reflection(filter_parameters: &FilterParameters) -> TokenStream {
     let FilterParameters { name, fields, .. } = filter_parameters;
 
     let kw_params_reflection = fields
@@ -671,7 +672,7 @@ fn generate_access_keyword_field_for_display(field: &FilterParameter) -> TokenSt
 
 /// Implements `Display`
 fn generate_impl_display(filter_parameters: &FilterParameters) -> TokenStream {
-    let FilterParameters {name, fields, ..} = filter_parameters;
+    let FilterParameters { name, fields, .. } = filter_parameters;
 
     let positional_fields = fields
         .parameters
@@ -720,7 +721,7 @@ pub fn derive(input: &DeriveInput) -> TokenStream {
 
     let mut output = TokenStream::new();
     output.extend(generate_impl_filter_parameters(&filter_parameters));
-    output.extend(generate_impl_filter_parameters_reflection(&filter_parameters));
+    output.extend(generate_impl_reflection(&filter_parameters));
     output.extend(generate_impl_display(&filter_parameters));
     output.extend(generate_evaluated_struct(&filter_parameters));
 

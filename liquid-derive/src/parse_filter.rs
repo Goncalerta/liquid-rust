@@ -2,8 +2,6 @@ use proc_macro2::*;
 use proc_quote::*;
 use syn::*;
 
-// TODO make parameters optional
-
 /// Struct that contains information to generate the necessary code for `ParseFilter`.
 struct ParseFilter<'a> {
     name: &'a Ident,
@@ -73,7 +71,7 @@ impl<'a> ParseFilter<'a> {
 struct ParseFilterMeta {
     filter_name: String,
     filter_description: String,
-    parameters_struct_name: Ident,
+    parameters_struct_name: Option<Ident>,
     filter_struct_name: Ident,
 }
 
@@ -203,10 +201,7 @@ impl ParseFilterMeta {
                     attr,
                     "Filter does not have a description. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
                 ))?;
-                let parameters_struct_name = parameters.ok_or_else(|| Error::new_spanned(
-                    attr,
-                    "ParseFilterMeta does not declare `FilterParameters` struct. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
-                ))?;
+                let parameters_struct_name = parameters;
                 let filter_struct_name = parsed.ok_or_else(|| Error::new_spanned(
                     attr,
                     "ParseFilterMeta does not have a Filter to return. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
@@ -236,12 +231,30 @@ fn generate_parse_filter(filter_parser: &ParseFilter) -> TokenStream {
             },
     } = filter_parser;
 
-    quote! {
-        impl ::liquid::compiler::ParseFilter for #parser_name {
-            fn parse(&self, args: ::liquid::compiler::FilterArguments) -> Result<Box<::liquid::compiler::Filter>> {
-                let args = <#parameters_struct_name as ::liquid::compiler::FilterParameters>::from_args(args)?;
-                let name = ::liquid::compiler::FilterReflection::name(self);
-                Ok(Box::new(#filter_struct_name { args, name }))
+    if let Some(parameters_struct_name) = parameters_struct_name {
+        quote! {
+            impl ::liquid::compiler::ParseFilter for #parser_name {
+                fn parse(&self, args: ::liquid::compiler::FilterArguments) -> Result<Box<::liquid::compiler::Filter>> {
+                    let args = <#parameters_struct_name as ::liquid::compiler::FilterParameters>::from_args(args)?;
+                    let name = ::liquid::compiler::FilterReflection::name(self);
+                    Ok(Box::new(#filter_struct_name { args, name }))
+                }
+            }
+        }
+    } else {
+        quote! {
+            impl ::liquid::compiler::ParseFilter for #parser_name {
+                fn parse(&self, mut args: ::liquid::compiler::FilterArguments) -> Result<Box<::liquid::compiler::Filter>> {
+                    if let Some(arg) = args.positional.next() {
+                        return Err(::liquid::error::Error::with_msg("Too many positional parameters."));
+                    }
+                    if let Some(arg) = args.keyword.next() {
+                        return Err(::liquid::error::Error::with_msg(format!("Unexpected keyword parameter `{}`.", arg.0)));
+                    }
+                    let args = ();
+                    let name = ::liquid::compiler::FilterReflection::name(self);
+                    Ok(Box::new(#filter_struct_name { args, name }))
+                }
             }
         }
     }
@@ -260,6 +273,17 @@ fn generate_reflection(filter_parser: &ParseFilter) -> TokenStream {
             },
     } = filter_parser;
 
+    let (positional_parameters, keyword_parameters) = if let Some(parameters_struct_name) =
+        parameters_struct_name
+    {
+        (
+            quote! { <#parameters_struct_name as ::liquid::compiler::FilterParametersReflection>::positional_parameters() },
+            quote! { <#parameters_struct_name as ::liquid::compiler::FilterParametersReflection>::keyword_parameters() },
+        )
+    } else {
+        (quote! { &[] }, quote! { &[] })
+    };
+
     quote! {
         impl ::liquid::compiler::FilterReflection for #parser_name {
             fn name(&self) -> &'static str {
@@ -270,11 +294,11 @@ fn generate_reflection(filter_parser: &ParseFilter) -> TokenStream {
             }
 
             fn positional_parameters(&self) -> &'static [::liquid::compiler::ParameterReflection] {
-                <#parameters_struct_name as ::liquid::compiler::FilterParametersReflection>::positional_parameters()
+                #positional_parameters
             }
 
             fn keyword_parameters(&self) -> &'static [::liquid::compiler::ParameterReflection] {
-                <#parameters_struct_name as ::liquid::compiler::FilterParametersReflection>::keyword_parameters()
+                #keyword_parameters
             }
         }
     }
