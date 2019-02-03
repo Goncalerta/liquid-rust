@@ -459,30 +459,33 @@ impl FilterParameterMeta {
 }
 
 /// Generates the statement that assigns the next positional argument in the iterator to `ident`.
-fn generate_construct_positional_field(ident: &Ident, is_option: bool) -> TokenStream {
-    if is_option {
+fn generate_construct_positional_field(field: &FilterParameter) -> TokenStream {
+    let name = &field.name;
+    if field.is_optional() {
         quote! {
-            let #ident = args.positional.next();
+            let #name = args.positional.next();
         }
     } else {
         quote! {
-            let #ident = args.positional.next().ok_or_else(|| ::liquid::error::Error::with_msg("Required"))?;
+            let #name = args.positional.next().ok_or_else(|| ::liquid::error::Error::with_msg("Required"))?;
         }
     }
 }
 
 /// Generates the statement that evaluates the `Expression` in `ident`
-fn generate_evaluate_field(ident: &Ident, is_option: bool) -> TokenStream {
-    if is_option {
+fn generate_evaluate_field(field: &FilterParameter) -> TokenStream {
+    let name = &field.name;
+    
+    if field.is_optional() {
         quote! {
-            let #ident = match &self.#ident {
+            let #name = match &self.#name {
                 Some(field) => Some(field.evaluate(context)?),
                 None => None,
             };
         }
     } else {
         quote! {
-            let #ident = &self.#ident.evaluate(context)?;
+            let #name = &self.#name.evaluate(context)?;
         }
     }
 }
@@ -520,13 +523,13 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
     let evaluate_fields = fields
         .parameters
         .iter()
-        .map(|field| generate_evaluate_field(&field.name, field.is_optional()));
+        .map(|field| generate_evaluate_field(&field));
 
     let construct_positional_fields = fields
         .parameters
         .iter()
         .filter(|parameter| parameter.is_positional())
-        .map(|field| generate_construct_positional_field(&field.name, field.is_optional()));
+        .map(|field| generate_construct_positional_field(&field));
 
     let keyword_fields = fields
         .parameters
