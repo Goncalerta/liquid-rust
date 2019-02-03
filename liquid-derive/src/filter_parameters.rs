@@ -609,7 +609,7 @@ fn generate_parameter_reflection(field: &FilterParameter) -> TokenStream {
 }
 
 /// Implements `FilterParametersReflection`.
-fn generate_reflection_helpers(filter_parameters: &FilterParameters) -> TokenStream {
+fn generate_impl_filter_parameters_reflection(filter_parameters: &FilterParameters) -> TokenStream {
     let FilterParameters { name, fields, .. } = filter_parameters;
 
     let kw_params_reflection = fields
@@ -645,7 +645,7 @@ pub fn derive(input: &DeriveInput) -> TokenStream {
 
     let mut output = TokenStream::new();
     output.extend(generate_impl_filter_parameters(&filter_parameters));
-    output.extend(generate_reflection_helpers(&filter_parameters));
+    output.extend(generate_impl_filter_parameters_reflection(&filter_parameters));
     output.extend(generate_evaluated_struct(&filter_parameters));
 
     // Temporary TODO remove

@@ -31,8 +31,6 @@ pub trait FilterReflection {
 }
 
 pub trait Filter: Send + Sync + Debug + Display {
-    
-
     // This will evaluate the expressions and evaluate the filter.
     fn evaluate(&self, input: &Value, context: &Context) -> Result<Value>;
 }

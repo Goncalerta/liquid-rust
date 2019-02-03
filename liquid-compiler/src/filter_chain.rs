@@ -3,7 +3,7 @@ use std::io::Write;
 
 use itertools;
 
-use liquid_error::{Result, ResultLiquidExt, ResultLiquidReplaceExt};
+use liquid_error::{Result, ResultLiquidReplaceExt};
 use liquid_interpreter::Context;
 use liquid_interpreter::Expression;
 use liquid_interpreter::Renderable;
