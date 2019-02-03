@@ -6,7 +6,6 @@ use syn::spanned::Spanned;
 use syn::*;
 
 // TODO #[parameter(value = "...")]
-// TODO force required_pos_args to go before optional_pos_args
 // TODO generate better liquid::errors.
 
 /// Struct that contains information to generate the necessary code for `FilterParameters`.
@@ -106,6 +105,13 @@ impl<'a> FilterParameters<'a> {
             }
         };
 
+        if let Some(parameter) = fields.required_after_optional() {
+            return Err(Error::new_spanned(
+                parameter,
+                "Found required positional parameter after an optional positional parameter. The user can't input this parameters without inputing the optional ones first.",
+            ));
+        }
+
         let name = ident;
         let evaluated_name = Self::parse_attrs(attrs)?
             .unwrap_or_else(|| Ident::new(&format!("Evaluated{}", name), Span::call_site()));
@@ -125,6 +131,20 @@ struct FilterParametersFields<'a> {
 }
 
 impl<'a> FilterParametersFields<'a> {
+    /// Returns the first required positional parameter (if any) that appears after an optional
+    /// positional parameter.
+    ///
+    /// All optional positional parameters must appear after every required positional parameter.
+    /// If this function returns `Some`, the macro is supposed to fail to compile.
+    fn required_after_optional(&self) -> Option<&FilterParameter> {
+        self.parameters
+            .iter()
+            .filter(|parameter| parameter.is_positional())
+            .skip_while(|parameter| parameter.is_required())
+            .skip_while(|parameter| parameter.is_optional())
+            .next()
+    }
+
     /// Tries to create a new `FilterParametersFields` from the given `Fields`
     fn from_fields(fields: &'a Fields) -> Result<Self> {
         match fields {
@@ -692,7 +712,10 @@ fn generate_impl_display(filter_parameters: &FilterParameters) -> TokenStream {
                 let positional = [#(#positional_fields ,)*];
                 let keyword = [#(#keyword_fields ,)*];
 
-                let positional = positional.iter().filter_map(|p| p.as_ref()).map(|p| p.to_string());
+                let positional = positional
+                    .iter()
+                    .filter_map(|p| p.as_ref())
+                    .map(|p| p.to_string());
                 let keyword = keyword.iter().filter_map(|p| match p.1 {
                     Some(p1) => Some(format!("{}: {}", p.0, p1)),
                     None => None,
