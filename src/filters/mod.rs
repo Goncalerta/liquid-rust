@@ -70,6 +70,7 @@ fn check_args_len(args: &[Value], required: usize, optional: usize) -> Result<()
 }
 
 // TEST MACROS
+// TODO: Debug and Clone derives added automatically, as they are required by other traits
 #[derive(Debug, FilterParameters)]
 struct SliceParameters {
     #[parameter(
@@ -93,14 +94,21 @@ struct SliceParameters {
 pub struct SliceFilterParser;
 
 #[derive(Debug)]
+// TODO derive(Display_filter)
+// #[name = "slice"]
 pub struct SliceFilter {
-    name: &'static str,
     args: SliceParameters,
+}
+
+impl From<SliceParameters> for SliceFilter {
+    fn from(args: SliceParameters) -> Self {
+        Self { args }
+    }
 }
 
 impl Display for SliceFilter {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}: {}", &self.name, &self.args,)
+        write!(f, "slice: {}", &self.args)
     }
 }
 
