@@ -5,7 +5,6 @@ use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::*;
 
-// TODO #[parameter(default = "...")]
 // TODO generate better liquid::errors.
 
 /// Struct that contains information to generate the necessary code for `FilterParameters`.
@@ -434,10 +433,6 @@ impl FilterParameterMeta {
                                             "Expected string literal.",
                                         ));
                                     }
-                                },
-                                "default" => {
-                                    // TODO
-                                    unimplemented!()
                                 },
                                 _ => return Err(Error::new_spanned(
                                     key,
