@@ -1,11 +1,11 @@
+use helper_meta_parser::*;
 use proc_macro2::*;
 use proc_quote::*;
 use std::borrow::Cow;
+use std::str::FromStr;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::*;
-use helper_meta_parser::*;
-use std::str::FromStr;
 
 // TODO generate better liquid::errors.
 // TODO generate better macro errors (ex. lack of From have a more precise span)
@@ -36,6 +36,7 @@ impl<'a> FilterParameters<'a> {
         }
     }
 
+    /// Parses `#[evaluated(...)]` attribute.
     fn parse_evaluated_attr(attr: &Attribute) -> Result<Ident> {
         let meta = attr.parse_meta().map_err(|err| {
             Error::new(
@@ -127,6 +128,8 @@ impl<'a> FilterParameters<'a> {
     }
 }
 
+/// Struct that contains `FilterParameter`s, as well as the type of 
+/// those fields (Unit, Named, Unnamed).
 struct FilterParametersFields<'a> {
     ty: FilterParametersFieldsType,
     parameters: Punctuated<FilterParameter<'a>, Token![,]>,
@@ -192,12 +195,14 @@ impl<'a> FilterParametersFields<'a> {
     }
 }
 
+/// Whether `FilterParameters` fields are `Unit`, `Named` or `Unnamed`.
 enum FilterParametersFieldsType {
     Named,
     Unnamed,
     Unit,
 }
 
+/// Information for a single parameter in a struct that implements `FilterParameters`.
 struct FilterParameter<'a> {
     name: Cow<'a, Ident>,
     is_optional: bool,
@@ -209,13 +214,11 @@ impl<'a> FilterParameter<'a> {
     const ERROR_INVALID_TYPE: &'static str = "Invalid type. All fields in FilterParameters must be either of type `Expression` or `Option<Expression>`";
 
     /// Helper function for `validate_filter_parameter_fields()`.
-    /// Given "::liquid::interpreter::Expression", returns "Expression"
+    /// Given `::liquid::interpreter::Expression`, returns `Expression`.
     fn get_type_name(ty: &Type) -> Result<&PathSegment> {
         match ty {
             Type::Path(ty) => {
-                // ty.qself : Is this relevant to validate?
-
-                // what if `Expression` is not the actual name of the expected type? (ex. lack of `use`)
+                // TODO what if `Expression` is not the actual name of the expected type? (ex. lack of `use`)
                 // `Expression` could even be a whole different structure than expected
                 let path = match ty.path.segments.last() {
                     Some(path) => path.into_value(),
@@ -320,6 +323,7 @@ impl<'a> ToTokens for FilterParameter<'a> {
     }
 }
 
+/// Whether `FilterParameter` is `Keyword` or `Positional`.
 #[derive(PartialEq)]
 enum FilterParameterMode {
     Keyword,
@@ -332,11 +336,15 @@ impl FromStr for FilterParameterMode {
         match s {
             "keyword" => Ok(FilterParameterMode::Keyword),
             "positional" => Ok(FilterParameterMode::Positional),
-            s => Err(format!("Expected either \"keyword\" or \"positional\". Found \"{}\".", s)),
+            s => Err(format!(
+                "Expected either \"keyword\" or \"positional\". Found \"{}\".",
+                s
+            )),
         }
     }
 }
 
+/// The type that this `FilterParameter` will evaluate to.
 enum FilterParameterType {
     // Any value, the default type
     Value,
@@ -364,7 +372,7 @@ impl FromStr for FilterParameterType {
     }
 }
 
-/// Struct that contains information parsed in `#[parameter(...)]` attribute.
+/// Struct that contains the information about `FilterParameter` parsed in `#[parameter(...)]` attribute.
 struct FilterParameterMeta {
     rename: Option<String>,
     description: String,
@@ -373,6 +381,7 @@ struct FilterParameterMeta {
 }
 
 impl FilterParameterMeta {
+    /// Tries to create a new `FilterParameterMeta` from the given `Attribute`
     fn parse_parameter_attribute(attr: &Attribute) -> Result<Self> {
         let meta = attr.parse_meta().map_err(|err| {
             Error::new(
@@ -381,60 +390,60 @@ impl FilterParameterMeta {
             )
         })?;
 
-        match meta {
-            Meta::Word(meta) => Err(Error::new_spanned(
+        let meta = match meta {
+            Meta::Word(meta) => return Err(Error::new_spanned(
                 meta,
                 "Found parameter without description. Description is necessary in order to properly generate ParameterReflection.",
             )),
-            Meta::NameValue(meta) => Err(Error::new_spanned(
+            Meta::NameValue(meta) => return Err(Error::new_spanned(
                 meta,
                 "Couldn't parse this parameter attribute. Have you tried `#[parameter(description=\"...\")]`?",
             )),
-            Meta::List(meta) => {
-                let mut rename = AssignOnce::Unset;
-                let mut description = AssignOnce::Unset;
-                let mut mode = AssignOnce::Unset;
-                let mut ty = AssignOnce::Unset;
+            Meta::List(meta) => meta, 
+        };
 
-                for meta in meta.nested.into_iter() {
-                    if let NestedMeta::Meta(Meta::NameValue(meta)) = meta {
-                        let key = &meta.ident;
-                        let value = &meta.lit;
+        let mut rename = AssignOnce::Unset;
+        let mut description = AssignOnce::Unset;
+        let mut mode = AssignOnce::Unset;
+        let mut ty = AssignOnce::Unset;
 
-                        match key.to_string().as_str() {
-                            "rename" => assign_str_value(&mut rename, key, value)?,
-                            "description" => assign_str_value(&mut description, key, value)?,
-                            "mode" => parse_str_value(&mut mode, key, value)?,
-                            "value" => parse_str_value(&mut ty, key, value)?,
-                            _ => Err(Error::new_spanned(
-                                key,
-                                "Unknown element in parameter attribute.",
-                            ))?,
-                        }
-                    } else {
-                        return Err(Error::new_spanned(
-                            meta,
-                            "Unknown element in parameter attribute. All elements should be key=value pairs.",
-                        ));
-                    }
+        for meta in meta.nested.into_iter() {
+            if let NestedMeta::Meta(Meta::NameValue(meta)) = meta {
+                let key = &meta.ident;
+                let value = &meta.lit;
+
+                match key.to_string().as_str() {
+                    "rename" => assign_str_value(&mut rename, key, value)?,
+                    "description" => assign_str_value(&mut description, key, value)?,
+                    "mode" => parse_str_value(&mut mode, key, value)?,
+                    "value" => parse_str_value(&mut ty, key, value)?,
+                    _ => Err(Error::new_spanned(
+                        key,
+                        "Unknown element in parameter attribute.",
+                    ))?,
                 }
-
-                let rename = rename.to_option();
-                let description = description.unwrap_or_err(|| Error::new_spanned(
-                    attr,
-                    "Found parameter without description. Description is necessary in order to properly generate ParameterReflection.",
-                ))?;
-                let mode = mode.default_to(FilterParameterMode::Positional);
-                let ty = ty.default_to(FilterParameterType::Value);
-
-                Ok(FilterParameterMeta {
-                    rename,
-                    description,
-                    mode,
-                    ty,
-                })
+            } else {
+                return Err(Error::new_spanned(
+                    meta,
+                    "Unknown element in parameter attribute. All elements should be key=value pairs.",
+                ));
             }
         }
+
+        let rename = rename.to_option();
+        let description = description.unwrap_or_err(|| Error::new_spanned(
+            attr,
+            "Found parameter without description. Description is necessary in order to properly generate ParameterReflection.",
+        ))?;
+        let mode = mode.default_to(FilterParameterMode::Positional);
+        let ty = ty.default_to(FilterParameterType::Value);
+
+        Ok(FilterParameterMeta {
+            rename,
+            description,
+            mode,
+            ty,
+        })
     }
 
     /// Tries to create a new `FilterParserMeta` from the given field.
@@ -547,7 +556,7 @@ fn generate_keyword_match_arm(field: &FilterParameter) -> TokenStream {
     }
 }
 
-/// Implements `FilterParameters`.
+/// Generates implementation of `FilterParameters`.
 fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> TokenStream {
     let FilterParameters {
         name,
@@ -703,7 +712,7 @@ fn generate_parameter_reflection(field: &FilterParameter) -> TokenStream {
     }
 }
 
-/// Implements `FilterParametersReflection`.
+/// Generates implementation of `FilterParametersReflection`.
 fn generate_impl_reflection(filter_parameters: &FilterParameters) -> TokenStream {
     let FilterParameters { name, fields, .. } = filter_parameters;
 
@@ -763,7 +772,7 @@ fn generate_access_keyword_field_for_display(field: &FilterParameter) -> TokenSt
     }
 }
 
-/// Implements `Display`
+/// Generates implementation of `Display`.
 fn generate_impl_display(filter_parameters: &FilterParameters) -> TokenStream {
     let FilterParameters { name, fields, .. } = filter_parameters;
 

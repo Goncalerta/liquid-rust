@@ -1,7 +1,7 @@
+use helper_meta_parser::*;
 use proc_macro2::*;
 use proc_quote::*;
 use syn::*;
-use helper_meta_parser::*;
 
 /// Struct that contains information to generate the necessary code for `ParseFilter`.
 struct ParseFilter<'a> {
@@ -77,7 +77,7 @@ struct ParseFilterMeta {
 }
 
 impl ParseFilterMeta {
-    /// Tries to create a new `ParseFilterMeta` from the given `DeriveInput`
+    /// Tries to create a new `ParseFilterMeta` from the given `Attribute`
     fn from_attr(attr: &Attribute) -> Result<Self> {
         let meta = attr.parse_meta().map_err(|err| {
             Error::new(
@@ -86,110 +86,114 @@ impl ParseFilterMeta {
             )
         })?;
 
-        match meta {
-            Meta::Word(meta) => Err(Error::new_spanned(
+        let meta = match meta {
+            Meta::Word(meta) => return Err(Error::new_spanned(
                 meta,
                 "Found filter without name or description. Meta information is necessary in order to properly generate ParameterReflection.",
             )),
-            Meta::NameValue(meta) => Err(Error::new_spanned(
+            Meta::NameValue(meta) => return Err(Error::new_spanned(
                 meta,
                 "Couldn't parse this parameter attribute. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
             )),
-            Meta::List(meta) => {
-                let mut name = AssignOnce::Unset;
-                let mut description = AssignOnce::Unset;
-                let mut parameters = AssignOnce::Unset;
-                let mut parsed = AssignOnce::Unset;
+            Meta::List(meta) => meta,
+        };
 
-                for meta in meta.nested.into_iter() {
-                    match meta {
-                        NestedMeta::Meta(Meta::NameValue(meta)) => {
-                            let key = &meta.ident;
-                            let value = &meta.lit;
+        let mut name = AssignOnce::Unset;
+        let mut description = AssignOnce::Unset;
+        let mut parameters = AssignOnce::Unset;
+        let mut parsed = AssignOnce::Unset;
 
-                            match key.to_string().as_str() {
-                                "name" => assign_str_value(&mut name, key, value)?,
-                                "description" => assign_str_value(&mut description, key, value)?,
-                                "parameters" => Err(Error::new_spanned(
-                                    key,
-                                    "Did you mean `parameters(...)`.",
-                                ))?,
-                                _ => Err(Error::new_spanned(
-                                    key,
-                                    "Unknown element in filter attribute.",
-                                ))?,
-                            }
-                        },
+        for meta in meta.nested.into_iter() {
+            match meta {
+                NestedMeta::Meta(Meta::NameValue(meta)) => {
+                    let key = &meta.ident;
+                    let value = &meta.lit;
 
-                        NestedMeta::Meta(Meta::List(meta)) => {
-                            let attr = &meta.ident;
+                    match key.to_string().as_str() {
+                        "name" => assign_str_value(&mut name, key, value)?,
+                        "description" => assign_str_value(&mut description, key, value)?,
+                        "parameters" => {
+                            Err(Error::new_spanned(key, "Did you mean `parameters(...)`."))?
+                        }
+                        _ => Err(Error::new_spanned(
+                            key,
+                            "Unknown element in filter attribute.",
+                        ))?,
+                    }
+                }
 
-                            let mut meta = meta.nested.into_iter();
-                            match (meta.next(), meta.next()) {
-                                (Some(meta), None) => {
-                                    if let NestedMeta::Meta(Meta::Word(meta)) = meta {
-                                        match attr.to_string().as_str() {
-                                            "parameters" => assign_ident(&mut parameters, attr, meta)?,
-                                            "parsed" => assign_ident(&mut parsed, attr, meta)?,
-                                            _ => return Err(Error::new_spanned(
-                                                attr,
-                                                "Unknown element in filter attribute.",
-                                            )),
-                                        }
-                                    } else {
+                NestedMeta::Meta(Meta::List(meta)) => {
+                    let attr = &meta.ident;
+
+                    let mut meta = meta.nested.into_iter();
+                    match (meta.next(), meta.next()) {
+                        (Some(meta), None) => {
+                            if let NestedMeta::Meta(Meta::Word(meta)) = meta {
+                                match attr.to_string().as_str() {
+                                    "parameters" => assign_ident(&mut parameters, attr, meta)?,
+                                    "parsed" => assign_ident(&mut parsed, attr, meta)?,
+                                    _ => {
                                         return Err(Error::new_spanned(
-                                            meta,
-                                            "Unexpected element in filter attribute.",
-                                        ))
+                                            attr,
+                                            "Unknown element in filter attribute.",
+                                        ));
                                     }
-                                },
-                                (_, Some(meta)) => return Err(Error::new_spanned(
+                                }
+                            } else {
+                                return Err(Error::new_spanned(
                                     meta,
                                     "Unexpected element in filter attribute.",
-                                )),
-                                _ => return Err(Error::new_spanned(
-                                    attr,
-                                    "Element expected in filter attribute.",
-                                )),
+                                ));
                             }
                         }
-                        
-                        _ => {
+                        (_, Some(meta)) => {
                             return Err(Error::new_spanned(
                                 meta,
-                                "Unknown element in filter attribute.",
+                                "Unexpected element in filter attribute.",
+                            ));
+                        }
+                        _ => {
+                            return Err(Error::new_spanned(
+                                attr,
+                                "Element expected in filter attribute.",
                             ));
                         }
                     }
                 }
 
-                let filter_name = name.unwrap_or_err(|| Error::new_spanned(
-                    attr,
-                    "Filter does not have a name. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
-                ))?;
-                let filter_description = description.unwrap_or_err(|| Error::new_spanned(
-                    attr,
-                    "Filter does not have a description. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
-                ))?;
-                let parameters_struct_name = parameters.to_option();
-                let filter_struct_name = parsed.unwrap_or_err(|| Error::new_spanned(
-                    attr,
-                    "ParseFilterMeta does not have a Filter to return. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
-                ))?;
-                
-
-                Ok(ParseFilterMeta {
-                    filter_name,
-                    filter_description,
-                    parameters_struct_name,
-                    filter_struct_name,
-                })
+                _ => {
+                    return Err(Error::new_spanned(
+                        meta,
+                        "Unknown element in filter attribute.",
+                    ));
+                }
             }
         }
+
+        let filter_name = name.unwrap_or_err(|| Error::new_spanned(
+            attr,
+            "Filter does not have a name. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
+        ))?;
+        let filter_description = description.unwrap_or_err(|| Error::new_spanned(
+            attr,
+            "Filter does not have a description. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
+        ))?;
+        let parameters_struct_name = parameters.to_option();
+        let filter_struct_name = parsed.unwrap_or_err(|| Error::new_spanned(
+            attr,
+            "ParseFilterMeta does not have a Filter to return. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
+        ))?;
+
+        Ok(ParseFilterMeta {
+            filter_name,
+            filter_description,
+            parameters_struct_name,
+            filter_struct_name,
+        })
     }
 }
 
-/// Generates implementation of `ParseFilter` for the given `ParseFilter`
+/// Generates implementation of `ParseFilter`.
 fn generate_parse_filter(filter_parser: &ParseFilter) -> TokenStream {
     let ParseFilter {
         name: parser_name,
@@ -230,7 +234,7 @@ fn generate_parse_filter(filter_parser: &ParseFilter) -> TokenStream {
     }
 }
 
-/// Generates implementation of `FilterReflection` for the given `ParseFilter`
+/// Generates implementation of `FilterReflection`.
 fn generate_reflection(filter_parser: &ParseFilter) -> TokenStream {
     let ParseFilter {
         name: parser_name,
