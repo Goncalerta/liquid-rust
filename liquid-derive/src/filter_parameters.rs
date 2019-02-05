@@ -4,8 +4,11 @@ use std::borrow::Cow;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::*;
+use helper_meta_parser::*;
+use std::str::FromStr;
 
 // TODO generate better liquid::errors.
+// TODO generate better macro errors (ex. lack of From have a more precise span)
 
 /// Struct that contains information to generate the necessary code for `FilterParameters`.
 struct FilterParameters<'a> {
@@ -323,6 +326,17 @@ enum FilterParameterMode {
     Positional,
 }
 
+impl FromStr for FilterParameterMode {
+    type Err = String;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "keyword" => Ok(FilterParameterMode::Keyword),
+            "positional" => Ok(FilterParameterMode::Positional),
+            s => Err(format!("Expected either \"keyword\" or \"positional\". Found \"{}\".", s)),
+        }
+    }
+}
+
 enum FilterParameterType {
     // Any value, the default type
     Value,
@@ -333,6 +347,21 @@ enum FilterParameterType {
     Bool,
     Date,
     Str,
+}
+
+impl FromStr for FilterParameterType {
+    type Err = String;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "any" => Ok(FilterParameterType::Value),
+            "whole number" => Ok(FilterParameterType::Integer),
+            "fractional number" => Ok(FilterParameterType::Float),
+            "boolean" => Ok(FilterParameterType::Bool),
+            "date" => Ok(FilterParameterType::Date),
+            "string" => Ok(FilterParameterType::Str),
+            _ => Err(format!("Expected one of the following: \"any\", \"whole number\", \"fractional number\", \"boolean\", \"date\" or \"string\". Found \"{}\".", s)),
+        }
+    }
 }
 
 /// Struct that contains information parsed in `#[parameter(...)]` attribute.
@@ -363,77 +392,22 @@ impl FilterParameterMeta {
                 "Couldn't parse this parameter attribute. Have you tried `#[parameter(description=\"...\")]`?",
             )),
             Meta::List(meta) => {
-                // TODO don't allow multiple definitions
-                let mut rename = None;
-                let mut description = None;
-                let mut mode = None;
-                let mut ty = None;
+                let mut rename = AssignOnce::Unset;
+                let mut description = AssignOnce::Unset;
+                let mut mode = AssignOnce::Unset;
+                let mut ty = AssignOnce::Unset;
 
                 for meta in meta.nested.iter() {
                     if let NestedMeta::Meta(meta) = meta {
                         if let Meta::NameValue(meta) = meta {
-                            let key = &meta.ident.to_string();
+                            let key = &meta.ident;
                             let value = &meta.lit;
 
-                            match key.as_str() {
-                                "rename" => {
-                                    if let Lit::Str(value) = value {
-                                        rename = Some(value.value());
-                                    } else {
-                                        return Err(Error::new_spanned(
-                                            value,
-                                            "Expected string literal.",
-                                        ));
-                                    }
-                                },
-                                "description" => {
-                                    if let Lit::Str(value) = value {
-                                        description = Some(value.value());
-                                    } else {
-                                        return Err(Error::new_spanned(
-                                            value,
-                                            "Expected string literal.",
-                                        ));
-                                    }
-                                },
-                                "mode" => {
-                                    if let Lit::Str(value) = value {
-                                        mode = match value.value().as_str() {
-                                            "keyword" => Some(FilterParameterMode::Keyword),
-                                            "positional" => Some(FilterParameterMode::Positional),
-                                            _ => return Err(Error::new_spanned(
-                                                value,
-                                                "Expected either \"keyword\" or \"positional\".",
-                                            )),
-                                        };
-                                    } else {
-                                        return Err(Error::new_spanned(
-                                            value,
-                                            "Expected string literal.",
-                                        ));
-                                    }
-                                },
-                                "value" => {
-                                    if let Lit::Str(value) = value {
-                                        ty = match value.value().as_str() {
-                                            "any" => Some(FilterParameterType::Value),
-                                            "whole number" => Some(FilterParameterType::Integer),
-                                            "fractional number" => Some(FilterParameterType::Float),
-                                            "boolean" => Some(FilterParameterType::Bool),
-                                            "date" => Some(FilterParameterType::Date),
-                                            "string" => Some(FilterParameterType::Str),
-                                            _ => return Err(Error::new_spanned(
-                                                value,
-                                                "Expected one of the following: \"any\", \"whole number\", \"fractional number\", \"boolean\", \"date\" or \"string\".",
-                                            )),
-                                        };
-                                    } else {
-                                        return Err(Error::new_spanned(
-                                            value,
-                                            "Expected string literal.",
-                                        ));
-                                    }
-                                },
+                            match key.to_string().as_str() {
+                                "rename" => assign_str_value(&mut rename, key, value)?,
+                                "description" => assign_str_value(&mut description, key, value)?,
+                                "mode" => parse_str_value(&mut mode, key, value)?,
+                                "value" => parse_str_value(&mut ty, key, value)?,
                                 _ => return Err(Error::new_spanned(
                                     key,
                                     "Unknown element in parameter attribute.",
@@ -453,12 +427,13 @@ impl FilterParameterMeta {
                     }
                 }
 
-                let description = description.ok_or_else(|| Error::new_spanned(
+                let rename = rename.to_option();
+                let description = description.unwrap_or_err(|| Error::new_spanned(
                     meta,
                     "Found parameter without description. Description is necessary in order to properly generate ParameterReflection.",
                 ))?;
-                let mode = mode.unwrap_or(FilterParameterMode::Positional);
-                let ty = ty.unwrap_or(FilterParameterType::Value);
+                let mode = mode.default_to(FilterParameterMode::Positional);
+                let ty = ty.default_to(FilterParameterType::Value);
 
                 Ok(FilterParameterMeta {
                     rename,

@@ -1,6 +1,7 @@
 use proc_macro2::*;
 use proc_quote::*;
 use syn::*;
+use helper_meta_parser::*;
 
 /// Struct that contains information to generate the necessary code for `ParseFilter`.
 struct ParseFilter<'a> {
@@ -96,47 +97,28 @@ impl ParseFilterMeta {
                 "Couldn't parse this parameter attribute. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
             )),
             Meta::List(meta) => {
-                // TODO don't allow multiple definitions
-                let mut name = None;
-                let mut description = None;
-                let mut parameters = None;
-                let mut parsed = None;
+                let mut name = AssignOnce::Unset;
+                let mut description = AssignOnce::Unset;
+                let mut parameters = AssignOnce::Unset;
+                let mut parsed = AssignOnce::Unset;
 
                 for meta in meta.nested.into_iter() {
                     if let NestedMeta::Meta(meta) = meta {
                         if let Meta::NameValue(meta) = meta {
-                            let key = &meta.ident.to_string();
+                            let key = &meta.ident;
                             let value = &meta.lit;
 
-                            match key.as_str() {
-                                "name" => {
-                                    if let Lit::Str(value) = value {
-                                        name = Some(value.value());
-                                    } else {
-                                        return Err(Error::new_spanned(
-                                            value,
-                                            "Expected string literal.",
-                                        ));
-                                    }
-                                },
-                                "description" => {
-                                    if let Lit::Str(value) = value {
-                                        description = Some(value.value());
-                                    } else {
-                                        return Err(Error::new_spanned(
-                                            value,
-                                            "Expected string literal.",
-                                        ));
-                                    }
-                                },
-                                "parameters" => return Err(Error::new_spanned(
+                            match key.to_string().as_str() {
+                                "name" => assign_str_value(&mut name, key, value)?,
+                                "description" => assign_str_value(&mut description, key, value)?,
+                                "parameters" => Err(Error::new_spanned(
                                     key,
                                     "Did you mean `parameters(...)`.",
-                                )),
-                                _ => return Err(Error::new_spanned(
+                                ))?,
+                                _ => Err(Error::new_spanned(
                                     key,
                                     "Unknown element in filter attribute.",
-                                )),
+                                ))?,
                             }
                         } else if let Meta::List(meta) = meta {
                             let attr = &meta.ident;
@@ -148,8 +130,8 @@ impl ParseFilterMeta {
                                     if let NestedMeta::Meta(meta) = meta {
                                         if let Meta::Word(meta) = meta {
                                             match attr_name.as_str() {
-                                                "parameters" => parameters = Some(meta),
-                                                "parsed" => parsed = Some(meta),
+                                                "parameters" => parameters.set(meta, || Error::new_spanned(attr, "Element defined multiple times."))?,
+                                                "parsed" => parsed.set(meta, || Error::new_spanned(attr, "Element defined multiple times."))?,
                                                 _ => return Err(Error::new_spanned(
                                                     attr,
                                                     "Unknown element in filter attribute.",
@@ -177,7 +159,6 @@ impl ParseFilterMeta {
                                     attr,
                                     "Element expected.",
                                 )),
-
                             }
                         }else {
                             return Err(Error::new_spanned(
@@ -193,16 +174,16 @@ impl ParseFilterMeta {
                     }
                 }
 
-                let filter_name = name.ok_or_else(|| Error::new_spanned(
+                let filter_name = name.unwrap_or_err(|| Error::new_spanned(
                     attr,
                     "Filter does not have a name. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
                 ))?;
-                let filter_description = description.ok_or_else(|| Error::new_spanned(
+                let filter_description = description.unwrap_or_err(|| Error::new_spanned(
                     attr,
                     "Filter does not have a description. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
                 ))?;
-                let parameters_struct_name = parameters;
-                let filter_struct_name = parsed.ok_or_else(|| Error::new_spanned(
+                let parameters_struct_name = parameters.to_option();
+                let filter_struct_name = parsed.unwrap_or_err(|| Error::new_spanned(
                     attr,
                     "ParseFilterMeta does not have a Filter to return. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
                 ))?;
