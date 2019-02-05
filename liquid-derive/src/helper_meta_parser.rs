@@ -78,3 +78,10 @@ where T: FromStr<Err=String> {
         ))
     }
 }
+
+pub fn assign_ident(to: &mut AssignOnce<Ident>, key: &Ident, value: Ident) -> Result<()> {
+    to.set(value, || Error::new_spanned(
+        key,
+        format!("Element `{}` was already defined.", key),
+    ))
+}

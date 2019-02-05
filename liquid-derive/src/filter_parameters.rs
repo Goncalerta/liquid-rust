@@ -406,10 +406,10 @@ impl FilterParameterMeta {
                             "description" => assign_str_value(&mut description, key, value)?,
                             "mode" => parse_str_value(&mut mode, key, value)?,
                             "value" => parse_str_value(&mut ty, key, value)?,
-                            _ => return Err(Error::new_spanned(
+                            _ => Err(Error::new_spanned(
                                 key,
                                 "Unknown element in parameter attribute.",
-                            )),
+                            ))?,
                         }
                     } else {
                         return Err(Error::new_spanned(

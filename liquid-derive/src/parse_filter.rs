@@ -78,7 +78,6 @@ struct ParseFilterMeta {
 
 impl ParseFilterMeta {
     /// Tries to create a new `ParseFilterMeta` from the given `DeriveInput`
-    // TODO more modular parsing
     fn from_attr(attr: &Attribute) -> Result<Self> {
         let meta = attr.parse_meta().map_err(|err| {
             Error::new(
@@ -103,8 +102,8 @@ impl ParseFilterMeta {
                 let mut parsed = AssignOnce::Unset;
 
                 for meta in meta.nested.into_iter() {
-                    if let NestedMeta::Meta(meta) = meta {
-                        if let Meta::NameValue(meta) = meta {
+                    match meta {
+                        NestedMeta::Meta(Meta::NameValue(meta)) => {
                             let key = &meta.ident;
                             let value = &meta.lit;
 
@@ -120,57 +119,47 @@ impl ParseFilterMeta {
                                     "Unknown element in filter attribute.",
                                 ))?,
                             }
-                        } else if let Meta::List(meta) = meta {
+                        },
+
+                        NestedMeta::Meta(Meta::List(meta)) => {
                             let attr = &meta.ident;
-                            let attr_name = attr.to_string();
-                            
+
                             let mut meta = meta.nested.into_iter();
                             match (meta.next(), meta.next()) {
                                 (Some(meta), None) => {
-                                    if let NestedMeta::Meta(meta) = meta {
-                                        if let Meta::Word(meta) = meta {
-                                            match attr_name.as_str() {
-                                                "parameters" => parameters.set(meta, || Error::new_spanned(attr, "Element defined multiple times."))?,
-                                                "parsed" => parsed.set(meta, || Error::new_spanned(attr, "Element defined multiple times."))?,
-                                                _ => return Err(Error::new_spanned(
-                                                    attr,
-                                                    "Unknown element in filter attribute.",
-                                                )),
-                                            }
-                                            
-                                        } else {
-                                            return Err(Error::new_spanned(
-                                                meta,
-                                                "Unexpected element.",
-                                            ))
+                                    if let NestedMeta::Meta(Meta::Word(meta)) = meta {
+                                        match attr.to_string().as_str() {
+                                            "parameters" => assign_ident(&mut parameters, attr, meta)?,
+                                            "parsed" => assign_ident(&mut parsed, attr, meta)?,
+                                            _ => return Err(Error::new_spanned(
+                                                attr,
+                                                "Unknown element in filter attribute.",
+                                            )),
                                         }
                                     } else {
                                         return Err(Error::new_spanned(
                                             meta,
-                                            "Unexpected literal.",
+                                            "Unexpected element in filter attribute.",
                                         ))
                                     }
                                 },
                                 (_, Some(meta)) => return Err(Error::new_spanned(
                                     meta,
-                                    "Unexpected element.",
+                                    "Unexpected element in filter attribute.",
                                 )),
                                 _ => return Err(Error::new_spanned(
                                     attr,
-                                    "Element expected.",
+                                    "Element expected in filter attribute.",
                                 )),
                             }
-                        }else {
+                        }
+                        
+                        _ => {
                             return Err(Error::new_spanned(
                                 meta,
                                 "Unknown element in filter attribute.",
                             ));
                         }
-                    } else {
-                        return Err(Error::new_spanned(
-                            meta,
-                            "Unknown element in filter attribute.",
-                        ));
                     }
                 }
 
