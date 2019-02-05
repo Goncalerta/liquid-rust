@@ -373,7 +373,6 @@ struct FilterParameterMeta {
 }
 
 impl FilterParameterMeta {
-    // TODO more modular parsing
     fn parse_parameter_attribute(attr: &Attribute) -> Result<Self> {
         let meta = attr.parse_meta().map_err(|err| {
             Error::new(
@@ -397,27 +396,20 @@ impl FilterParameterMeta {
                 let mut mode = AssignOnce::Unset;
                 let mut ty = AssignOnce::Unset;
 
-                for meta in meta.nested.iter() {
-                    if let NestedMeta::Meta(meta) = meta {
-                        if let Meta::NameValue(meta) = meta {
-                            let key = &meta.ident;
-                            let value = &meta.lit;
+                for meta in meta.nested.into_iter() {
+                    if let NestedMeta::Meta(Meta::NameValue(meta)) = meta {
+                        let key = &meta.ident;
+                        let value = &meta.lit;
 
-                            match key.to_string().as_str() {
-                                "rename" => assign_str_value(&mut rename, key, value)?,
-                                "description" => assign_str_value(&mut description, key, value)?,
-                                "mode" => parse_str_value(&mut mode, key, value)?,
-                                "value" => parse_str_value(&mut ty, key, value)?,
-                                _ => return Err(Error::new_spanned(
-                                    key,
-                                    "Unknown element in parameter attribute.",
-                                )),
-                            }
-                        } else {
-                            return Err(Error::new_spanned(
-                                meta,
-                                "Unknown element in parameter attribute. All elements should be key=value pairs.",
-                            ));
+                        match key.to_string().as_str() {
+                            "rename" => assign_str_value(&mut rename, key, value)?,
+                            "description" => assign_str_value(&mut description, key, value)?,
+                            "mode" => parse_str_value(&mut mode, key, value)?,
+                            "value" => parse_str_value(&mut ty, key, value)?,
+                            _ => return Err(Error::new_spanned(
+                                key,
+                                "Unknown element in parameter attribute.",
+                            )),
                         }
                     } else {
                         return Err(Error::new_spanned(
@@ -429,7 +421,7 @@ impl FilterParameterMeta {
 
                 let rename = rename.to_option();
                 let description = description.unwrap_or_err(|| Error::new_spanned(
-                    meta,
+                    attr,
                     "Found parameter without description. Description is necessary in order to properly generate ParameterReflection.",
                 ))?;
                 let mode = mode.default_to(FilterParameterMode::Positional);
