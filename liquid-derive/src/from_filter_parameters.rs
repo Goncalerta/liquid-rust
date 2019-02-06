@@ -18,7 +18,7 @@ impl<'a> FilterStruct<'a> {
         let mut filter_fields = Vec::new();
         
         let fields = match data {
-            Data::Struct(data) => data.fields.iter(),
+            Data::Struct(data) => &data.fields,
             Data::Enum(data) => {
                 return Err(Error::new_spanned(
                     data.enum_token,
@@ -32,23 +32,39 @@ impl<'a> FilterStruct<'a> {
                 ));
             }
         };
+        let fields_len = fields.iter().len();
+        let mut fields = fields.iter();
 
-        for field in fields {
-            let filter_field = FilterStructField::from_field(field);
-            if filter_field.is_filter_parameters() {
-                parameters_struct_name.set(&field.ty, || Error::new_spanned(
-                    field,
-                    "Found multiple fields marked as `parameters`. Only one field can be marked as so.",
-                ))?;
-            }
-            filter_fields.push(filter_field);
+        if fields_len == 0 {
+            return Err(Error::new(
+                Span::call_site(),
+                "Target struct does not have any fields. A field to hold `FilterParameters` is required.",
+            ));
+        } else if fields_len == 1 {
+            let field = fields.next().expect("Guaranteed by if");
+            parameters_struct_name.set(&field.ty, ||()).expect("Guaranteed to be unset.");
+            let field = FilterStructField::new(field.ident.as_ref(), &field.ty, true);
+            filter_fields.push(field)
+        } else {
+            for field in fields {
+                let filter_field = FilterStructField::from_field(field);
+                if filter_field.is_filter_parameters() {
+                    parameters_struct_name.set(&field.ty, || Error::new_spanned(
+                        field,
+                        "A previous field was already marked as `parameters`. Only one field can be marked as so.",
+                    ))?;
+                }
+                filter_fields.push(filter_field);
+            } 
         }
+
+        
 
         let name = ident;
         let fields = filter_fields;
         let parameters_struct_name = parameters_struct_name.unwrap_or_err(|| Error::new(
             Span::call_site(),
-            "No field marked as `parameters` found in the target struct.",
+            "Cannot infer `FilterParameters` field in target struct. Mark this field with the `#[parameters]` attribute.",
         ))?;
 
         Ok(Self { name, fields, parameters_struct_name })
@@ -61,6 +77,15 @@ enum FilterStructField<'a> {
 }
 
 impl<'a> FilterStructField<'a> {
+    fn new(ident: Option<&'a Ident>, ty: &'a Type, is_filter_parameters: bool) -> Self {
+        let field = FilterField { ident, ty };
+        if is_filter_parameters {
+            FilterStructField::FilterParameters(field)
+        } else {
+            FilterStructField::RegularField(field)
+        } 
+    }
+
     fn from_field(field: &'a Field) -> Self {
         let Field { attrs, ident, ty, .. } = field;
 

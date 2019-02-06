@@ -70,7 +70,6 @@ fn check_args_len(args: &[Value], required: usize, optional: usize) -> Result<()
 }
 
 // TEST MACROS
-
 #[derive(Debug, FilterParameters)]
 struct SliceParameters {
     #[parameter(
@@ -97,7 +96,6 @@ pub struct SliceFilterParser;
 // TODO derive(Display_filter)
 // #[name = "slice"]
 pub struct SliceFilter {
-    #[parameters]
     args: SliceParameters,
 }
 
