@@ -820,7 +820,7 @@ fn generate_impl_display(filter_parameters: &FilterParameters) -> TokenStream {
 
 pub fn derive(input: &DeriveInput) -> TokenStream {
     let filter_parameters = match FilterParameters::from_input(input) {
-        Ok(filter_parser) => filter_parser,
+        Ok(filter_parameters) => filter_parameters,
         Err(err) => return err.to_compile_error(),
     };
 
