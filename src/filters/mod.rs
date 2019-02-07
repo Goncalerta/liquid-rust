@@ -72,11 +72,7 @@ fn check_args_len(args: &[Value], required: usize, optional: usize) -> Result<()
 // TEST MACROS
 #[derive(Debug, FilterParameters)]
 struct SliceParameters {
-    #[parameter(
-        description = "The offset of the slice.",
-        mode = "keyword",
-        value = "whole number"
-    )]
+    #[parameter(description = "The offset of the slice.", value = "whole number")]
     offset: Expression,
 
     #[parameter(description = "The length of the slice.", value = "whole number")]
@@ -92,17 +88,10 @@ struct SliceParameters {
 )]
 pub struct SliceFilterParser;
 
-#[derive(Debug, FromFilterParameters)]
-// TODO derive(Display_filter)
-// #[name = "slice"]
+#[derive(Debug, FromFilterParameters, Display_filter)]
+#[name = "slice"]
 pub struct SliceFilter {
     args: SliceParameters,
-}
-
-impl Display for SliceFilter {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "slice: {}", &self.args)
-    }
 }
 
 impl Filter for SliceFilter {

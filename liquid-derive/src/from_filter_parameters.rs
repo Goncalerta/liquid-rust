@@ -5,6 +5,8 @@ use syn::spanned::Spanned;
 use syn::*;
 use helper_meta_parser::*;
 
+// TODO cleanup
+
 struct FilterStruct<'a> {
     name: &'a Ident,
     parameters_struct_name: &'a Type,
@@ -123,7 +125,7 @@ impl<'a> FilterStructField<'a> {
 
         let ident = ident.as_ref();
 
-        if attrs.iter().any(|attr| attr.path.is_ident("parameters") && attr.tts.is_empty()) {
+        if attrs.iter().any(|attr| attr.path.is_ident("parameters")) {
             FilterStructField::FilterParameters(FilterField { ident, ty })
         } else {
             FilterStructField::RegularField(FilterField { ident, ty })

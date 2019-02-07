@@ -39,8 +39,7 @@ impl<'a> ParseFilter<'a> {
         }
     }
 
-    /// Searches for `#[filter(...)]` in order to parse `ParseFilterMeta`
-    /// If attribute is not found, error message will use span in `input_span`
+    /// Searches for `#[filter(...)]` in order to parse `ParseFilterMeta`.
     fn parse_attrs(attrs: &Vec<Attribute>) -> Result<ParseFilterMeta> {
         let mut filter_attrs = attrs.iter().filter(|attr| attr.path.is_ident("filter"));
 

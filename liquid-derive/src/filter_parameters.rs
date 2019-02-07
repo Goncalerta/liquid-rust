@@ -19,8 +19,7 @@ struct FilterParameters<'a> {
 }
 
 impl<'a> FilterParameters<'a> {
-    /// Searches for `#[evaluated(...)]` in order to parse `evaluated_name`
-    /// If attribute is not found, error message will use span in `input_span`
+    /// Searches for `#[evaluated(...)]` in order to parse `evaluated_name`.
     fn parse_attrs(attrs: &Vec<Attribute>) -> Result<Option<Ident>> {
         let mut evaluated_attrs = attrs.iter().filter(|attr| attr.path.is_ident("evaluated"));
 
