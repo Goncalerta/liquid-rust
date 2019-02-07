@@ -3,6 +3,8 @@ use proc_macro2::*;
 use proc_quote::*;
 use syn::*;
 
+// TODO allow generics
+
 /// Struct that contains information to generate the necessary code for `ParseFilter`.
 struct ParseFilter<'a> {
     name: &'a Ident,
@@ -13,17 +15,7 @@ impl<'a> ParseFilter<'a> {
     /// Asserts that this is an empty struct.
     fn validate_data(data: &Data) -> Result<()> {
         match data {
-            Data::Struct(data) => match &data.fields {
-                Fields::Named(fields) => Err(Error::new_spanned(
-                    fields,
-                    "ParseFilterMeta may not have fields.",
-                )),
-                Fields::Unnamed(fields) => Err(Error::new_spanned(
-                    fields,
-                    "ParseFilterMeta may not have fields.",
-                )),
-                Fields::Unit => Ok(()),
-            },
+            Data::Struct(data) => Ok(()),
             Data::Enum(data) => Err(Error::new_spanned(
                 data.enum_token,
                 "Enums cannot be ParseFilter.",
