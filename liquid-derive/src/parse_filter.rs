@@ -3,15 +3,27 @@ use proc_macro2::*;
 use proc_quote::*;
 use syn::*;
 
-// TODO allow generics
+// TODO make FilterReflection a different derive macro
 
 /// Struct that contains information to generate the necessary code for `ParseFilter`.
 struct ParseFilter<'a> {
     name: &'a Ident,
     meta: ParseFilterMeta,
+    generics: &'a Generics,
 }
 
 impl<'a> ParseFilter<'a> {
+
+    /// Generates `impl` declaration of the given trait for the structure 
+    /// represented by `self`.
+    fn generate_impl(&self, trait_name: TokenStream) -> TokenStream {
+        let name = &self.name;
+        let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
+        quote! {
+            impl #impl_generics #trait_name for #name #ty_generics #where_clause
+        }
+    }
+
     /// Asserts that this is an empty struct.
     fn validate_data(data: &Data) -> Result<()> {
         match data {
@@ -50,13 +62,13 @@ impl<'a> ParseFilter<'a> {
     /// Tries to create a new `ParseFilter` from the given `DeriveInput`
     fn from_input(input: &'a DeriveInput) -> Result<Self> {
         let DeriveInput {
-            attrs, data, ident, ..
+            attrs, data, ident, generics, ..
         } = input;
 
         Self::validate_data(&data)?;
         let meta = Self::parse_attrs(attrs)?;
 
-        Ok(ParseFilter { name: ident, meta })
+        Ok(ParseFilter { name: ident, meta, generics })
     }
 }
 
@@ -195,11 +207,14 @@ fn generate_parse_filter(filter_parser: &ParseFilter) -> TokenStream {
                 filter_struct_name,
                 ..
             },
+        ..
     } = filter_parser;
+
+    let impl_parse_filter = filter_parser.generate_impl(quote!{ ::liquid::compiler::ParseFilter });
 
     if let Some(parameters_struct_name) = parameters_struct_name {
         quote! {
-            impl ::liquid::compiler::ParseFilter for #parser_name {
+            #impl_parse_filter {
                 fn parse(&self, args: ::liquid::compiler::FilterArguments) -> Result<Box<::liquid::compiler::Filter>> {
                     let args = <#parameters_struct_name as ::liquid::compiler::FilterParameters>::from_args(args)?;
                     
@@ -209,7 +224,7 @@ fn generate_parse_filter(filter_parser: &ParseFilter) -> TokenStream {
         }
     } else {
         quote! {
-            impl ::liquid::compiler::ParseFilter for #parser_name {
+            #impl_parse_filter {
                 fn parse(&self, mut args: ::liquid::compiler::FilterArguments) -> Result<Box<::liquid::compiler::Filter>> {
                     if let Some(arg) = args.positional.next() {
                         return Err(::liquid::error::Error::with_msg("Too many positional parameters."));
@@ -237,7 +252,10 @@ fn generate_reflection(filter_parser: &ParseFilter) -> TokenStream {
                 parameters_struct_name,
                 ..
             },
+        ..
     } = filter_parser;
+
+    let impl_filter_reflection = filter_parser.generate_impl(quote!{ ::liquid::compiler::FilterReflection });
 
     let (positional_parameters, keyword_parameters) = if let Some(parameters_struct_name) =
         parameters_struct_name
@@ -251,7 +269,7 @@ fn generate_reflection(filter_parser: &ParseFilter) -> TokenStream {
     };
 
     quote! {
-        impl ::liquid::compiler::FilterReflection for #parser_name {
+        #impl_filter_reflection {
             fn name(&self) -> &'static str {
                 #filter_name
             }

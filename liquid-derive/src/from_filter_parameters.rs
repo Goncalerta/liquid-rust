@@ -10,6 +10,7 @@ struct FilterStruct<'a> {
     parameters_struct_name: &'a Type,
     fields: Vec<FilterStructField<'a>>,
     ty: StructFieldsType,
+    generics: &'a Generics,
 }
 
 enum StructFieldsType {
@@ -29,6 +30,17 @@ impl StructFieldsType {
 }
 
 impl<'a> FilterStruct<'a> {
+
+    /// Generates `impl` declaration of the given trait for the structure 
+    /// represented by `self`.
+    fn generate_impl(&self, trait_name: TokenStream) -> TokenStream {
+        let name = &self.name;
+        let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
+        quote! {
+            impl #impl_generics #trait_name for #name #ty_generics #where_clause
+        }
+    }
+
     fn from_input(input: &'a DeriveInput) -> Result<Self> {
         let DeriveInput { ident, generics, data, .. } = &input;
         let mut parameters_struct_name = AssignOnce::Unset;
@@ -87,7 +99,7 @@ impl<'a> FilterStruct<'a> {
             "Cannot infer `FilterParameters` field in target struct. Mark this field with the `#[parameters]` attribute.",
         ))?;
 
-        Ok(Self { name, fields, parameters_struct_name, ty })
+        Ok(Self { name, fields, parameters_struct_name, ty, generics })
     }
 }
 
@@ -170,13 +182,14 @@ pub fn derive(input: &DeriveInput) -> TokenStream {
         Err(err) => return err.to_compile_error(),
     };
 
-    let FilterStruct { name, parameters_struct_name, fields, ty } = filter;
+    let FilterStruct { name, parameters_struct_name, fields, ty, .. } = &filter;
     let fields = fields.iter().map(|field| field.generate_field_value());
 
+    let impl_from = filter.generate_impl(quote!{ From<#parameters_struct_name> });
 
     let output = match ty {
         StructFieldsType::Named => quote! {
-            impl From<#parameters_struct_name> for #name {
+            #impl_from {
                 fn from(parameters: #parameters_struct_name) -> Self {
                     Self { 
                         #(#fields)*
@@ -185,7 +198,7 @@ pub fn derive(input: &DeriveInput) -> TokenStream {
             }
         },
         StructFieldsType::Unnamed => quote! {
-            impl From<#parameters_struct_name> for #name {
+            #impl_from {
                 fn from(parameters: #parameters_struct_name) -> Self {
                     Self ( 
                         #(#fields)*
@@ -194,7 +207,7 @@ pub fn derive(input: &DeriveInput) -> TokenStream {
             }
         },
         StructFieldsType::Unit => quote! {
-            impl From<#parameters_struct_name> for #name {
+            #impl_from {
                 fn from(parameters: #parameters_struct_name) -> Self {
                     Self;
                 }
