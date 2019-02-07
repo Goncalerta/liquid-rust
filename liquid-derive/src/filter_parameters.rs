@@ -128,10 +128,8 @@ impl<'a> FilterParameters<'a> {
     }
 }
 
-/// Struct that contains `FilterParameter`s, as well as the type of 
-/// those fields (Unit, Named, Unnamed).
+/// Struct that contains `FilterParameter`s.
 struct FilterParametersFields<'a> {
-    ty: FilterParametersFieldsType,
     parameters: Punctuated<FilterParameter<'a>, Token![,]>,
 }
 
@@ -158,53 +156,41 @@ impl<'a> FilterParametersFields<'a> {
                     .named
                     .iter()
                     .map(|field| {
-                        let name = Cow::Borrowed(field.ident.as_ref().expect("Fields are named."));
+                        let name = field.ident.as_ref().expect("Fields are named.");
                         FilterParameter::new(name, &field)
                     })
                     .collect::<Result<Punctuated<_, Token![,]>>>()?;
-
-                let ty = FilterParametersFieldsType::Named;
-
-                Ok(Self { parameters, ty })
+                
+                if parameters.len() == 0 {
+                    Err(Error::new_spanned(
+                        fields,
+                        "FilterParameters fields must have at least one field. To define an argumentless filter, just skip the `parameters(...)` element in `FilterParser`.",
+                    ))
+                } else {
+                    Ok(Self { parameters })
+                }
             }
 
             Fields::Unnamed(fields) => {
-                let parameters = fields
-                    .unnamed
-                    .iter()
-                    .enumerate()
-                    .map(|(pos, field)| {
-                        let name =
-                            Cow::Owned(Ident::new(&format!("arg_{}", pos), Span::call_site()));
-                        FilterParameter::new(name, &field)
-                    })
-                    .collect::<Result<Punctuated<_, Token![,]>>>()?;
-
-                let ty = FilterParametersFieldsType::Unnamed;
-
-                Ok(Self { parameters, ty })
+                Err(Error::new_spanned(
+                    fields,
+                    "FilterParameters fields must have explicit names. Tuple structs are not allowed.",
+                ))
             }
 
             Fields::Unit => {
-                let parameters = Punctuated::new();
-                let ty = FilterParametersFieldsType::Unit;
-
-                Ok(Self { parameters, ty })
+                Err(Error::new_spanned(
+                    fields,
+                    "FilterParameters fields must have at least one field. To define an argumentless filter, just skip the `parameters(...)` element in `FilterParser`.",
+                ))
             }
         }
     }
 }
 
-/// Whether `FilterParameters` fields are `Unit`, `Named` or `Unnamed`.
-enum FilterParametersFieldsType {
-    Named,
-    Unnamed,
-    Unit,
-}
-
 /// Information for a single parameter in a struct that implements `FilterParameters`.
 struct FilterParameter<'a> {
-    name: Cow<'a, Ident>,
+    name: &'a Ident,
     is_optional: bool,
     meta: FilterParameterMeta,
 }
@@ -274,7 +260,7 @@ impl<'a> FilterParameter<'a> {
     }
 
     /// Creates a new `FilterParameter` from the given `field`, with the given `name`.
-    fn new(name: Cow<'a, Ident>, field: &Field) -> Result<Self> {
+    fn new(name: &'a Ident, field: &Field) -> Result<Self> {
         let is_optional = Self::parse_type_is_optional(&field.ty)?;
         let meta = FilterParameterMeta::from_field(&field)?;
 
@@ -567,23 +553,6 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
 
     let field_names = fields.parameters.iter().map(|field| &field.name);
     let comma_separated_field_names = quote! { #(#field_names,)* };
-    let generate_constructor = match &fields.ty {
-        FilterParametersFieldsType::Named => quote! { { #comma_separated_field_names } },
-        FilterParametersFieldsType::Unnamed => quote! { ( #comma_separated_field_names ) },
-        FilterParametersFieldsType::Unit => quote! {},
-    };
-
-    let generate_evaluated_constructor = match &fields.ty {
-        FilterParametersFieldsType::Named => {
-            quote! { { #comma_separated_field_names __phantom_data: ::std::marker::PhantomData } }
-        }
-        FilterParametersFieldsType::Unnamed => {
-            quote! { ( #comma_separated_field_names __phantom_data: ::std::marker::PhantomData ) }
-        }
-        FilterParametersFieldsType::Unit => {
-            quote! { { __phantom_data: ::std::marker::PhantomData } }
-        }
-    };
 
     let evaluate_fields = fields
         .parameters
@@ -631,13 +600,13 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
                 }
                 #(let #required_keyword_fields = #required_keyword_fields.ok_or_else(|| ::liquid::error::Error::with_msg("Required"))?;)*
 
-                Ok( #name #generate_constructor )
+                Ok( #name { #comma_separated_field_names } )
             }
 
             fn evaluate(&'a self, context: &'a ::liquid::interpreter::Context) -> ::liquid::error::Result<Self::EvaluatedFilterParameters> {
                #(#evaluate_fields)*
 
-                Ok( #evaluated_name #generate_evaluated_constructor )
+                Ok( #evaluated_name { #comma_separated_field_names __phantom_data: ::std::marker::PhantomData } )
             }
         }
     }
@@ -669,30 +638,12 @@ fn generate_evaluated_struct(filter_parameters: &FilterParameters) -> TokenStrea
         }
     });
 
-    match &fields.ty {
-        FilterParametersFieldsType::Named => {
-            let field_names = fields.parameters.iter().map(|field| &field.name);
-            quote! {
-                #vis struct #evaluated_name <'a>{
-                    #(#field_names : #field_types,)*
-                    __phantom_data: ::std::marker::PhantomData<&'a ()>
-                }
-            }
-        }
-        FilterParametersFieldsType::Unnamed => {
-            quote! {
-                #vis struct #evaluated_name <'a>(
-                    #(#field_types,)*
-                    __phantom_data: ::std::marker::PhantomData<&'a ()>
-                )
-            }
-        }
-        FilterParametersFieldsType::Unit => {
-            quote! {
-                #vis struct #evaluated_name <'a> {
-                    __phantom_data: ::std::marker::PhantomData<&'a ()>
-                }
-            }
+    let field_names = fields.parameters.iter().map(|field| &field.name);
+
+    quote! {
+        #vis struct #evaluated_name <'a>{
+            #(#field_names : #field_types,)*
+            __phantom_data: ::std::marker::PhantomData<&'a ()>
         }
     }
 }
