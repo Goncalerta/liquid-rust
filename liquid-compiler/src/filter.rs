@@ -46,14 +46,6 @@ pub trait ParseFilter: Send + Sync + ParseFilterClone + FilterReflection {
     fn parse(&self, arguments: FilterArguments) -> Result<Box<Filter>>;
 }
 
-// TODO get rid of BoxedFilterParser
-pub type BoxedFilterParser = Box<ParseFilter>;
-impl<T: ParseFilter + 'static> From<T> for BoxedFilterParser {
-    fn from(filter: T) -> BoxedFilterParser {
-        Box::new(filter)
-    }
-}
-
 /// Support cloning of `Box<ParseFilter>`.
 pub trait ParseFilterClone {
     /// Cloning of `dyn ParseFilter`.
@@ -72,5 +64,14 @@ where
 impl Clone for Box<ParseFilter> {
     fn clone(&self) -> Box<ParseFilter> {
         self.clone_box()
+    }
+}
+
+impl<T> From<T> for Box<ParseFilter> 
+where
+    T: 'static + ParseFilter,
+{
+    fn from(filter: T) -> Self {
+        Box::new(filter)
     }
 }

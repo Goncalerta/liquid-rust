@@ -1,5 +1,5 @@
 use super::BoxedBlockParser;
-use super::BoxedFilterParser;
+use super::ParseFilter;
 use super::BoxedTagParser;
 use super::PluginRegistry;
 
@@ -7,7 +7,7 @@ use super::PluginRegistry;
 pub struct Language {
     pub blocks: PluginRegistry<BoxedBlockParser>,
     pub tags: PluginRegistry<BoxedTagParser>,
-    pub filters: PluginRegistry<BoxedFilterParser>,
+    pub filters: PluginRegistry<Box<ParseFilter>>,
     non_exhaustive: (),
 }
 

@@ -163,7 +163,7 @@ impl<'a> FilterParametersFields<'a> {
                 if parameters.len() == 0 {
                     Err(Error::new_spanned(
                         fields,
-                        "FilterParameters fields must have at least one field. To define an argumentless filter, just skip the `parameters(...)` element in `FilterParser`.",
+                        "FilterParameters fields must have at least one field. To define an argumentless filter, just skip the `parameters(...)` element in `ParseFilter`.",
                     ))
                 } else {
                     Ok(Self { parameters })
@@ -180,7 +180,7 @@ impl<'a> FilterParametersFields<'a> {
             Fields::Unit => {
                 Err(Error::new_spanned(
                     fields,
-                    "FilterParameters fields must have at least one field. To define an argumentless filter, just skip the `parameters(...)` element in `FilterParser`.",
+                    "FilterParameters fields must have at least one field. To define an argumentless filter, just skip the `parameters(...)` element in `ParseFilter`.",
                 ))
             }
         }
@@ -429,7 +429,7 @@ impl FilterParameterMeta {
         })
     }
 
-    /// Tries to create a new `FilterParserMeta` from the given field.
+    /// Tries to create a new `FilterParameterMeta` from the given field.
     fn from_field(field: &Field) -> Result<Self> {
         let mut parameter_attrs = field
             .attrs
