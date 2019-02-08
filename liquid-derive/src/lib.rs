@@ -21,7 +21,13 @@ pub fn derive_filter_parameters(item: TokenStream) -> TokenStream {
 #[proc_macro_derive(ParseFilter, attributes(filter))]
 pub fn derive_parse_filter(item: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(item as syn::DeriveInput);
-    parse_filter::derive(&input).into()
+    parse_filter::parse_filter::derive(&input).into()
+}
+
+#[proc_macro_derive(FilterReflection, attributes(filter))]
+pub fn derive_filter_reflection(item: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(item as syn::DeriveInput);
+    parse_filter::filter_reflection::derive(&input).into()
 }
 
 #[proc_macro_derive(FromFilterParameters, attributes(parameters))]

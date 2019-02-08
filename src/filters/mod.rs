@@ -79,7 +79,7 @@ struct SliceParameters {
     length: Option<Expression>,
 }
 
-#[derive(Clone, ParseFilter)]
+#[derive(Clone, ParseFilter, FilterReflection)]
 #[filter(
     name = "slice",
     description = "Takes a slice of a given string or array.",
