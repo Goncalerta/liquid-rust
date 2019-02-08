@@ -203,8 +203,6 @@ impl<'a> FilterParameter<'a> {
     fn get_type_name(ty: &Type) -> Result<&PathSegment> {
         match ty {
             Type::Path(ty) => {
-                // TODO what if `Expression` is not the actual name of the expected type? (ex. lack of `use`)
-                // `Expression` could even be a whole different structure than expected
                 let path = match ty.path.segments.last() {
                     Some(path) => path.into_value(),
                     None => return Err(Error::new_spanned(ty, Self::ERROR_INVALID_TYPE)),

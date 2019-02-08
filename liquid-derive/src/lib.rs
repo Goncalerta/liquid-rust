@@ -5,9 +5,9 @@ extern crate proc_macro2;
 extern crate proc_quote;
 extern crate syn;
 
+mod filter;
 mod filter_parameters;
 pub(crate) mod helpers;
-mod filter;
 mod parse_filter;
 
 use proc_macro::TokenStream;

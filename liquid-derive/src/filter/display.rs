@@ -1,11 +1,9 @@
+use helpers::*;
 use proc_macro2::*;
 use proc_quote::*;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::*;
-use helpers::*;
-
-// TODO cleanup
 
 struct FilterStruct<'a> {
     name: &'a Ident,
@@ -38,8 +36,7 @@ impl<'a> ToTokens for Parameters<'a> {
 }
 
 impl<'a> FilterStruct<'a> {
-
-    /// Generates `impl` declaration of the given trait for the structure 
+    /// Generates `impl` declaration of the given trait for the structure
     /// represented by `self`.
     fn generate_impl(&self, trait_name: TokenStream) -> TokenStream {
         let name = &self.name;
@@ -48,7 +45,6 @@ impl<'a> FilterStruct<'a> {
             impl #impl_generics #trait_name for #name #ty_generics #where_clause
         }
     }
-
 
     /// Searches for `#[name(...)]` in order to parse `filter_name`.
     fn parse_attrs(attrs: &Vec<Attribute>) -> Result<String> {
@@ -82,10 +78,7 @@ impl<'a> FilterStruct<'a> {
             if let Lit::Str(name) = &meta.lit {
                 Ok(name.value())
             } else {
-                Err(Error::new_spanned(
-                    &meta.lit,
-                    "Expected string literal.",
-                ))
+                Err(Error::new_spanned(&meta.lit, "Expected string literal."))
             }
         } else {
             Err(Error::new_spanned(
@@ -96,9 +89,15 @@ impl<'a> FilterStruct<'a> {
     }
 
     fn from_input(input: &'a DeriveInput) -> Result<Self> {
-        let DeriveInput { ident, generics, data, attrs, .. } = &input;
+        let DeriveInput {
+            ident,
+            generics,
+            data,
+            attrs,
+            ..
+        } = &input;
         let mut parameters = AssignOnce::Unset;
-        
+
         let fields = match data {
             Data::Struct(data) => &data.fields,
             Data::Enum(data) => {
@@ -125,22 +124,26 @@ impl<'a> FilterStruct<'a> {
         } else if fields_len == 1 {
             let field = fields.iter().next().expect("Guaranteed by if");
             let field = Parameters::new(field.ident.as_ref(), 0);
-            parameters.set(field, ||()).expect("Guaranteed to be unset.");
+            parameters
+                .set(field, || ())
+                .expect("Guaranteed to be unset.");
         } else {
-            let marked = fields
-                .iter()
-                .enumerate()
-                .filter(|(_, field)| field.attrs.iter().any(|attr| attr.path.is_ident("parameters")));
-            
+            let marked = fields.iter().enumerate().filter(|(_, field)| {
+                field
+                    .attrs
+                    .iter()
+                    .any(|attr| attr.path.is_ident("parameters"))
+            });
+
             for (i, field) in marked {
                 let params = Parameters::new(field.ident.as_ref(), i);
                 parameters.set(params, || Error::new_spanned(
                     field,
                     "A previous field was already marked as `parameters`. Only one field can be marked as so.",
                 ));
-            } 
+            }
         }
-        
+
         let name = ident;
         let filter_name = Self::parse_attrs(attrs)?;
         let parameters = parameters.unwrap_or_err(|| Error::new(
@@ -148,7 +151,12 @@ impl<'a> FilterStruct<'a> {
             "Cannot infer `FilterParameters` field in target struct. Mark this field with the `#[parameters]` attribute.",
         ))?;
 
-        Ok(Self { name, filter_name, parameters, generics })
+        Ok(Self {
+            name,
+            filter_name,
+            parameters,
+            generics,
+        })
     }
 }
 
@@ -158,9 +166,14 @@ pub fn derive(input: &DeriveInput) -> TokenStream {
         Err(err) => return err.to_compile_error(),
     };
 
-    let FilterStruct { name, filter_name, parameters, .. } = &filter;
+    let FilterStruct {
+        name,
+        filter_name,
+        parameters,
+        ..
+    } = &filter;
 
-    let impl_display = filter.generate_impl(quote!{ ::std::fmt::Display });
+    let impl_display = filter.generate_impl(quote! { ::std::fmt::Display });
 
     let output = quote! {
         #impl_display {

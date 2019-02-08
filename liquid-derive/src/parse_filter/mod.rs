@@ -3,8 +3,8 @@ use proc_macro2::*;
 use proc_quote::*;
 use syn::*;
 
-pub mod parse_filter;
 pub mod filter_reflection;
+pub mod parse_filter;
 
 /// Struct that contains information to generate the necessary code for `ParseFilter`.
 struct ParseFilter<'a> {
@@ -14,8 +14,7 @@ struct ParseFilter<'a> {
 }
 
 impl<'a> ParseFilter<'a> {
-
-    /// Generates `impl` declaration of the given trait for the structure 
+    /// Generates `impl` declaration of the given trait for the structure
     /// represented by `self`.
     fn generate_impl(&self, trait_name: TokenStream) -> TokenStream {
         let name = &self.name;
@@ -62,13 +61,21 @@ impl<'a> ParseFilter<'a> {
     /// Tries to create a new `ParseFilter` from the given `DeriveInput`
     fn from_input(input: &'a DeriveInput) -> Result<Self> {
         let DeriveInput {
-            attrs, data, ident, generics, ..
+            attrs,
+            data,
+            ident,
+            generics,
+            ..
         } = input;
 
         Self::validate_data(&data)?;
         let meta = Self::parse_attrs(attrs)?;
 
-        Ok(ParseFilter { name: ident, meta, generics })
+        Ok(ParseFilter {
+            name: ident,
+            meta,
+            generics,
+        })
     }
 }
 

@@ -99,30 +99,22 @@ impl Filter for SliceFilter {
         let args = self.args.evaluate(context)?;
 
         let offset = args.offset as isize;
-
         let length = args.length.unwrap_or(1) as isize;
+
         if length < 1 {
             return Err(invalid_argument(1, "Positive number expected"));
         }
 
-        if let Value::Array(ref input) = *input {
+        if let Value::Array(input) = input {
             let (offset, length) = canonicalize_slice(offset, length, input.len());
             Ok(Value::array(
-                input
-                    .iter()
-                    .skip(offset as usize)
-                    .take(length as usize)
-                    .cloned(),
+                input.iter().skip(offset).take(length).cloned(),
             ))
         } else {
             let input = input.to_str();
             let (offset, length) = canonicalize_slice(offset, length, input.len());
             Ok(Value::scalar(
-                input
-                    .chars()
-                    .skip(offset as usize)
-                    .take(length as usize)
-                    .collect::<String>(),
+                input.chars().skip(offset).take(length).collect::<String>(),
             ))
         }
     }

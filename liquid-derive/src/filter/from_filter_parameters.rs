@@ -1,11 +1,9 @@
+use helpers::*;
 use proc_macro2::*;
 use proc_quote::*;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::*;
-use helpers::*;
-
-// TODO cleanup
 
 struct FilterStruct<'a> {
     name: &'a Ident,
@@ -32,8 +30,7 @@ impl StructFieldsType {
 }
 
 impl<'a> FilterStruct<'a> {
-
-    /// Generates `impl` declaration of the given trait for the structure 
+    /// Generates `impl` declaration of the given trait for the structure
     /// represented by `self`.
     fn generate_impl(&self, trait_name: TokenStream) -> TokenStream {
         let name = &self.name;
@@ -44,10 +41,15 @@ impl<'a> FilterStruct<'a> {
     }
 
     fn from_input(input: &'a DeriveInput) -> Result<Self> {
-        let DeriveInput { ident, generics, data, .. } = &input;
+        let DeriveInput {
+            ident,
+            generics,
+            data,
+            ..
+        } = &input;
         let mut parameters_struct_name = AssignOnce::Unset;
         let mut filter_fields = Vec::new();
-        
+
         let fields = match data {
             Data::Struct(data) => &data.fields,
             Data::Enum(data) => {
@@ -76,7 +78,9 @@ impl<'a> FilterStruct<'a> {
             ));
         } else if fields_len == 1 {
             let field = fields.next().expect("Guaranteed by if");
-            parameters_struct_name.set(&field.ty, ||()).expect("Guaranteed to be unset.");
+            parameters_struct_name
+                .set(&field.ty, || ())
+                .expect("Guaranteed to be unset.");
             let field = FilterStructField::new(field.ident.as_ref(), &field.ty, true);
             filter_fields.push(field)
         } else {
@@ -89,10 +93,8 @@ impl<'a> FilterStruct<'a> {
                     ))?;
                 }
                 filter_fields.push(filter_field);
-            } 
+            }
         }
-
-        
 
         let name = ident;
         let fields = filter_fields;
@@ -101,13 +103,19 @@ impl<'a> FilterStruct<'a> {
             "Cannot infer `FilterParameters` field in target struct. Mark this field with the `#[parameters]` attribute.",
         ))?;
 
-        Ok(Self { name, fields, parameters_struct_name, ty, generics })
+        Ok(Self {
+            name,
+            fields,
+            parameters_struct_name,
+            ty,
+            generics,
+        })
     }
 }
 
 enum FilterStructField<'a> {
     FilterParameters(FilterField<'a>),
-    RegularField(FilterField<'a>)
+    RegularField(FilterField<'a>),
 }
 
 impl<'a> FilterStructField<'a> {
@@ -117,11 +125,13 @@ impl<'a> FilterStructField<'a> {
             FilterStructField::FilterParameters(field)
         } else {
             FilterStructField::RegularField(field)
-        } 
+        }
     }
 
     fn from_field(field: &'a Field) -> Self {
-        let Field { attrs, ident, ty, .. } = field;
+        let Field {
+            attrs, ident, ty, ..
+        } = field;
 
         let ident = ident.as_ref();
 
@@ -145,7 +155,7 @@ impl<'a> FilterStructField<'a> {
                         parameters,
                     }
                 }
-            },
+            }
             FilterStructField::RegularField(field) => {
                 let FilterField { ident, ty } = field;
                 if let Some(ident) = ident {
@@ -157,8 +167,7 @@ impl<'a> FilterStructField<'a> {
                         <#ty as Default>::default(),
                     }
                 }
-                
-            },
+            }
         }
     }
 
@@ -172,11 +181,8 @@ impl<'a> FilterStructField<'a> {
 
 struct FilterField<'a> {
     ident: Option<&'a Ident>,
-    ty: &'a Type
+    ty: &'a Type,
 }
-
-
-
 
 pub fn derive(input: &DeriveInput) -> TokenStream {
     let filter = match FilterStruct::from_input(input) {
@@ -184,16 +190,22 @@ pub fn derive(input: &DeriveInput) -> TokenStream {
         Err(err) => return err.to_compile_error(),
     };
 
-    let FilterStruct { name, parameters_struct_name, fields, ty, .. } = &filter;
+    let FilterStruct {
+        name,
+        parameters_struct_name,
+        fields,
+        ty,
+        ..
+    } = &filter;
     let fields = fields.iter().map(|field| field.generate_field_value());
 
-    let impl_from = filter.generate_impl(quote!{ From<#parameters_struct_name> });
+    let impl_from = filter.generate_impl(quote! { From<#parameters_struct_name> });
 
     let output = match ty {
         StructFieldsType::Named => quote! {
             #impl_from {
                 fn from(parameters: #parameters_struct_name) -> Self {
-                    Self { 
+                    Self {
                         #(#fields)*
                     }
                 }
@@ -202,7 +214,7 @@ pub fn derive(input: &DeriveInput) -> TokenStream {
         StructFieldsType::Unnamed => quote! {
             #impl_from {
                 fn from(parameters: #parameters_struct_name) -> Self {
-                    Self ( 
+                    Self (
                         #(#fields)*
                     )
                 }
@@ -216,7 +228,6 @@ pub fn derive(input: &DeriveInput) -> TokenStream {
             }
         },
     };
-    
 
     // Temporary TODO remove
     // This println! shows the code that was generated by this macro when compiling

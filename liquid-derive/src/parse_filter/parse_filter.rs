@@ -13,14 +13,14 @@ fn generate_parse_filter(filter_parser: &ParseFilter) -> TokenStream {
         ..
     } = filter_parser;
 
-    let impl_parse_filter = filter_parser.generate_impl(quote!{ ::liquid::compiler::ParseFilter });
+    let impl_parse_filter = filter_parser.generate_impl(quote! { ::liquid::compiler::ParseFilter });
 
     if let Some(parameters_struct_name) = parameters_struct_name {
         quote! {
             #impl_parse_filter {
                 fn parse(&self, args: ::liquid::compiler::FilterArguments) -> Result<Box<::liquid::compiler::Filter>> {
                     let args = <#parameters_struct_name as ::liquid::compiler::FilterParameters>::from_args(args)?;
-                    
+
                     Ok(Box::new(<#filter_struct_name as From<#parameters_struct_name>>::from(args)))
                 }
             }
@@ -35,8 +35,8 @@ fn generate_parse_filter(filter_parser: &ParseFilter) -> TokenStream {
                     if let Some(arg) = args.keyword.next() {
                         return Err(::liquid::error::Error::with_msg(format!("Unexpected keyword parameter `{}`.", arg.0)));
                     }
-                    
-                    
+
+
                     Ok(Box::new(<#filter_struct_name as Default>::default()))
                 }
             }
