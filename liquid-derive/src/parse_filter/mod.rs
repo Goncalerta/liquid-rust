@@ -81,10 +81,10 @@ impl<'a> ParseFilter<'a> {
 
 /// Struct that contains information parsed in `#[filter(...)]` attribute.
 struct ParseFilterMeta {
-    filter_name: String,
-    filter_description: String,
+    filter_name: Result<String>,
+    filter_description: Result<String>,
     parameters_struct_name: Option<Ident>,
-    filter_struct_name: Ident,
+    filter_struct_name: Result<Ident>,
 }
 
 impl ParseFilterMeta {
@@ -184,16 +184,16 @@ impl ParseFilterMeta {
         let filter_name = name.unwrap_or_err(|| Error::new_spanned(
             attr,
             "Filter does not have a name. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
-        ))?;
+        ));
         let filter_description = description.unwrap_or_err(|| Error::new_spanned(
             attr,
             "Filter does not have a description. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
-        ))?;
+        ));
         let parameters_struct_name = parameters.to_option();
         let filter_struct_name = parsed.unwrap_or_err(|| Error::new_spanned(
             attr,
             "ParseFilterMeta does not have a Filter to return. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
-        ))?;
+        ));
 
         Ok(ParseFilterMeta {
             filter_name,
