@@ -48,9 +48,9 @@ pub trait ParseFilter: Send + Sync + ParseFilterClone + FilterReflection {
 
 // TODO get rid of BoxedFilterParser
 pub type BoxedFilterParser = Box<ParseFilter>;
-impl<T: ParseFilter + 'static> From<Box<T>> for BoxedFilterParser {
-    fn from(filter: Box<T>) -> BoxedFilterParser {
-        filter
+impl<T: ParseFilter + 'static> From<T> for BoxedFilterParser {
+    fn from(filter: T) -> BoxedFilterParser {
+        Box::new(filter)
     }
 }
 

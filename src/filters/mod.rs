@@ -31,43 +31,43 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use liquid_derive;
 
-type FilterResult = Result<Filter>;
+// type FilterResult = Result<Filter>;
 
-pub fn invalid_input<S: Into<Cow<'static, str>>>(cause: S) -> liquid_error::Error {
-    liquid_error::Error::with_msg("Invalid input").context("cause", cause)
-}
+// pub fn invalid_input<S: Into<Cow<'static, str>>>(cause: S) -> liquid_error::Error {
+//     liquid_error::Error::with_msg("Invalid input").context("cause", cause)
+// }
 
-pub fn invalid_argument_count<S: Into<Cow<'static, str>>>(cause: S) -> liquid_error::Error {
-    liquid_error::Error::with_msg("Invalid number of arguments").context("cause", cause)
-}
+// pub fn invalid_argument_count<S: Into<Cow<'static, str>>>(cause: S) -> liquid_error::Error {
+//     liquid_error::Error::with_msg("Invalid number of arguments").context("cause", cause)
+// }
 
-pub fn invalid_argument<S: Into<Cow<'static, str>>>(
-    position: usize,
-    cause: S,
-) -> liquid_error::Error {
-    liquid_error::Error::with_msg("Invalid argument")
-        .context("position", format!("{}", position))
-        .context("cause", cause)
-}
+// pub fn invalid_argument<S: Into<Cow<'static, str>>>(
+//     position: usize,
+//     cause: S,
+// ) -> liquid_error::Error {
+//     liquid_error::Error::with_msg("Invalid argument")
+//         .context("position", format!("{}", position))
+//         .context("cause", cause)
+// }
 
 // Helper functions for the filters.
-fn check_args_len(args: &[Value], required: usize, optional: usize) -> Result<()> {
-    if args.len() < required {
-        return Err(invalid_argument_count(format!(
-            "expected at least {}, {} given",
-            required,
-            args.len()
-        )));
-    }
-    if required + optional < args.len() {
-        return Err(invalid_argument_count(format!(
-            "expected at most {}, {} given",
-            required + optional,
-            args.len()
-        )));
-    }
-    Ok(())
-}
+// fn check_args_len(args: &[Value], required: usize, optional: usize) -> Result<()> {
+//     if args.len() < required {
+//         return Err(invalid_argument_count(format!(
+//             "expected at least {}, {} given",
+//             required,
+//             args.len()
+//         )));
+//     }
+//     if required + optional < args.len() {
+//         return Err(invalid_argument_count(format!(
+//             "expected at most {}, {} given",
+//             required + optional,
+//             args.len()
+//         )));
+//     }
+//     Ok(())
+// }
 
 // TEST MACROS
 #[derive(Debug, FilterParameters)]
@@ -102,7 +102,9 @@ impl Filter for SliceFilter {
         let length = args.length.unwrap_or(1) as isize;
 
         if length < 1 {
-            return Err(invalid_argument(1, "Positive number expected"));
+            return Err(liquid_error::Error::with_msg("Invalid argument")
+                // .context("position", "1") position is no longer constant the same because of keyword args
+                .context("cause", "Positive number expected."));
         }
 
         if let Value::Array(input) = input {

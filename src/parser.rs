@@ -73,7 +73,7 @@ where
 
     /// Register built-in Liquid filters
     pub fn liquid_filters(self) -> Self {
-        self.filter("slice", Box::new(filters::SliceFilterParser))
+        self.filter(filters::SliceFilterParser)
         // self.filter("abs", filters::abs as compiler::FnFilterValue)
         //     .filter("append", filters::append as compiler::FnFilterValue)
         //     .filter("at_least", filters::at_least as compiler::FnFilterValue)
@@ -185,10 +185,10 @@ where
     /// Inserts a new custom filter into the parser
     pub fn filter<F: Into<compiler::BoxedFilterParser>>(
         mut self,
-        name: &'static str,
         filter: F,
     ) -> Self {
-        self.filters.register(name, filter.into());
+        let filter = filter.into();
+        self.filters.register(compiler::FilterReflection::name(&*filter), filter);
         self
     }
 
