@@ -67,34 +67,18 @@ impl<'a> FilterStruct<'a> {
         };
 
         let ty = StructFieldsType::from_fields(&fields);
-
-        let fields_len = fields.iter().len();
-        let mut fields = fields.iter();
-
-        if fields_len == 0 {
-            return Err(Error::new(
-                Span::call_site(),
-                "Target struct does not have any fields. A field to hold `FilterParameters` is required.",
-            ));
-        } else if fields_len == 1 {
-            let field = fields.next().expect("Guaranteed by if");
-            parameters_struct_name
-                .set(&field.ty, || ())
-                .expect("Guaranteed to be unset.");
-            let field = FilterStructField::new(field.ident.as_ref(), &field.ty, true);
-            filter_fields.push(field)
-        } else {
-            for field in fields {
-                let filter_field = FilterStructField::from_field(field);
-                if filter_field.is_filter_parameters() {
-                    parameters_struct_name.set(&field.ty, || Error::new_spanned(
-                        field,
-                        "A previous field was already marked as `parameters`. Only one field can be marked as so.",
-                    ))?;
-                }
-                filter_fields.push(filter_field);
+        
+        for field in fields.iter() {
+            let filter_field = FilterStructField::from_field(field);
+            if filter_field.is_filter_parameters() {
+                parameters_struct_name.set(&field.ty, || Error::new_spanned(
+                    field,
+                    "A previous field was already marked as `parameters`. Only one field can be marked as so.",
+                ))?;
             }
+            filter_fields.push(filter_field);
         }
+        
 
         let name = ident;
         let fields = filter_fields;
