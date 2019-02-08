@@ -1,4 +1,4 @@
-use helper_meta_parser::*;
+use helpers::*;
 use proc_macro2::*;
 use proc_quote::*;
 use syn::*;

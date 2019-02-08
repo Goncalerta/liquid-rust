@@ -3,7 +3,7 @@ use proc_quote::*;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::*;
-use helper_meta_parser::*;
+use helpers::*;
 
 // TODO cleanup
 

@@ -1,4 +1,4 @@
-//! Utility items for parsing meta attributes in this crate.
+//! Utility items for this crate.
 
 use proc_macro2::*;
 use std::str::FromStr;
