@@ -91,6 +91,7 @@ pub struct SliceFilterParser;
 #[derive(Debug, FromFilterParameters, Display_filter)]
 #[name = "slice"]
 pub struct SliceFilter {
+    #[parameters]
     args: SliceParameters,
 }
 
@@ -121,6 +122,29 @@ impl Filter for SliceFilter {
         }
     }
 }
+
+
+#[derive(Clone, ParseFilter, FilterReflection)]
+#[filter(
+    name = "upcase",
+    description = "Makes the string uppercase.",
+    parsed(UpCaseFilter)
+)]
+pub struct UpCaseFilterParser;
+
+#[derive(Debug, Default, Display_filter)]
+#[name = "upcase"]
+pub struct UpCaseFilter;
+
+impl Filter for UpCaseFilter {
+    fn evaluate(&self, input: &Value, context: &Context) -> Result<Value> {
+        let s = input.to_str();
+        Ok(Value::scalar(s.to_uppercase()))
+    }
+}
+
+
+
 
 // standardfilters.rb
 
