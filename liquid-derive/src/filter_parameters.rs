@@ -746,9 +746,9 @@ fn generate_impl_display(filter_parameters: &FilterParameters) -> TokenStream {
 
                 let positional = positional
                     .iter()
-                    .filter_map(|p| p.as_ref())
+                    .filter_map(|p: &Option<&Expression>| p.as_ref())
                     .map(|p| p.to_string());
-                let keyword = keyword.iter().filter_map(|p| match p.1 {
+                let keyword = keyword.iter().filter_map(|p: &(&str, Option<&Expression>)| match p.1 {
                     Some(p1) => Some(format!("{}: {}", p.0, p1)),
                     None => None,
                 });
