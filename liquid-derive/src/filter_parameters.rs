@@ -501,11 +501,7 @@ fn generate_evaluate_field(field: &FilterParameter) -> TokenStream {
                     .context("cause", "Date expected"))?
         },
         FilterParameterType::Str => quote! {
-            .as_scalar()
-            .map(::liquid::value::Scalar::to_str)
-            .ok_or_else(||
-                ::liquid::error::Error::with_msg("Invalid argument")
-                    .context("cause", "String expected"))?
+            .to_str()
         },
     };
 
