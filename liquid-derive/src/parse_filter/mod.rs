@@ -183,16 +183,16 @@ impl ParseFilterMeta {
 
         let filter_name = name.unwrap_or_err(|| Error::new_spanned(
             attr,
-            "Filter does not have a name. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
+            "FilterReflection does not have a name. Have you tried `#[filter(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
         ));
         let filter_description = description.unwrap_or_err(|| Error::new_spanned(
             attr,
-            "Filter does not have a description. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
+            "FilterReflection does not have a description. Have you tried `#[filter(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
         ));
         let parameters_struct_name = parameters.to_option();
         let filter_struct_name = parsed.unwrap_or_err(|| Error::new_spanned(
             attr,
-            "ParseFilterMeta does not have a Filter to return. Have you tried `#[parser(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
+            "ParseFilter does not have a Filter to return. Have you tried `#[filter(name=\"...\", description=\"...\", parameters(...), parsed(...))]`?",
         ));
 
         Ok(ParseFilterMeta {

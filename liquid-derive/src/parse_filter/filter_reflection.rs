@@ -19,8 +19,8 @@ fn generate_reflection(filter_parser: &ParseFilter) -> Result<TokenStream> {
         parameters_struct_name
     {
         (
-            quote! { <#parameters_struct_name as ::liquid::compiler::FilterParametersReflection>::positional_parameters() },
-            quote! { <#parameters_struct_name as ::liquid::compiler::FilterParametersReflection>::keyword_parameters() },
+            quote_spanned! {parameters_struct_name.span()=> <#parameters_struct_name as ::liquid::compiler::FilterParametersReflection>::positional_parameters() },
+            quote_spanned! {parameters_struct_name.span()=> <#parameters_struct_name as ::liquid::compiler::FilterParametersReflection>::keyword_parameters() },
         )
     } else {
         (quote! { &[] }, quote! { &[] })

@@ -82,7 +82,7 @@ impl<'a> FilterStruct<'a> {
         let fields = filter_fields;
         let parameters_struct_name = parameters_struct_name.unwrap_or_err(|| Error::new(
             Span::call_site(),
-            "Cannot infer `FilterParameters` field in target struct. Mark this field with the `#[parameters]` attribute.",
+            "Cannot find `FilterParameters` field in target struct. Mark this field with the `#[parameters]` attribute.",
         ))?;
 
         Ok(Self {

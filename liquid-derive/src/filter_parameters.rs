@@ -7,7 +7,6 @@ use syn::spanned::Spanned;
 use syn::*;
 
 // TODO generate better liquid::errors.
-// TODO generate better macro errors (ex. lack of From have a more precise span)
 
 /// Struct that contains information to generate the necessary code for `FilterParameters`.
 struct FilterParameters<'a> {
