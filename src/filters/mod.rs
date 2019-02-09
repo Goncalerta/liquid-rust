@@ -14,22 +14,20 @@
 // pub use self::math::{abs, at_least, at_most, divided_by, minus, modulo, plus, times};
 // pub use self::url::{url_decode, url_encode};
 
-use std::borrow::Cow;
+// use std::borrow::Cow;
 use std::cmp;
-use std::fmt::{self, Display};
+// use std::fmt::{self, Display};
 
-use itertools;
-use liquid_compiler::{
-    Filter, FilterArguments, FilterParameters, FilterReflection, ParameterReflection, ParseFilter,
-};
+// use itertools;
+use liquid_compiler::{Filter, FilterParameters};
 use liquid_error::{self, Result};
 use liquid_interpreter::Context;
 use liquid_interpreter::Expression;
-use liquid_value::Scalar;
+// use liquid_value::Scalar;
 use liquid_value::Value;
-use unicode_segmentation::UnicodeSegmentation;
+// use unicode_segmentation::UnicodeSegmentation;
 
-use liquid_derive;
+
 
 // type FilterResult = Result<Filter>;
 
@@ -104,7 +102,7 @@ impl Filter for SliceFilter {
 
         if length < 1 {
             return Err(liquid_error::Error::with_msg("Invalid argument")
-                // .context("position", "1") position is no longer constant the same because of keyword args
+                // .context("position", "1") position is no longer constant because of keyword args
                 .context("cause", "Positive number expected."));
         }
 
@@ -137,7 +135,7 @@ pub struct UpCaseFilterParser;
 pub struct UpCaseFilter;
 
 impl Filter for UpCaseFilter {
-    fn evaluate(&self, input: &Value, context: &Context) -> Result<Value> {
+    fn evaluate(&self, input: &Value, _context: &Context) -> Result<Value> {
         let s = input.to_str();
         Ok(Value::scalar(s.to_uppercase()))
     }

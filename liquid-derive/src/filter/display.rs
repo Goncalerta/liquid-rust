@@ -1,8 +1,6 @@
 use helpers::*;
 use proc_macro2::*;
 use proc_quote::*;
-use syn::punctuated::Punctuated;
-use syn::spanned::Spanned;
 use syn::*;
 
 struct FilterStruct<'a> {
@@ -114,8 +112,6 @@ impl<'a> FilterStruct<'a> {
             }
         };
 
-        let fields_len = fields.iter().len();
-
         let marked = fields.iter().enumerate().filter(|(_, field)| {
             field
                 .attrs
@@ -128,7 +124,7 @@ impl<'a> FilterStruct<'a> {
             parameters.set(params, || Error::new_spanned(
                 field,
                 "A previous field was already marked as `parameters`. Only one field can be marked as so.",
-            ));
+            ))?;
         }
 
         let name = ident;
@@ -151,7 +147,6 @@ pub fn derive(input: &DeriveInput) -> TokenStream {
     };
 
     let FilterStruct {
-        name,
         filter_name,
         parameters,
         ..

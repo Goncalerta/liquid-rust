@@ -1,7 +1,6 @@
 use helpers::*;
 use proc_macro2::*;
 use proc_quote::*;
-use std::borrow::Cow;
 use std::str::FromStr;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
@@ -652,7 +651,7 @@ fn generate_parameter_reflection(field: &FilterParameter) -> TokenStream {
     let is_optional = field.is_optional();
 
     quote! {
-        ParameterReflection {
+        ::liquid::compiler::ParameterReflection {
             name: #name,
             description: #description,
             is_optional: #is_optional,

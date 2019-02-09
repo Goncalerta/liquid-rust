@@ -2,16 +2,11 @@ use super::*;
 
 /// Generates implementation of `ParseFilter`.
 fn generate_parse_filter(filter_parser: &ParseFilter) -> Result<TokenStream> {
-    let ParseFilter {
-        name: parser_name,
-        meta:
-            ParseFilterMeta {
-                parameters_struct_name,
-                filter_struct_name,
-                ..
-            },
+    let ParseFilterMeta {
+        parameters_struct_name,
+        filter_struct_name,
         ..
-    } = filter_parser;
+    } = &filter_parser.meta;
 
     let filter_struct_name = filter_struct_name.as_ref().map_err(|err| err.clone())?;
 
@@ -52,7 +47,7 @@ pub fn derive(input: &DeriveInput) -> TokenStream {
         Err(err) => return err.to_compile_error(),
     };
 
-    let mut output = match generate_parse_filter(&filter_parser) {
+    let output = match generate_parse_filter(&filter_parser) {
         Ok(output) => output,
         Err(err) => return err.to_compile_error(),
     };

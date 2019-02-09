@@ -27,7 +27,7 @@ impl<'a> ParseFilter<'a> {
     /// Asserts that this is an empty struct.
     fn validate_data(data: &Data) -> Result<()> {
         match data {
-            Data::Struct(data) => Ok(()),
+            Data::Struct(_) => Ok(()),
             Data::Enum(data) => Err(Error::new_spanned(
                 data.enum_token,
                 "Enums cannot be ParseFilter.",

@@ -2,17 +2,12 @@ use super::*;
 
 /// Generates implementation of `FilterReflection`.
 fn generate_reflection(filter_parser: &ParseFilter) -> Result<TokenStream> {
-    let ParseFilter {
-        name: parser_name,
-        meta:
-            ParseFilterMeta {
-                filter_name,
-                filter_description,
-                parameters_struct_name,
-                ..
-            },
+    let ParseFilterMeta {
+        filter_name,
+        filter_description,
+        parameters_struct_name,
         ..
-    } = filter_parser;
+    } = &filter_parser.meta;
 
     let filter_name = filter_name.as_ref().map_err(|err| err.clone())?;
     let filter_description = filter_description.as_ref().map_err(|err| err.clone())?;

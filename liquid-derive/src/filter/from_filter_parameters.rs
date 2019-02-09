@@ -1,8 +1,6 @@
 use helpers::*;
 use proc_macro2::*;
 use proc_quote::*;
-use syn::punctuated::Punctuated;
-use syn::spanned::Spanned;
 use syn::*;
 
 struct FilterStruct<'a> {
@@ -103,15 +101,6 @@ enum FilterStructField<'a> {
 }
 
 impl<'a> FilterStructField<'a> {
-    fn new(ident: Option<&'a Ident>, ty: &'a Type, is_filter_parameters: bool) -> Self {
-        let field = FilterField { ident, ty };
-        if is_filter_parameters {
-            FilterStructField::FilterParameters(field)
-        } else {
-            FilterStructField::RegularField(field)
-        }
-    }
-
     fn from_field(field: &'a Field) -> Self {
         let Field {
             attrs, ident, ty, ..
@@ -175,7 +164,6 @@ pub fn derive(input: &DeriveInput) -> TokenStream {
     };
 
     let FilterStruct {
-        name,
         parameters_struct_name,
         fields,
         ty,
