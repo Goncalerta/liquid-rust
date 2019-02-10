@@ -1,17 +1,20 @@
 extern crate liquid;
 use liquid::compiler::{Filter, FilterParameters};
-use liquid::error::{Result};
+use liquid::derive::*;
+use liquid::error::Result;
 use liquid::interpreter::Context;
 use liquid::interpreter::Expression;
 use liquid::value::Value;
-use liquid::derive::*;
 
 #[derive(Debug, FilterParameters)]
 struct TestPositionalFilterParameters {
     #[parameter(description = "First positional argument.")]
     pos1: Expression,
 
-    #[parameter(description = "Second positional argument. Must be an integer.", value = "integer")]
+    #[parameter(
+        description = "Second positional argument. Must be an integer.",
+        value = "integer"
+    )]
     pos2: Option<Expression>,
 }
 
@@ -41,7 +44,6 @@ impl Filter for TestPositionalFilter {
         } else {
             format!("<pos1: {}>", pos1)
         };
-         
 
         Ok(Value::scalar(result))
     }

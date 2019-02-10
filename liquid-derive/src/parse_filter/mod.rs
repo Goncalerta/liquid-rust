@@ -126,9 +126,7 @@ impl ParseFilterMeta {
                         "parameters" => {
                             Err(Error::new_spanned(key, "Did you mean `parameters(...)`."))?
                         }
-                        "parsed" => {
-                            Err(Error::new_spanned(key, "Did you mean `parsed(...)`."))?
-                        }
+                        "parsed" => Err(Error::new_spanned(key, "Did you mean `parsed(...)`."))?,
                         _ => Err(Error::new_spanned(
                             key,
                             "Unknown element in filter attribute.",

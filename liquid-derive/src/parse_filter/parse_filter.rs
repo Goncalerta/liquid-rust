@@ -13,13 +13,13 @@ fn generate_parse_filter(filter_parser: &ParseFilter) -> Result<TokenStream> {
     let impl_parse_filter = filter_parser.generate_impl(quote! { ::liquid::compiler::ParseFilter });
 
     if let Some(parameters_struct_name) = parameters_struct_name {
-        let build_filter_parameters = quote_spanned!{parameters_struct_name.span()=> 
+        let build_filter_parameters = quote_spanned! {parameters_struct_name.span()=>
             let args = <#parameters_struct_name as ::liquid::compiler::FilterParameters>::from_args(args)?;
-        }; 
-        
-        let return_expr = quote_spanned!{filter_struct_name.span()=> 
-            Ok(Box::new(<#filter_struct_name as From<#parameters_struct_name>>::from(args))) 
-        }; 
+        };
+
+        let return_expr = quote_spanned! {filter_struct_name.span()=>
+            Ok(Box::new(<#filter_struct_name as From<#parameters_struct_name>>::from(args)))
+        };
 
         Ok(quote! {
             #impl_parse_filter {
@@ -30,9 +30,9 @@ fn generate_parse_filter(filter_parser: &ParseFilter) -> Result<TokenStream> {
             }
         })
     } else {
-        let return_expr = quote_spanned!{filter_struct_name.span()=> 
+        let return_expr = quote_spanned! {filter_struct_name.span()=>
             Ok(Box::new(<#filter_struct_name as Default>::default()))
-        }; 
+        };
         Ok(quote! {
             #impl_parse_filter {
                 fn parse(&self, mut args: ::liquid::compiler::FilterArguments) -> Result<Box<::liquid::compiler::Filter>> {

@@ -1,6 +1,6 @@
 use super::BoxedBlockParser;
-use super::ParseFilter;
 use super::BoxedTagParser;
+use super::ParseFilter;
 use super::PluginRegistry;
 
 #[derive(Clone)]

@@ -1,9 +1,9 @@
 extern crate liquid;
 use liquid::compiler::Filter;
+use liquid::derive::*;
 use liquid::error::Result;
 use liquid::interpreter::Context;
 use liquid::value::Value;
-use liquid::derive::*;
 
 #[derive(Clone, ParseFilter, FilterReflection)]
 #[filter(

@@ -236,7 +236,7 @@ fn parse_filter(filter: Pair, options: &Language) -> Result<Box<Filter>> {
 pub struct FilterArguments<'a> {
     pub positional: Box<Iterator<Item = Expression>>,
     pub keyword: Box<Iterator<Item = (&'a str, Expression)> + 'a>,
-    span: Span<'a>
+    span: Span<'a>,
 }
 
 impl<'a> FilterArguments<'a> {

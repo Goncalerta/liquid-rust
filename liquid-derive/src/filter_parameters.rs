@@ -155,7 +155,7 @@ impl<'a> FilterParametersFields<'a> {
                         FilterParameter::new(name, &field)
                     })
                     .collect::<Result<Punctuated<_, Token![,]>>>()?;
-                
+
                 if parameters.len() == 0 {
                     Err(Error::new_spanned(
                         fields,
@@ -378,7 +378,7 @@ impl FilterParameterMeta {
                 meta,
                 "Couldn't parse this parameter attribute. Have you tried `#[parameter(description=\"...\")]`?",
             )),
-            Meta::List(meta) => meta, 
+            Meta::List(meta) => meta
         };
 
         let mut rename = AssignOnce::Unset;
@@ -459,7 +459,7 @@ fn generate_construct_positional_field(field: &FilterParameter, required: usize)
     } else {
         let plural = if required == 1 { None } else { Some("s") };
         quote! {
-            let #name = args.positional.next().ok_or_else(|| 
+            let #name = args.positional.next().ok_or_else(||
                 args.raise_error("Invalid number of arguments")
                     .context("cause", concat!("expected at least ", #required, " positional argument", #plural))
             )?;
@@ -499,7 +499,7 @@ fn generate_evaluate_field(field: &FilterParameter) -> TokenStream {
             .ok_or_else(||
                 ::liquid::error::Error::with_msg("Invalid argument")
                     .context("argument", #liquid_name)
-                    .context("cause", "Boolean expected")        
+                    .context("cause", "Boolean expected")
             )?
         },
         FilterParameterType::Date => quote! {
@@ -566,7 +566,11 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
         .count();
 
     let too_many_args = {
-        let plural = if num_max_positional == 1 { None } else { Some("s") };
+        let plural = if num_max_positional == 1 {
+            None
+        } else {
+            Some("s")
+        };
         quote! {
             args.raise_error("Invalid number of positional arguments")
                 .context("cause", concat!("expected at most ", #num_max_positional, " positional argument", #plural))

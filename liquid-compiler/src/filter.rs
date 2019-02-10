@@ -67,7 +67,7 @@ impl Clone for Box<ParseFilter> {
     }
 }
 
-impl<T> From<T> for Box<ParseFilter> 
+impl<T> From<T> for Box<ParseFilter>
 where
     T: 'static + ParseFilter,
 {

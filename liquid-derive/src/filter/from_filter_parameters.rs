@@ -65,7 +65,7 @@ impl<'a> FilterStruct<'a> {
         };
 
         let ty = StructFieldsType::from_fields(&fields);
-        
+
         for field in fields.iter() {
             let filter_field = FilterStructField::from_field(field);
             if filter_field.is_filter_parameters() {
@@ -76,7 +76,6 @@ impl<'a> FilterStruct<'a> {
             }
             filter_fields.push(filter_field);
         }
-        
 
         let name = ident;
         let fields = filter_fields;

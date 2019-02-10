@@ -34,10 +34,10 @@ extern crate serde;
 extern crate serde_yaml;
 
 extern crate liquid_compiler;
+extern crate liquid_derive;
 extern crate liquid_error;
 extern crate liquid_interpreter;
 extern crate liquid_value;
-extern crate liquid_derive;
 
 mod parser;
 mod template;

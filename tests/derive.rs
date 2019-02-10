@@ -1,6 +1,6 @@
 extern crate liquid;
-use liquid::{ParserBuilder, Parser};
 use liquid::compiler::FilterReflection;
+use liquid::{Parser, ParserBuilder};
 
 mod derive_test_filters;
 
@@ -47,14 +47,12 @@ pub fn test_derive_positional_filter_err() {
     assert!(parser.parse("{{ 0 | pos:32, pos2:42 }}\n").is_err());
 
     let globals = liquid::value::Object::new();
-    
-    assert!(
-        parser
-            .parse("{{ 0 | pos: \"str\", \"str\" }}\n")
-            .unwrap()
-            .render(&globals)
-            .is_err()
-    );
+
+    assert!(parser
+        .parse("{{ 0 | pos: \"str\", \"str\" }}\n")
+        .unwrap()
+        .render(&globals)
+        .is_err());
 }
 
 #[test]
@@ -68,11 +66,14 @@ pub fn test_derive_positional_filter_reflection() {
     assert_eq!(pos_args[0].name, "pos1");
     assert_eq!(pos_args[0].description, "First positional argument.");
     assert_eq!(pos_args[0].is_optional, false);
-    
+
     assert_eq!(pos_args[1].name, "pos2");
-    assert_eq!(pos_args[1].description, "Second positional argument. Must be an integer.");
+    assert_eq!(
+        pos_args[1].description,
+        "Second positional argument. Must be an integer."
+    );
     assert_eq!(pos_args[1].is_optional, true);
-    
+
     assert!(filter.keyword_parameters().is_empty());
 }
 
@@ -105,17 +106,17 @@ pub fn test_derive_keyword_filter_err() {
 
     assert!(parser.parse("{{ 0 | kw }}\n").is_err());
     assert!(parser.parse("{{ 0 | kw: 1,2 }}\n").is_err());
-    assert!(parser.parse("{{ 0 | kw: required: true, optional:\"str\", 5 }}\n").is_err());
+    assert!(parser
+        .parse("{{ 0 | kw: required: true, optional:\"str\", 5 }}\n")
+        .is_err());
 
     let globals = liquid::value::Object::new();
-    
-    assert!(
-        parser
-            .parse("{{ 0 | kw: required:\"str\" }}\n")
-            .unwrap()
-            .render(&globals)
-            .is_err()
-    );
+
+    assert!(parser
+        .parse("{{ 0 | kw: required:\"str\" }}\n")
+        .unwrap()
+        .render(&globals)
+        .is_err());
 }
 
 #[test]
@@ -130,11 +131,13 @@ pub fn test_derive_keyword_filter_reflection() {
     assert_eq!(kw_args[0].name, "optional");
     assert_eq!(kw_args[0].description, "Optional keyword argument.");
     assert_eq!(kw_args[0].is_optional, true);
-    
+
     assert_eq!(kw_args[1].name, "required");
-    assert_eq!(kw_args[1].description, "Required keyword argument. Must be a boolean.");
+    assert_eq!(
+        kw_args[1].description,
+        "Required keyword argument. Must be a boolean."
+    );
     assert_eq!(kw_args[1].is_optional, false);
-    
 }
 
 #[test]
@@ -165,8 +168,12 @@ pub fn test_derive_mixed_filter_err() {
     let parser = build_parser();
 
     assert!(parser.parse("{{ 0 | mix: a: 5, b: false, c: 4.3, d: \"2019-02-08 15:34:25 -0800\", e: \"str\", type: 0 }}\n").is_err());
-    assert!(parser.parse("{{ 0 | mix: 5, false, 4.3, \"2019-02-08 15:34:25 -0800\", \"str\", 0 }}\n").is_err());
-    assert!(parser.parse("{{ 0 | mix: a: 5, false, c: 4.3, \"2019-02-08 15:34:25 -0800\", \"str\", f: 0 }}\n").is_err());
+    assert!(parser
+        .parse("{{ 0 | mix: 5, false, 4.3, \"2019-02-08 15:34:25 -0800\", \"str\", 0 }}\n")
+        .is_err());
+    assert!(parser
+        .parse("{{ 0 | mix: a: 5, false, c: 4.3, \"2019-02-08 15:34:25 -0800\", \"str\", f: 0 }}\n")
+        .is_err());
 }
 
 #[test]
@@ -188,13 +195,13 @@ pub fn test_derive_mixed_filter_reflection() {
     assert_eq!(pos_args[2].name, "e");
     assert_eq!(pos_args[2].description, "5");
     assert_eq!(pos_args[2].is_optional, true);
-    
+
     let kw_args = filter.keyword_parameters();
 
     assert_eq!(kw_args[0].name, "a");
     assert_eq!(kw_args[0].description, "1");
     assert_eq!(kw_args[0].is_optional, true);
-    
+
     assert_eq!(kw_args[1].name, "c");
     assert_eq!(kw_args[1].description, "3");
     assert_eq!(kw_args[1].is_optional, true);
@@ -208,9 +215,7 @@ pub fn test_derive_mixed_filter_reflection() {
 pub fn test_derive_parameterless_filter_ok() {
     let parser = build_parser();
 
-    let template = parser
-        .parse("{{ 0 | no_args }}")
-        .unwrap();
+    let template = parser.parse("{{ 0 | no_args }}").unwrap();
     let expected = "<>";
 
     let globals = liquid::value::Object::new();
@@ -233,7 +238,7 @@ pub fn test_derive_parameterless_filter_reflection() {
     let filter = derive_test_filters::TestParameterlessFilterParser;
 
     assert_eq!(filter.name(), "no_args");
-    assert_eq!(filter.description(), "Filter with no arguments.");    
+    assert_eq!(filter.description(), "Filter with no arguments.");
     assert!(filter.positional_parameters().is_empty());
     assert!(filter.keyword_parameters().is_empty());
 }

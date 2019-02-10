@@ -1,17 +1,25 @@
 extern crate liquid;
 use liquid::compiler::{Filter, FilterParameters};
-use liquid::error::{Result};
+use liquid::derive::*;
+use liquid::error::Result;
 use liquid::interpreter::Context;
 use liquid::interpreter::Expression;
 use liquid::value::Value;
-use liquid::derive::*;
 
 #[derive(Debug, FilterParameters)]
 struct TestKeywordFilterParameters {
-    #[parameter(description = "Optional keyword argument.", value = "str", mode = "keyword")]
+    #[parameter(
+        description = "Optional keyword argument.",
+        value = "str",
+        mode = "keyword"
+    )]
     optional: Option<Expression>,
 
-    #[parameter(description = "Required keyword argument. Must be a boolean.", value = "bool", mode = "keyword")]
+    #[parameter(
+        description = "Required keyword argument. Must be a boolean.",
+        value = "bool",
+        mode = "keyword"
+    )]
     required: Expression,
 }
 
@@ -34,7 +42,7 @@ pub struct TestKeywordFilter {
 impl Filter for TestKeywordFilter {
     fn evaluate(&self, _input: &Value, context: &Context) -> Result<Value> {
         let args = self.args.evaluate(context)?;
-        
+
         let required = args.required;
 
         let result = if let Some(optional) = args.optional {

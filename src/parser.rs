@@ -184,12 +184,10 @@ where
     }
 
     /// Inserts a new custom filter into the parser
-    pub fn filter<F: Into<Box<compiler::ParseFilter>>>(
-        mut self,
-        filter: F,
-    ) -> Self {
+    pub fn filter<F: Into<Box<compiler::ParseFilter>>>(mut self, filter: F) -> Self {
         let filter = filter.into();
-        self.filters.register(compiler::FilterReflection::name(&*filter), filter);
+        self.filters
+            .register(compiler::FilterReflection::name(&*filter), filter);
         self
     }
 

@@ -153,7 +153,7 @@ pub fn derive(input: &DeriveInput) -> TokenStream {
     } = &filter;
 
     let impl_display = filter.generate_impl(quote! { ::std::fmt::Display });
-    
+
     let output = if let Some(parameters) = parameters {
         quote! {
             #impl_display {

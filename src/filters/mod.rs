@@ -24,11 +24,9 @@ use liquid_error::{self, Result};
 use liquid_interpreter::Context;
 use liquid_interpreter::Expression;
 // use liquid_value::Scalar;
-use liquid_value::Value;
 use liquid_derive::*;
+use liquid_value::Value;
 // use unicode_segmentation::UnicodeSegmentation;
-
-
 
 // type FilterResult = Result<Filter>;
 
@@ -122,7 +120,6 @@ impl Filter for SliceFilter {
     }
 }
 
-
 #[derive(Clone, ParseFilter, FilterReflection)]
 #[filter(
     name = "upcase",
@@ -141,8 +138,6 @@ impl Filter for UpCaseFilter {
         Ok(Value::scalar(s.to_uppercase()))
     }
 }
-
-
 
 // standardfilters.rb
 
