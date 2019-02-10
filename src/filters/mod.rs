@@ -70,10 +70,10 @@ use liquid_value::Value;
 // TEST MACROS
 #[derive(Debug, FilterParameters)]
 struct SliceParameters {
-    #[parameter(description = "The offset of the slice.", value = "whole number")]
+    #[parameter(description = "The offset of the slice.", value = "integer")]
     offset: Expression,
 
-    #[parameter(description = "The length of the slice.", value = "whole number")]
+    #[parameter(description = "The length of the slice.", value = "integer")]
     length: Option<Expression>,
 }
 
@@ -102,8 +102,8 @@ impl Filter for SliceFilter {
 
         if length < 1 {
             return Err(liquid_error::Error::with_msg("Invalid argument")
-                // .context("position", "1") position is no longer constant because of keyword args
-                .context("cause", "Positive number expected."));
+                .context("argument", "length")
+                .context("cause", "Positive number expected"));
         }
 
         if let Value::Array(input) = input {

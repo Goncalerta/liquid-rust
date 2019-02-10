@@ -19,7 +19,7 @@ use super::ParseTag;
 use super::Text;
 use super::{Filter, FilterChain};
 
-use pest::Parser;
+use pest::{Parser, Span};
 
 mod pest {
     #[derive(Parser)]
@@ -51,11 +51,17 @@ fn convert_pest_error(err: ::pest::error::Error<Rule>) -> Error {
 }
 
 /// Generates a `liquid::Error` with the given message pointing to
-/// the pest
+/// the pest pair's span.
 fn error_from_pair(pair: Pair, msg: String) -> Error {
+    error_from_span(pair.as_span(), msg)
+}
+
+/// Generates a `liquid::Error` with the given message pointing to
+/// the given span.
+fn error_from_span(span: Span, msg: String) -> Error {
     let pest_error = ::pest::error::Error::new_from_span(
         ::pest::error::ErrorVariant::CustomError { message: msg },
-        pair.as_span(),
+        span,
     );
     convert_pest_error(pest_error)
 }
@@ -181,6 +187,7 @@ fn parse_filter(filter: Pair, options: &Language) -> Result<Box<Filter>> {
         panic!("Expected a filter.");
     }
 
+    let filter_span = filter.as_span();
     let mut filter = filter.into_inner();
     let name = filter.next().expect("A filter always has a name.").as_str();
 
@@ -208,13 +215,14 @@ fn parse_filter(filter: Pair, options: &Language) -> Result<Box<Filter>> {
     let args = FilterArguments {
         positional: Box::new(positional_args.into_iter()),
         keyword: Box::new(keyword_args.into_iter()),
+        span: filter_span,
     };
 
     let f = options.filters.get(name).ok_or_else(|| {
         let mut available: Vec<_> = options.filters.plugin_names().collect();
         available.sort_unstable();
         let available = itertools::join(available, ", ");
-        Error::with_msg("Unknown filter")
+        args.raise_error("Unknown filter")
             .context("requested filter", name.to_owned())
             .context("available filters", available)
     })?;
@@ -228,6 +236,13 @@ fn parse_filter(filter: Pair, options: &Language) -> Result<Box<Filter>> {
 pub struct FilterArguments<'a> {
     pub positional: Box<Iterator<Item = Expression>>,
     pub keyword: Box<Iterator<Item = (&'a str, Expression)> + 'a>,
+    span: Span<'a>
+}
+
+impl<'a> FilterArguments<'a> {
+    pub fn raise_error(&self, msg: &str) -> Error {
+        error_from_span(self.span.clone(), msg.to_string())
+    }
 }
 
 /// Parses a `FilterChain` from a `Pair` with a filter chain.

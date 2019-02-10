@@ -6,8 +6,6 @@ use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::*;
 
-// TODO generate better liquid::errors.
-
 /// Struct that contains information to generate the necessary code for `FilterParameters`.
 struct FilterParameters<'a> {
     name: &'a Ident,
@@ -451,7 +449,7 @@ impl FilterParameterMeta {
 }
 
 /// Generates the statement that assigns the next positional argument.
-fn generate_construct_positional_field(field: &FilterParameter) -> TokenStream {
+fn generate_construct_positional_field(field: &FilterParameter, required: usize) -> TokenStream {
     let name = &field.name;
 
     if field.is_optional() {
@@ -459,8 +457,12 @@ fn generate_construct_positional_field(field: &FilterParameter) -> TokenStream {
             let #name = args.positional.next();
         }
     } else {
+        let plural = if required == 1 { None } else { Some("s") };
         quote! {
-            let #name = args.positional.next().ok_or_else(|| ::liquid::error::Error::with_msg("Required"))?;
+            let #name = args.positional.next().ok_or_else(|| 
+                args.raise_error("Invalid number of arguments")
+                    .context("cause", concat!("expected at least ", #required, " positional argument", #plural))
+            )?;
         }
     }
 }
@@ -468,6 +470,7 @@ fn generate_construct_positional_field(field: &FilterParameter) -> TokenStream {
 /// Generates the statement that evaluates the `Expression`
 fn generate_evaluate_field(field: &FilterParameter) -> TokenStream {
     let name = &field.name;
+    let liquid_name = field.liquid_name();
     let ty = &field.meta.ty;
 
     let to_type = match ty {
@@ -477,28 +480,36 @@ fn generate_evaluate_field(field: &FilterParameter) -> TokenStream {
             .and_then(::liquid::value::Scalar::to_integer)
             .ok_or_else(||
                 ::liquid::error::Error::with_msg("Invalid argument")
-                    .context("cause", "Whole number expected"))?
+                    .context("argument", #liquid_name)
+                    .context("cause", "Whole number expected")
+            )?
         },
         FilterParameterType::Float => quote! {
             .as_scalar()
             .and_then(::liquid::value::Scalar::to_float)
             .ok_or_else(||
                 ::liquid::error::Error::with_msg("Invalid argument")
-                    .context("cause", "Fractional number expected"))?
+                    .context("argument", #liquid_name)
+                    .context("cause", "Fractional number expected")
+            )?
         },
         FilterParameterType::Bool => quote! {
             .as_scalar()
             .and_then(::liquid::value::Scalar::to_bool)
             .ok_or_else(||
                 ::liquid::error::Error::with_msg("Invalid argument")
-                    .context("cause", "Boolean expected"))?
+                    .context("argument", #liquid_name)
+                    .context("cause", "Boolean expected")        
+            )?
         },
         FilterParameterType::Date => quote! {
             .as_scalar()
             .and_then(::liquid::value::Scalar::to_date)
             .ok_or_else(||
                 ::liquid::error::Error::with_msg("Invalid argument")
-                    .context("cause", "Date expected"))?
+                    .context("argument", #liquid_name)
+                    .context("cause", "Date expected")
+            )?
         },
         FilterParameterType::Str => quote! {
             .to_str()
@@ -528,7 +539,7 @@ fn generate_keyword_match_arm(field: &FilterParameter) -> TokenStream {
         #liquid_name => if #rust_name.is_none() {
             #rust_name = Some(arg.1);
         } else {
-            return Err(::liquid::error::Error::with_msg(concat!("Multiple definitions of ", #liquid_name, ".")));
+            return Err(args.raise_error(concat!("Multiple definitions of `", #liquid_name, "`")));
         },
     }
 }
@@ -542,6 +553,26 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
         ..
     } = filter_parameters;
 
+    let num_min_positional = fields
+        .parameters
+        .iter()
+        .filter(|parameter| parameter.is_positional() && parameter.is_required())
+        .count();
+
+    let num_max_positional = fields
+        .parameters
+        .iter()
+        .filter(|parameter| parameter.is_positional())
+        .count();
+
+    let too_many_args = {
+        let plural = if num_max_positional == 1 { None } else { Some("s") };
+        quote! {
+            args.raise_error("Invalid number of positional arguments")
+                .context("cause", concat!("expected at most ", #num_max_positional, " positional argument", #plural))
+        }
+    };
+
     let field_names = fields.parameters.iter().map(|field| &field.name);
     let comma_separated_field_names = quote! { #(#field_names,)* };
 
@@ -554,7 +585,7 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
         .parameters
         .iter()
         .filter(|parameter| parameter.is_positional())
-        .map(|field| generate_construct_positional_field(&field));
+        .map(|field| generate_construct_positional_field(&field, num_min_positional));
 
     let keyword_fields = fields
         .parameters
@@ -567,10 +598,14 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
         .filter(|parameter| parameter.is_keyword())
         .map(|field| generate_keyword_match_arm(&field));
 
-    let required_keyword_fields = fields
+    let unwrap_required_keyword_fields = fields
         .parameters
         .iter()
-        .filter(|parameter| parameter.is_keyword() && parameter.is_required());
+        .filter(|parameter| parameter.is_keyword() && parameter.is_required())
+        .map(|field| {
+            let liquid_name = field.liquid_name();
+            quote!{ let #field = #field.ok_or_else(|| args.raise_error(concat!("Expected named argument `", #liquid_name, "`")))?; }
+        });
 
     quote! {
         impl<'a> ::liquid::compiler::FilterParameters<'a> for #name {
@@ -579,17 +614,17 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
             fn from_args(mut args: ::liquid::compiler::FilterArguments) -> ::liquid::error::Result<Self> {
                 #(#construct_positional_fields)*
                 if let Some(arg) = args.positional.next() {
-                    return Err(::liquid::error::Error::with_msg("Too many positional parameters."));
+                    return Err(#too_many_args);
                 }
 
                 #(let mut #keyword_fields = None;)*
-                for arg in args.keyword {
+                while let Some(arg) = args.keyword.next() {
                     match arg.0 {
                         #(#match_keyword_parameters_arms)*
-                        keyword => return Err(::liquid::error::Error::with_msg(format!("Unexpected keyword parameter `{}`.", keyword))),
+                        keyword => return Err(args.raise_error(&format!("Unexpected named argument `{}`", keyword))),
                     }
                 }
-                #(let #required_keyword_fields = #required_keyword_fields.ok_or_else(|| ::liquid::error::Error::with_msg("Required"))?;)*
+                #(#unwrap_required_keyword_fields)*
 
                 Ok( #name { #comma_separated_field_names } )
             }

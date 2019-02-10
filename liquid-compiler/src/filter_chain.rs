@@ -3,7 +3,7 @@ use std::io::Write;
 
 use itertools;
 
-use liquid_error::{Result, ResultLiquidReplaceExt};
+use liquid_error::{Result, ResultLiquidReplaceExt, ResultLiquidExt};
 use liquid_interpreter::Context;
 use liquid_interpreter::Expression;
 use liquid_interpreter::Renderable;
@@ -31,7 +31,12 @@ impl FilterChain {
 
         // apply all specified filters
         for filter in &self.filters {
-            entry = filter.evaluate(&entry, context)?;
+            entry = filter.evaluate(&entry, context)
+                .trace("Filter error")
+                .context_key("filter")
+                .value_with(|| format!("{}", filter).into())
+                .context_key("input")
+                .value_with(|| format!("{}", entry.source()).into())?;
         }
 
         Ok(entry)
