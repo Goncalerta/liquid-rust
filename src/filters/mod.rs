@@ -25,6 +25,7 @@ use liquid_interpreter::Context;
 use liquid_interpreter::Expression;
 // use liquid_value::Scalar;
 use liquid_value::Value;
+use liquid_derive::*;
 // use unicode_segmentation::UnicodeSegmentation;
 
 
@@ -140,7 +141,6 @@ impl Filter for UpCaseFilter {
         Ok(Value::scalar(s.to_uppercase()))
     }
 }
-
 
 
 

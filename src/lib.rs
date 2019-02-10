@@ -37,7 +37,6 @@ extern crate liquid_compiler;
 extern crate liquid_error;
 extern crate liquid_interpreter;
 extern crate liquid_value;
-#[macro_use]
 extern crate liquid_derive;
 
 mod parser;
@@ -62,6 +61,9 @@ pub mod interpreter {
 }
 pub mod value {
     pub use liquid_value::*;
+}
+pub mod derive {
+    pub use liquid_derive::*;
 }
 
 pub mod filters;
