@@ -348,7 +348,7 @@ impl FromStr for FilterParameterType {
             "bool" => Ok(FilterParameterType::Bool),
             "date" => Ok(FilterParameterType::Date),
             "str" => Ok(FilterParameterType::Str),
-            _ => Err(format!("Expected one of the following: \"any\", \"whole number\", \"fractional number\", \"boolean\", \"date\" or \"string\". Found \"{}\".", s)),
+            _ => Err(format!("Expected one of the following: \"any\", \"integer\", \"float\", \"bool\", \"date\" or \"str\". Found \"{}\".", s)),
         }
     }
 }
