@@ -5,21 +5,15 @@ use liquid_error::Result;
 use liquid_interpreter::Context;
 use liquid_value::Value;
 
-pub trait FilterParametersReflection {
-    fn positional_parameters() -> &'static [ParameterReflection];
-    fn keyword_parameters() -> &'static [ParameterReflection];
-}
-
-pub trait FilterParameters<'a>: Sized + FilterParametersReflection + Debug + Display {
-    type EvaluatedFilterParameters;
-    fn from_args(args: FilterArguments) -> Result<Self>;
-    fn evaluate(&'a self, context: &'a Context) -> Result<Self::EvaluatedFilterParameters>;
-}
-
 pub struct ParameterReflection {
     pub name: &'static str,
     pub description: &'static str,
     pub is_optional: bool,
+}
+
+pub trait FilterParametersReflection {
+    fn positional_parameters() -> &'static [ParameterReflection];
+    fn keyword_parameters() -> &'static [ParameterReflection];
 }
 
 pub trait FilterReflection {
@@ -28,6 +22,12 @@ pub trait FilterReflection {
 
     fn positional_parameters(&self) -> &'static [ParameterReflection];
     fn keyword_parameters(&self) -> &'static [ParameterReflection];
+}
+
+pub trait FilterParameters<'a>: Sized + FilterParametersReflection + Debug + Display {
+    type EvaluatedFilterParameters;
+    fn from_args(args: FilterArguments) -> Result<Self>;
+    fn evaluate(&'a self, context: &'a Context) -> Result<Self::EvaluatedFilterParameters>;
 }
 
 pub trait Filter: Send + Sync + Debug + Display {

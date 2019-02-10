@@ -61,13 +61,15 @@ mod test {
     use std::borrow;
 
     use compiler;
-    use filters;
     use interpreter;
     use interpreter::ContextBuilder;
     use partials;
     use partials::PartialCompiler;
     use tags;
     use value;
+    use value::Value;
+    use compiler::Filter;
+    use derive::*;
 
     use super::*;
 
@@ -106,84 +108,107 @@ mod test {
         options
     }
 
-    // #[test]
-    // fn include_tag_quotes() {
-    //     let text = "{% include 'example.txt' %}";
-    //     let mut options = options();
-    //     options
-    //         .filters
-    //         .register("size", (filters::size as compiler::FnFilterValue).into());
-    //     let template = compiler::parse(text, &options)
-    //         .map(interpreter::Template::new)
-    //         .unwrap();
+    #[derive(Clone, ParseFilter, FilterReflection)]
+    #[filter(
+        name = "size",
+        description = "tests helper",
+        parsed(SizeFilter)
+    )]
+    pub struct SizeFilterParser;
 
-    //     let partials = partials::OnDemandCompiler::<TestSource>::empty()
-    //         .compile(::std::sync::Arc::new(options))
-    //         .unwrap();
-    //     let mut context = ContextBuilder::new()
-    //         .set_partials(partials.as_ref())
-    //         .build();
-    //     context
-    //         .stack_mut()
-    //         .set_global("num", value::Value::scalar(5f64));
-    //     context
-    //         .stack_mut()
-    //         .set_global("numTwo", value::Value::scalar(10f64));
-    //     let output = template.render(&mut context).unwrap();
-    //     assert_eq!(output, "5 wat wot");
-    // }
+    #[derive(Debug, Default, Display_filter)]
+    #[name = "size"]
+    pub struct SizeFilter;
 
-    // #[test]
-    // fn include_non_string() {
-    //     let text = "{% include example.txt %}";
-    //     let mut options = options();
-    //     options
-    //         .filters
-    //         .register("size", (filters::size as compiler::FnFilterValue).into());
-    //     let template = compiler::parse(text, &options)
-    //         .map(interpreter::Template::new)
-    //         .unwrap();
+    impl Filter for SizeFilter {
+        fn evaluate(&self, input: &Value, _context: &Context) -> Result<Value> {
+            match *input {
+                Value::Scalar(ref x) => Ok(Value::scalar(x.to_str().len() as i32)),
+                Value::Array(ref x) => Ok(Value::scalar(x.len() as i32)),
+                Value::Object(ref x) => Ok(Value::scalar(x.len() as i32)),
+                _ => Ok(Value::scalar(0i32)),
+            }
+        }
+    }
 
-    //     let partials = partials::OnDemandCompiler::<TestSource>::empty()
-    //         .compile(::std::sync::Arc::new(options))
-    //         .unwrap();
-    //     let mut context = ContextBuilder::new()
-    //         .set_partials(partials.as_ref())
-    //         .build();
-    //     context
-    //         .stack_mut()
-    //         .set_global("num", value::Value::scalar(5f64));
-    //     context
-    //         .stack_mut()
-    //         .set_global("numTwo", value::Value::scalar(10f64));
-    //     let output = template.render(&mut context).unwrap();
-    //     assert_eq!(output, "5 wat wot");
-    // }
+    #[test]
+    fn include_tag_quotes() {
+        let text = "{% include 'example.txt' %}";
+        let mut options = options();
+        options
+            .filters
+            .register("size", Box::new(SizeFilterParser));
+        let template = compiler::parse(text, &options)
+            .map(interpreter::Template::new)
+            .unwrap();
+
+        let partials = partials::OnDemandCompiler::<TestSource>::empty()
+            .compile(::std::sync::Arc::new(options))
+            .unwrap();
+        let mut context = ContextBuilder::new()
+            .set_partials(partials.as_ref())
+            .build();
+        context
+            .stack_mut()
+            .set_global("num", value::Value::scalar(5f64));
+        context
+            .stack_mut()
+            .set_global("numTwo", value::Value::scalar(10f64));
+        let output = template.render(&mut context).unwrap();
+        assert_eq!(output, "5 wat wot");
+    }
+
+    #[test]
+    fn include_non_string() {
+        let text = "{% include example.txt %}";
+        let mut options = options();
+        options
+            .filters
+            .register("size", Box::new(SizeFilterParser));
+        let template = compiler::parse(text, &options)
+            .map(interpreter::Template::new)
+            .unwrap();
+
+        let partials = partials::OnDemandCompiler::<TestSource>::empty()
+            .compile(::std::sync::Arc::new(options))
+            .unwrap();
+        let mut context = ContextBuilder::new()
+            .set_partials(partials.as_ref())
+            .build();
+        context
+            .stack_mut()
+            .set_global("num", value::Value::scalar(5f64));
+        context
+            .stack_mut()
+            .set_global("numTwo", value::Value::scalar(10f64));
+        let output = template.render(&mut context).unwrap();
+        assert_eq!(output, "5 wat wot");
+    }
 
     #[test]
     fn no_file() {
-        // let text = "{% include 'file_does_not_exist.liquid' %}";
-        // let mut options = options();
-        // options
-        //     .filters
-        //     .register("size", (filters::size as compiler::FnFilterValue).into());
-        // let template = compiler::parse(text, &options)
-        //     .map(interpreter::Template::new)
-        //     .unwrap();
+        let text = "{% include 'file_does_not_exist.liquid' %}";
+        let mut options = options();
+        options
+            .filters
+            .register("size", Box::new(SizeFilterParser));
+        let template = compiler::parse(text, &options)
+            .map(interpreter::Template::new)
+            .unwrap();
 
-        // let partials = partials::OnDemandCompiler::<TestSource>::empty()
-        //     .compile(::std::sync::Arc::new(options))
-        //     .unwrap();
-        // let mut context = ContextBuilder::new()
-        //     .set_partials(partials.as_ref())
-        //     .build();
-        // context
-        //     .stack_mut()
-        //     .set_global("num", value::Value::scalar(5f64));
-        // context
-        //     .stack_mut()
-        //     .set_global("numTwo", value::Value::scalar(10f64));
-        // let output = template.render(&mut context);
-        // assert!(output.is_err());
+        let partials = partials::OnDemandCompiler::<TestSource>::empty()
+            .compile(::std::sync::Arc::new(options))
+            .unwrap();
+        let mut context = ContextBuilder::new()
+            .set_partials(partials.as_ref())
+            .build();
+        context
+            .stack_mut()
+            .set_global("num", value::Value::scalar(5f64));
+        context
+            .stack_mut()
+            .set_global("numTwo", value::Value::scalar(10f64));
+        let output = template.render(&mut context);
+        assert!(output.is_err());
     }
 }

@@ -501,7 +501,8 @@ mod test {
     use compiler;
     use interpreter;
     use interpreter::ContextBuilder;
-
+    use compiler::Filter;
+    use derive::*;
     use tags;
 
     use super::*;
@@ -803,38 +804,54 @@ mod test {
             );
     }
 
-    // #[test]
-    // fn use_filters() {
-    //     let text = concat!(
-    //         "{% for name in array %}",
-    //         "test {{name | shout}} ",
-    //         "{% endfor %}",
-    //     );
+    #[derive(Clone, ParseFilter, FilterReflection)]
+    #[filter(
+        name = "shout",
+        description = "tests helper",
+        parsed(ShoutFilter)
+    )]
+    pub struct ShoutFilterParser;
 
-    //     let mut options = options();
-    //     options.filters.register(
-    //         "shout",
-    //         ((|input, _args| Ok(Value::scalar(input.to_str().to_uppercase())))
-    //             as compiler::FnFilterValue)
-    //             .into(),
-    //     );
-    //     let template = compiler::parse(text, &options)
-    //         .map(interpreter::Template::new)
-    //         .unwrap();
+    #[derive(Debug, Default, Display_filter)]
+    #[name = "shout"]
+    pub struct ShoutFilter;
 
-    //     let mut context = ContextBuilder::new().build();
+    impl Filter for ShoutFilter {
+        fn evaluate(&self, input: &Value, _context: &Context) -> Result<Value> {
+            Ok(Value::scalar(input.to_str().to_uppercase()))
+        }
+    }
 
-    //     context.stack_mut().set_global(
-    //         "array",
-    //         Value::Array(vec![
-    //             Value::scalar("alpha"),
-    //             Value::scalar("beta"),
-    //             Value::scalar("gamma"),
-    //         ]),
-    //     );
-    //     let output = template.render(&mut context).unwrap();
-    //     assert_eq!(output, "test ALPHA test BETA test GAMMA ");
-    // }
+    #[test]
+    fn use_filters() {
+        let text = concat!(
+            "{% for name in array %}",
+            "test {{name | shout}} ",
+            "{% endfor %}",
+        );
+
+        let mut options = options();
+        options.filters.register(
+            "shout",
+            Box::new(ShoutFilterParser),
+        );
+        let template = compiler::parse(text, &options)
+            .map(interpreter::Template::new)
+            .unwrap();
+
+        let mut context = ContextBuilder::new().build();
+
+        context.stack_mut().set_global(
+            "array",
+            Value::Array(vec![
+                Value::scalar("alpha"),
+                Value::scalar("beta"),
+                Value::scalar("gamma"),
+            ]),
+        );
+        let output = template.render(&mut context).unwrap();
+        assert_eq!(output, "test ALPHA test BETA test GAMMA ");
+    }
 
     #[test]
     fn for_loop_parameters_with_variables() {

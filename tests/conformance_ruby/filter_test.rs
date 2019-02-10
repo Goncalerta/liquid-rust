@@ -1,21 +1,50 @@
 use liquid;
-use liquid::compiler::FilterResult;
+use liquid::compiler::Filter;
 use liquid::value::Value;
+use liquid::derive::*;
 
-fn money(input: &Value, _args: &[Value]) -> FilterResult {
-    Ok(Value::scalar(format!(" {}$ ", input.render())))
+#[derive(Clone, ParseFilter, FilterReflection)]
+#[filter(
+    name = "money",
+    description = "tests helper",
+    parsed(MoneyFilter)
+)]
+pub struct MoneyFilterParser;
+
+#[derive(Debug, Default, Display_filter)]
+#[name = "money"]
+pub struct MoneyFilter;
+
+impl Filter for MoneyFilter {
+    fn evaluate(&self, input: &Value, _context: &Context) -> Result<Value> {
+        Ok(Value::scalar(format!(" {}$ ", input.render())))
+    }
 }
 
-fn money_with_underscore(input: &Value, _args: &[Value]) -> FilterResult {
-    Ok(Value::scalar(format!(" {}$ ", input.render())))
+#[derive(Clone, ParseFilter, FilterReflection)]
+#[filter(
+    name = "money_with_underscore",
+    description = "tests helper",
+    parsed(MoneyWithUnderscoreFilter)
+)]
+pub struct MoneyWithUnderscoreFilterParser;
+
+#[derive(Debug, Default, Display_filter)]
+#[name = "money_with_underscore"]
+pub struct MoneyWithUnderscoreFilter;
+
+impl Filter for MoneyWithUnderscoreFilter {
+    fn evaluate(&self, input: &Value, _context: &Context) -> Result<Value> {
+        Ok(Value::scalar(format!(" {}$ ", input.render())))
+    }
 }
 
 fn liquid_money() -> liquid::Parser {
     liquid::ParserBuilder::with_liquid()
-        .filter("money", money as liquid::compiler::FnFilterValue)
+        .filter("money", Box::new(MoneyFilterParser))
         .filter(
             "money_with_underscore",
-            money_with_underscore as liquid::compiler::FnFilterValue,
+            Box::new(MoneyWithUnderscoreFilterParser),
         )
         .build()
         .unwrap()
