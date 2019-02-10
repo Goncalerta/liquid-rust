@@ -343,11 +343,11 @@ impl FromStr for FilterParameterType {
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
             "any" => Ok(FilterParameterType::Value),
-            "whole number" => Ok(FilterParameterType::Integer),
-            "fractional number" => Ok(FilterParameterType::Float),
-            "boolean" => Ok(FilterParameterType::Bool),
+            "integer" => Ok(FilterParameterType::Integer),
+            "float" => Ok(FilterParameterType::Float),
+            "bool" => Ok(FilterParameterType::Bool),
             "date" => Ok(FilterParameterType::Date),
-            "string" => Ok(FilterParameterType::Str),
+            "str" => Ok(FilterParameterType::Str),
             _ => Err(format!("Expected one of the following: \"any\", \"whole number\", \"fractional number\", \"boolean\", \"date\" or \"string\". Found \"{}\".", s)),
         }
     }
