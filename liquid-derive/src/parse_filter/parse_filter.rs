@@ -23,7 +23,7 @@ fn generate_parse_filter(filter_parser: &ParseFilter) -> Result<TokenStream> {
 
         Ok(quote! {
             #impl_parse_filter {
-                fn parse(&self, args: ::liquid::compiler::FilterArguments) -> Result<Box<::liquid::compiler::Filter>> {
+                fn parse(&self, args: ::liquid::compiler::FilterArguments) -> ::liquid::error::Result<Box<::liquid::compiler::Filter>> {
                     #build_filter_parameters
                     #return_expr
                 }
@@ -35,7 +35,7 @@ fn generate_parse_filter(filter_parser: &ParseFilter) -> Result<TokenStream> {
         };
         Ok(quote! {
             #impl_parse_filter {
-                fn parse(&self, mut args: ::liquid::compiler::FilterArguments) -> Result<Box<::liquid::compiler::Filter>> {
+                fn parse(&self, mut args: ::liquid::compiler::FilterArguments) -> ::liquid::error::Result<Box<::liquid::compiler::Filter>> {
                     if let Some(arg) = args.positional.next() {
                         return Err(args.raise_error("Invalid number of positional arguments")
                             .context("cause", concat!("expected at most 0 positional arguments"))
