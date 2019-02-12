@@ -69,10 +69,10 @@ use liquid_value::Value;
 // TEST MACROS
 #[derive(Debug, FilterParameters)]
 struct SliceParameters {
-    #[parameter(description = "The offset of the slice.", value = "integer")]
+    #[parameter(description = "The offset of the slice.", arg_type = "integer")]
     offset: Expression,
 
-    #[parameter(description = "The length of the slice.", value = "integer")]
+    #[parameter(description = "The length of the slice.", arg_type = "integer")]
     length: Option<Expression>,
 }
 

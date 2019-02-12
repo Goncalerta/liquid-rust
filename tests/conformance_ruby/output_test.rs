@@ -46,7 +46,7 @@ impl Filter for CiteFunnyFilter {
 
 #[derive(Debug, FilterParameters)]
 struct AddSmileyFilterParameters {
-    #[parameter(description = "", value = "str")]
+    #[parameter(description = "", arg_type = "str")]
     smiley: Option<Expression>,
 }
 
@@ -76,10 +76,10 @@ impl Filter for AddSmileyFilter {
 
 #[derive(Debug, FilterParameters)]
 struct AddTagFilterParameters {
-    #[parameter(description = "", value = "str")]
+    #[parameter(description = "", arg_type = "str")]
     tag: Option<Expression>,
 
-    #[parameter(description = "", value = "str")]
+    #[parameter(description = "", arg_type = "str")]
     id: Option<Expression>,
 }
 
@@ -135,7 +135,7 @@ impl Filter for ParagraphFilter {
 
 #[derive(Debug, FilterParameters)]
 struct LinkToFilterParameters {
-    #[parameter(description = "", value = "str")]
+    #[parameter(description = "", arg_type = "str")]
     url: Option<Expression>,
 }
 

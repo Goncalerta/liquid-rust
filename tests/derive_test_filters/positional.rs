@@ -13,7 +13,7 @@ struct TestPositionalFilterParameters {
 
     #[parameter(
         description = "Second positional argument. Must be an integer.",
-        value = "integer"
+        arg_type = "integer"
     )]
     pos2: Option<Expression>,
 }

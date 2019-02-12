@@ -13,22 +13,22 @@ struct EvaluatedTestMixedFilterParameters;
 #[derive(Debug, FilterParameters)]
 #[evaluated(TestMixedFilterParametersEvaluated)]
 struct TestMixedFilterParameters {
-    #[parameter(description = "1", value = "integer", mode = "keyword")]
+    #[parameter(description = "1", arg_type = "integer", mode = "keyword")]
     a: Option<Expression>,
 
-    #[parameter(description = "2", value = "bool")]
+    #[parameter(description = "2", arg_type = "bool")]
     b: Expression,
 
-    #[parameter(description = "3", value = "float", mode = "keyword")]
+    #[parameter(description = "3", arg_type = "float", mode = "keyword")]
     c: Option<Expression>,
 
-    #[parameter(description = "4", value = "date")]
+    #[parameter(description = "4", arg_type = "date")]
     d: Expression,
 
-    #[parameter(description = "5", value = "str")]
+    #[parameter(description = "5", arg_type = "str")]
     e: Option<Expression>,
 
-    #[parameter(rename = "type", description = "6", value = "any", mode = "keyword")]
+    #[parameter(rename = "type", description = "6", arg_type = "any", mode = "keyword")]
     f: Expression,
 }
 

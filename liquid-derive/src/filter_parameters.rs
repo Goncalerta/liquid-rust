@@ -395,7 +395,7 @@ impl FilterParameterMeta {
                     "rename" => assign_str_value(&mut rename, key, value)?,
                     "description" => assign_str_value(&mut description, key, value)?,
                     "mode" => parse_str_value(&mut mode, key, value)?,
-                    "value" => parse_str_value(&mut ty, key, value)?,
+                    "arg_type" => parse_str_value(&mut ty, key, value)?,
                     _ => Err(Error::new_spanned(
                         key,
                         "Unknown element in parameter attribute.",

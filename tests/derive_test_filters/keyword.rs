@@ -10,14 +10,14 @@ use liquid::value::Value;
 struct TestKeywordFilterParameters {
     #[parameter(
         description = "Optional keyword argument.",
-        value = "str",
+        arg_type = "str",
         mode = "keyword"
     )]
     optional: Option<Expression>,
 
     #[parameter(
         description = "Required keyword argument. Must be a boolean.",
-        value = "bool",
+        arg_type = "bool",
         mode = "keyword"
     )]
     required: Expression,
