@@ -1,8 +1,9 @@
 extern crate liquid;
 use liquid::compiler::FilterReflection;
 use liquid::{Parser, ParserBuilder};
+use derive_macros_test_filters
 
-mod derive_test_filters;
+mod derive_macros_test_filters;
 
 fn build_parser() -> Parser {
     ParserBuilder::new()
@@ -242,3 +243,4 @@ pub fn test_derive_parameterless_filter_reflection() {
     assert!(filter.positional_parameters().is_empty());
     assert!(filter.keyword_parameters().is_empty());
 }
+
