@@ -3,7 +3,7 @@ members = ["liquid-error", "liquid-value", "liquid-compiler", "liquid-interprete
 
 [package]
 name = "liquid"
-version = "0.18.0"
+version = "0.18.2"
 authors = ["Johann Hofmann <mail@johann-hofmann.com>"]
 description = "The liquid templating language for Rust"
 repository = "https://github.com/cobalt-org/liquid-rust"
@@ -31,13 +31,14 @@ cli = ["clap", "error-chain", "serde_yaml", "serde_json"]
 extra-filters = []
 # Ensure keys in `Value`s `Object`s to be sorted.
 object_sorted = []
+jekyll-filters = []
 
 [dependencies]
 regex = "1.0"
 lazy_static = "1.0"
 chrono = "0.4"
 unicode-segmentation = "1.2"
-itertools = "0.7.0"
+itertools = "0.8.0"
 url = "1.5"
 
 liquid-error = { version = "0.18", path = "liquid-error" }
@@ -51,6 +52,7 @@ clap = { version = "2.26", optional = true }
 error-chain = { version = "0.12.0", optional = true }
 serde_yaml = { version = "0.8", optional = true }
 serde_json = { version = "1.0", optional = true }
+deunicode = "1.0.0"
 
 [dev-dependencies]
 difference = "2.0"

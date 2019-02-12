@@ -1,70 +1,10 @@
-// #[cfg(feature = "extra-filters")]
-// mod array;
-// mod date;
-// mod html;
-// mod math;
-// mod url;
-
-// #[cfg(feature = "extra-filters")]
-// pub use self::array::{array_to_sentence_string, pop, push, shift, unshift};
-// pub use self::date::date;
-// #[cfg(feature = "extra-filters")]
-// pub use self::date::date_in_tz;
-// pub use self::html::{escape, escape_once, newline_to_br, strip_html};
-// pub use self::math::{abs, at_least, at_most, divided_by, minus, modulo, plus, times};
-// pub use self::url::{url_decode, url_encode};
-
-// use std::borrow::Cow;
 use std::cmp;
-// use std::fmt::{self, Display};
-
-// use itertools;
 use liquid_compiler::{Filter, FilterParameters};
 use liquid_error::{self, Result};
 use liquid_interpreter::Context;
 use liquid_interpreter::Expression;
-// use liquid_value::Scalar;
 use liquid_derive::*;
 use liquid_value::Value;
-// use unicode_segmentation::UnicodeSegmentation;
-
-// type FilterResult = Result<Filter>;
-
-// pub fn invalid_input<S: Into<Cow<'static, str>>>(cause: S) -> liquid_error::Error {
-//     liquid_error::Error::with_msg("Invalid input").context("cause", cause)
-// }
-
-// pub fn invalid_argument_count<S: Into<Cow<'static, str>>>(cause: S) -> liquid_error::Error {
-//     liquid_error::Error::with_msg("Invalid number of arguments").context("cause", cause)
-// }
-
-// pub fn invalid_argument<S: Into<Cow<'static, str>>>(
-//     position: usize,
-//     cause: S,
-// ) -> liquid_error::Error {
-//     liquid_error::Error::with_msg("Invalid argument")
-//         .context("position", format!("{}", position))
-//         .context("cause", cause)
-// }
-
-// Helper functions for the filters.
-// fn check_args_len(args: &[Value], required: usize, optional: usize) -> Result<()> {
-//     if args.len() < required {
-//         return Err(invalid_argument_count(format!(
-//             "expected at least {}, {} given",
-//             required,
-//             args.len()
-//         )));
-//     }
-//     if required + optional < args.len() {
-//         return Err(invalid_argument_count(format!(
-//             "expected at most {}, {} given",
-//             required + optional,
-//             args.len()
-//         )));
-//     }
-//     Ok(())
-// }
 
 // TEST MACROS
 #[derive(Debug, FilterParameters)]
@@ -120,6 +60,7 @@ impl Filter for SliceFilter {
     }
 }
 
+
 #[derive(Clone, ParseFilter, FilterReflection)]
 #[filter(
     name = "upcase",
@@ -139,7 +80,107 @@ impl Filter for UpCaseFilter {
     }
 }
 
-// standardfilters.rb
+fn canonicalize_slice(
+    slice_offset: isize,
+    slice_length: isize,
+    vec_length: usize,
+) -> (usize, usize) {
+    let vec_length = vec_length as isize;
+
+    // Cap slice_offset
+    let slice_offset = cmp::min(slice_offset, vec_length);
+    // Reverse indexing
+    let slice_offset = if slice_offset < 0 {
+        slice_offset + vec_length
+    } else {
+        slice_offset
+    };
+
+    // Cap slice_length
+    let slice_length = if slice_offset + slice_length > vec_length {
+        vec_length - slice_offset
+    } else {
+        slice_length
+    };
+
+    (slice_offset as usize, slice_length as usize)
+}
+
+// #[cfg(feature = "extra-filters")]
+// mod array;
+// mod date;
+// mod html;
+// mod math;
+// mod url;
+
+// #[cfg(feature = "jekyll-filters")]
+// mod jekyll;
+
+// #[cfg(feature = "extra-filters")]
+// pub use self::array::{array_to_sentence_string, pop, push, shift, unshift};
+// pub use self::date::date;
+// #[cfg(feature = "extra-filters")]
+// pub use self::date::date_in_tz;
+// pub use self::html::{escape, escape_once, newline_to_br, strip_html};
+// #[cfg(feature = "jekyll-filters")]
+// pub use self::jekyll::slugify;
+// pub use self::math::{abs, at_least, at_most, divided_by, minus, modulo, plus, times};
+// pub use self::url::{url_decode, url_encode};
+
+// use std::borrow::Cow;
+// use std::cmp;
+
+// use itertools;
+// use liquid_error;
+// use liquid_value::Scalar;
+// use liquid_value::Value;
+// use unicode_segmentation::UnicodeSegmentation;
+
+// use compiler::FilterResult;
+
+// pub fn invalid_input<S: Into<Cow<'static, str>>>(cause: S) -> liquid_error::Error {
+//     liquid_error::Error::with_msg("Invalid input").context("cause", cause)
+// }
+
+// pub fn invalid_argument_count<S: Into<Cow<'static, str>>>(cause: S) -> liquid_error::Error {
+//     liquid_error::Error::with_msg("Invalid number of arguments").context("cause", cause)
+// }
+
+// pub fn invalid_argument<S: Into<Cow<'static, str>>>(
+//     position: usize,
+//     cause: S,
+// ) -> liquid_error::Error {
+//     liquid_error::Error::with_msg("Invalid argument")
+//         .context("position", format!("{}", position))
+//         .context("cause", cause)
+// }
+
+// // Helper functions for the filters.
+// fn check_args_len(
+//     args: &[Value],
+//     required: usize,
+//     optional: usize,
+// ) -> Result<(), liquid_error::Error> {
+//     if args.len() < required {
+//         return invalid_argument_count(format!(
+//             "expected at least {}, {} given",
+//             required,
+//             args.len()
+//         ))
+//         .into_err();
+//     }
+//     if required + optional < args.len() {
+//         return invalid_argument_count(format!(
+//             "expected at most {}, {} given",
+//             required + optional,
+//             args.len()
+//         ))
+//         .into_err();
+//     }
+//     Ok(())
+// }
+
+// // standardfilters.rb
 
 // pub fn size(input: &Value, args: &[Value]) -> FilterResult {
 //     check_args_len(args, 0, 0)?;
@@ -179,31 +220,31 @@ impl Filter for UpCaseFilter {
 //     Ok(Value::scalar(capitalized))
 // }
 
-fn canonicalize_slice(
-    slice_offset: isize,
-    slice_length: isize,
-    vec_length: usize,
-) -> (usize, usize) {
-    let vec_length = vec_length as isize;
+// fn canonicalize_slice(
+//     slice_offset: isize,
+//     slice_length: isize,
+//     vec_length: usize,
+// ) -> (usize, usize) {
+//     let vec_length = vec_length as isize;
 
-    // Cap slice_offset
-    let slice_offset = cmp::min(slice_offset, vec_length);
-    // Reverse indexing
-    let slice_offset = if slice_offset < 0 {
-        slice_offset + vec_length
-    } else {
-        slice_offset
-    };
+//     // Cap slice_offset
+//     let slice_offset = cmp::min(slice_offset, vec_length);
+//     // Reverse indexing
+//     let slice_offset = if slice_offset < 0 {
+//         slice_offset + vec_length
+//     } else {
+//         slice_offset
+//     };
 
-    // Cap slice_length
-    let slice_length = if slice_offset + slice_length > vec_length {
-        vec_length - slice_offset
-    } else {
-        slice_length
-    };
+//     // Cap slice_length
+//     let slice_length = if slice_offset + slice_length > vec_length {
+//         vec_length - slice_offset
+//     } else {
+//         slice_length
+//     };
 
-    (slice_offset as usize, slice_length as usize)
-}
+//     (slice_offset as usize, slice_length as usize)
+// }
 
 // pub fn slice(input: &Value, args: &[Value]) -> FilterResult {
 //     check_args_len(args, 1, 1)?;
@@ -221,7 +262,7 @@ fn canonicalize_slice(
 //         .and_then(Scalar::to_integer)
 //         .ok_or_else(|| invalid_argument(0, "Whole number expected"))?;
 //     if length < 1 {
-//         return Err(invalid_argument(1, "Positive number expected"));
+//         return invalid_argument(1, "Positive number expected").into_err();
 //     }
 //     let length = length as isize;
 
@@ -549,7 +590,7 @@ fn canonicalize_slice(
 // pub fn remove(input: &Value, args: &[Value]) -> FilterResult {
 //     check_args_len(args, 1, 0)?;
 
-//     let input = input.to_str().into_owned();;
+//     let input = input.to_str();
 
 //     let string = args[0].to_str();
 
@@ -571,41 +612,11 @@ fn canonicalize_slice(
 // pub fn append(input: &Value, args: &[Value]) -> FilterResult {
 //     check_args_len(args, 1, 0)?;
 
-//     let mut input = input.to_string();
+//     let mut input = input.to_str().into_owned();
 
 //     let string = args[0].to_str();
 
 //     input.push_str(string.as_ref());
-
-//     Ok(Value::scalar(input))
-// }
-
-// pub fn concat(input: &Value, args: &[Value]) -> FilterResult {
-//     check_args_len(args, 1, 0)?;
-
-//     let input = input
-//         .as_array()
-//         .ok_or_else(|| invalid_input("Array expected"))?;
-//     let input = input.iter().cloned();
-
-//     let array = args[0]
-//         .as_array()
-//         .ok_or_else(|| invalid_argument(0, "Array expected"))?;
-//     let array = array.iter().cloned();
-
-//     let result = input.chain(array);
-//     let result: Vec<_> = result.collect();
-//     Ok(Value::array(result))
-// }
-
-// pub fn prepend(input: &Value, args: &[Value]) -> FilterResult {
-//     check_args_len(args, 1, 0)?;
-
-//     let input = input.to_str();
-
-//     let mut string = args[0].to_string();
-
-//     string.push_str(input.as_ref());
 
 //     Ok(Value::scalar(input))
 // }
@@ -855,10 +866,10 @@ fn canonicalize_slice(
 //             tos!("Über ètat, y̆es?")
 //         );
 
-//         // Weird UTF-8 White space is kept – this is a no-break whitespace!
+//         // Weird UTF-8 White space is kept – this is a no-break whitespace!
 //         assert_eq!(
-//             unit!(capitalize, tos!("hello world​")),
-//             tos!("Hello world​")
+//             unit!(capitalize, tos!("hello world​")),
+//             tos!("Hello world​")
 //         );
 
 //         // The uppercase version of some character are more than one character long
