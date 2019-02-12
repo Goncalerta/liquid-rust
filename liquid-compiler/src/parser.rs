@@ -220,7 +220,8 @@ fn parse_filter(filter: Pair, options: &Language) -> Result<Box<Filter>> {
             .context("available filters", available)
     })?;
 
-    let f = f.parse(args)
+    let f = f
+        .parse(args)
         .trace("Filter parsing error")
         .context_key("filter")
         .value_with(|| filter_str.to_string().into())?;

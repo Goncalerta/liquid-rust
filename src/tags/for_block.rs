@@ -499,10 +499,10 @@ fn unexpected_value_error_string(expected: &str, actual: Option<String>) -> Erro
 #[cfg(test)]
 mod test {
     use compiler;
-    use interpreter;
-    use interpreter::ContextBuilder;
     use compiler::Filter;
     use derive::*;
+    use interpreter;
+    use interpreter::ContextBuilder;
     use tags;
 
     use super::*;
@@ -805,11 +805,7 @@ mod test {
     }
 
     #[derive(Clone, ParseFilter, FilterReflection)]
-    #[filter(
-        name = "shout",
-        description = "tests helper",
-        parsed(ShoutFilter)
-    )]
+    #[filter(name = "shout", description = "tests helper", parsed(ShoutFilter))]
     pub struct ShoutFilterParser;
 
     #[derive(Debug, Default, Display_filter)]
@@ -831,10 +827,9 @@ mod test {
         );
 
         let mut options = options();
-        options.filters.register(
-            "shout",
-            Box::new(ShoutFilterParser),
-        );
+        options
+            .filters
+            .register("shout", Box::new(ShoutFilterParser));
         let template = compiler::parse(text, &options)
             .map(interpreter::Template::new)
             .unwrap();

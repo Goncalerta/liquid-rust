@@ -61,6 +61,8 @@ mod test {
     use std::borrow;
 
     use compiler;
+    use compiler::Filter;
+    use derive::*;
     use interpreter;
     use interpreter::ContextBuilder;
     use partials;
@@ -68,8 +70,6 @@ mod test {
     use tags;
     use value;
     use value::Value;
-    use compiler::Filter;
-    use derive::*;
 
     use super::*;
 
@@ -109,11 +109,7 @@ mod test {
     }
 
     #[derive(Clone, ParseFilter, FilterReflection)]
-    #[filter(
-        name = "size",
-        description = "tests helper",
-        parsed(SizeFilter)
-    )]
+    #[filter(name = "size", description = "tests helper", parsed(SizeFilter))]
     pub struct SizeFilterParser;
 
     #[derive(Debug, Default, Display_filter)]
@@ -135,9 +131,7 @@ mod test {
     fn include_tag_quotes() {
         let text = "{% include 'example.txt' %}";
         let mut options = options();
-        options
-            .filters
-            .register("size", Box::new(SizeFilterParser));
+        options.filters.register("size", Box::new(SizeFilterParser));
         let template = compiler::parse(text, &options)
             .map(interpreter::Template::new)
             .unwrap();
@@ -162,9 +156,7 @@ mod test {
     fn include_non_string() {
         let text = "{% include example.txt %}";
         let mut options = options();
-        options
-            .filters
-            .register("size", Box::new(SizeFilterParser));
+        options.filters.register("size", Box::new(SizeFilterParser));
         let template = compiler::parse(text, &options)
             .map(interpreter::Template::new)
             .unwrap();
@@ -189,9 +181,7 @@ mod test {
     fn no_file() {
         let text = "{% include 'file_does_not_exist.liquid' %}";
         let mut options = options();
-        options
-            .filters
-            .register("size", Box::new(SizeFilterParser));
+        options.filters.register("size", Box::new(SizeFilterParser));
         let template = compiler::parse(text, &options)
             .map(interpreter::Template::new)
             .unwrap();
