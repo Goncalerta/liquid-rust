@@ -3,6 +3,8 @@ use proc_macro2::*;
 use proc_quote::*;
 use syn::*;
 
+/// Struct that contains information about the `Filter` struct to generate the
+/// necessary code for `Display`.
 struct FilterStruct<'a> {
     name: &'a Ident,
     filter_name: String,
@@ -10,12 +12,16 @@ struct FilterStruct<'a> {
     generics: &'a Generics,
 }
 
+/// The field that holds `FilterParameters`.
 enum Parameters<'a> {
     Ident(&'a Ident),
     Pos(usize),
 }
 
 impl<'a> Parameters<'a> {
+    /// Creates a new `Parameters` from the given `ident` (if it is
+    /// a struct with named fields) or the given position of the field
+    /// (in case of unnamed parameters).
     fn new(ident: Option<&'a Ident>, pos: usize) -> Self {
         match ident {
             Some(ident) => Parameters::Ident(ident),
@@ -86,6 +92,7 @@ impl<'a> FilterStruct<'a> {
         }
     }
 
+    /// Tries to create a new `FilterStruct` from the given `DeriveInput`
     fn from_input(input: &'a DeriveInput) -> Result<Self> {
         let DeriveInput {
             ident,

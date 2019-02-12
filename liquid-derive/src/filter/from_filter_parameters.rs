@@ -3,6 +3,8 @@ use proc_macro2::*;
 use proc_quote::*;
 use syn::*;
 
+/// Struct that contains information about the `Filter` struct to generate the
+/// necessary code for `From`.
 struct FilterStruct<'a> {
     name: &'a Ident,
     parameters_struct_name: &'a Type,
@@ -11,6 +13,7 @@ struct FilterStruct<'a> {
     generics: &'a Generics,
 }
 
+/// The type of the fields of this struct.
 enum StructFieldsType {
     Named,
     Unnamed,
@@ -18,6 +21,7 @@ enum StructFieldsType {
 }
 
 impl StructFieldsType {
+    /// Returns the type of the given Fields.
     fn from_fields(fields: &Fields) -> Self {
         match fields {
             Fields::Named(_) => StructFieldsType::Named,
@@ -38,6 +42,7 @@ impl<'a> FilterStruct<'a> {
         }
     }
 
+    /// Tries to create a new `FilterStruct` from the given `DeriveInput`
     fn from_input(input: &'a DeriveInput) -> Result<Self> {
         let DeriveInput {
             ident,
@@ -94,12 +99,15 @@ impl<'a> FilterStruct<'a> {
     }
 }
 
+/// A field in `FilterStruct`. It can either be a regular one or the one marked
+/// with `#[parameters]`.
 enum FilterStructField<'a> {
     FilterParameters(FilterField<'a>),
     RegularField(FilterField<'a>),
 }
 
 impl<'a> FilterStructField<'a> {
+    /// Creates a new `FilterStruct` from the given `Field`.
     fn from_field(field: &'a Field) -> Self {
         let Field {
             attrs, ident, ty, ..
@@ -114,6 +122,8 @@ impl<'a> FilterStructField<'a> {
         }
     }
 
+    /// Generates the code that gives the value of this field in the constructor
+    /// of the `Filter`.
     fn generate_field_value(&self) -> TokenStream {
         match self {
             FilterStructField::FilterParameters(field) => {
@@ -143,6 +153,7 @@ impl<'a> FilterStructField<'a> {
         }
     }
 
+    /// Returns whether this is a field marked with `#[parameters]`
     fn is_filter_parameters(&self) -> bool {
         match self {
             FilterStructField::FilterParameters(_) => true,
@@ -151,6 +162,7 @@ impl<'a> FilterStructField<'a> {
     }
 }
 
+/// A field in `FilterStruct`.
 struct FilterField<'a> {
     ident: Option<&'a Ident>,
     ty: &'a Type,
