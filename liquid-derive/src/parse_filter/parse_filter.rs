@@ -37,14 +37,13 @@ fn generate_parse_filter(filter_parser: &ParseFilter) -> Result<TokenStream> {
             #impl_parse_filter {
                 fn parse(&self, mut args: ::liquid::compiler::FilterArguments) -> ::liquid::error::Result<Box<::liquid::compiler::Filter>> {
                     if let Some(arg) = args.positional.next() {
-                        return Err(args.raise_error("Invalid number of positional arguments")
+                        return Err(::liquid::error::Error::with_msg("Invalid number of positional arguments")
                             .context("cause", concat!("expected at most 0 positional arguments"))
                         );
                     }
                     if let Some(arg) = args.keyword.next() {
-                        return Err(args.raise_error(&format!("Unexpected named argument `{}`", arg.0)));
+                        return Err(::liquid::error::Error::with_msg(format!("Unexpected named argument `{}`", arg.0)));
                     }
-
 
                     #return_expr
                 }

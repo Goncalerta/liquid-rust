@@ -460,7 +460,7 @@ fn generate_construct_positional_field(field: &FilterParameter, required: usize)
         let plural = if required == 1 { None } else { Some("s") };
         quote! {
             let #name = args.positional.next().ok_or_else(||
-                args.raise_error("Invalid number of arguments")
+                ::liquid::error::Error::with_msg("Invalid number of arguments")
                     .context("cause", concat!("expected at least ", #required, " positional argument", #plural))
             )?;
         }
@@ -539,7 +539,7 @@ fn generate_keyword_match_arm(field: &FilterParameter) -> TokenStream {
         #liquid_name => if #rust_name.is_none() {
             #rust_name = Some(arg.1);
         } else {
-            return Err(args.raise_error(concat!("Multiple definitions of `", #liquid_name, "`")));
+            return Err(::liquid::error::Error::with_msg(concat!("Multiple definitions of `", #liquid_name, "`")));
         },
     }
 }
@@ -572,7 +572,7 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
             Some("s")
         };
         quote! {
-            args.raise_error("Invalid number of positional arguments")
+            ::liquid::error::Error::with_msg("Invalid number of positional arguments")
                 .context("cause", concat!("expected at most ", #num_max_positional, " positional argument", #plural))
         }
     };
@@ -608,7 +608,7 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
         .filter(|parameter| parameter.is_keyword() && parameter.is_required())
         .map(|field| {
             let liquid_name = field.liquid_name();
-            quote!{ let #field = #field.ok_or_else(|| args.raise_error(concat!("Expected named argument `", #liquid_name, "`")))?; }
+            quote!{ let #field = #field.ok_or_else(|| ::liquid::error::Error::with_msg(concat!("Expected named argument `", #liquid_name, "`")))?; }
         });
 
     quote! {
@@ -625,7 +625,7 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
                 while let Some(arg) = args.keyword.next() {
                     match arg.0 {
                         #(#match_keyword_parameters_arms)*
-                        keyword => return Err(args.raise_error(&format!("Unexpected named argument `{}`", keyword))),
+                        keyword => return Err(::liquid::error::Error::with_msg(format!("Unexpected named argument `{}`", keyword))),
                     }
                 }
                 #(#unwrap_required_keyword_fields)*
