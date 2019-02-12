@@ -156,12 +156,8 @@ struct FilterField<'a> {
     ty: &'a Type,
 }
 
-pub fn derive(input: &DeriveInput) -> TokenStream {
-    let filter = match FilterStruct::from_input(input) {
-        Ok(filter) => filter,
-        Err(err) => return err.to_compile_error(),
-    };
-
+/// Generates implementation of `From<FilterParameters>`.
+fn generate_from_filter_parameters(filter: &FilterStruct) -> TokenStream {
     let FilterStruct {
         parameters_struct_name,
         fields,
@@ -172,7 +168,7 @@ pub fn derive(input: &DeriveInput) -> TokenStream {
 
     let impl_from = filter.generate_impl(quote! { From<#parameters_struct_name> });
 
-    let output = match ty {
+    match ty {
         StructFieldsType::Named => quote! {
             #impl_from {
                 fn from(parameters: #parameters_struct_name) -> Self {
@@ -198,7 +194,16 @@ pub fn derive(input: &DeriveInput) -> TokenStream {
                 }
             }
         },
+    }
+}
+
+pub fn derive(input: &DeriveInput) -> TokenStream {
+    let filter = match FilterStruct::from_input(input) {
+        Ok(filter) => filter,
+        Err(err) => return err.to_compile_error(),
     };
+
+    let output = generate_from_filter_parameters(&filter);
 
     output
 }

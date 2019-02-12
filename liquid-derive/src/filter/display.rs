@@ -140,12 +140,8 @@ impl<'a> FilterStruct<'a> {
     }
 }
 
-pub fn derive(input: &DeriveInput) -> TokenStream {
-    let filter = match FilterStruct::from_input(input) {
-        Ok(filter) => filter,
-        Err(err) => return err.to_compile_error(),
-    };
-
+/// Generates implementation of `Display`.
+fn generate_impl_display(filter: &FilterStruct) -> TokenStream {
     let FilterStruct {
         filter_name,
         parameters,
@@ -154,7 +150,7 @@ pub fn derive(input: &DeriveInput) -> TokenStream {
 
     let impl_display = filter.generate_impl(quote! { ::std::fmt::Display });
 
-    let output = if let Some(parameters) = parameters {
+    if let Some(parameters) = parameters {
         quote! {
             #impl_display {
                 fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
@@ -170,7 +166,16 @@ pub fn derive(input: &DeriveInput) -> TokenStream {
                 }
             }
         }
+    }
+}
+
+pub fn derive(input: &DeriveInput) -> TokenStream {
+    let filter = match FilterStruct::from_input(input) {
+        Ok(filter) => filter,
+        Err(err) => return err.to_compile_error(),
     };
+
+    let output = generate_impl_display(&filter);
 
     output
 }
