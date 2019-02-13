@@ -1,16 +1,16 @@
 extern crate liquid;
+
 use liquid::compiler::FilterReflection;
 use liquid::{Parser, ParserBuilder};
-use derive_macros_test_filters
 
 mod derive_macros_test_filters;
 
 fn build_parser() -> Parser {
     ParserBuilder::new()
-        .filter(derive_test_filters::TestPositionalFilterParser)
-        .filter(derive_test_filters::TestKeywordFilterParser)
-        .filter(derive_test_filters::TestMixedFilterParser)
-        .filter(derive_test_filters::TestParameterlessFilterParser)
+        .filter(derive_macros_test_filters::TestPositionalFilterParser)
+        .filter(derive_macros_test_filters::TestKeywordFilterParser)
+        .filter(derive_macros_test_filters::TestMixedFilterParser)
+        .filter(derive_macros_test_filters::TestParameterlessFilterParser)
         .build()
         .unwrap()
 }
@@ -58,7 +58,7 @@ pub fn test_derive_positional_filter_err() {
 
 #[test]
 pub fn test_derive_positional_filter_reflection() {
-    let filter = derive_test_filters::TestPositionalFilterParser;
+    let filter = derive_macros_test_filters::TestPositionalFilterParser;
 
     assert_eq!(filter.name(), "pos");
     assert_eq!(filter.description(), "Filter to test positional arguments.");
@@ -122,7 +122,7 @@ pub fn test_derive_keyword_filter_err() {
 
 #[test]
 pub fn test_derive_keyword_filter_reflection() {
-    let filter = derive_test_filters::TestKeywordFilterParser;
+    let filter = derive_macros_test_filters::TestKeywordFilterParser;
 
     assert_eq!(filter.name(), "kw");
     assert_eq!(filter.description(), "Filter to test keyword arguments.");
@@ -179,7 +179,7 @@ pub fn test_derive_mixed_filter_err() {
 
 #[test]
 pub fn test_derive_mixed_filter_reflection() {
-    let filter = derive_test_filters::TestMixedFilterParser;
+    let filter = derive_macros_test_filters::TestMixedFilterParser;
 
     assert_eq!(filter.name(), "mix");
     assert_eq!(filter.description(), "Mix it all together.");
@@ -236,7 +236,7 @@ pub fn test_derive_parameterless_filter_err() {
 
 #[test]
 pub fn test_derive_parameterless_filter_reflection() {
-    let filter = derive_test_filters::TestParameterlessFilterParser;
+    let filter = derive_macros_test_filters::TestParameterlessFilterParser;
 
     assert_eq!(filter.name(), "no_args");
     assert_eq!(filter.description(), "Filter with no arguments.");
@@ -244,3 +244,28 @@ pub fn test_derive_parameterless_filter_reflection() {
     assert!(filter.keyword_parameters().is_empty());
 }
 
+#[test]
+pub fn test_derive_stateful_filter() {
+    let globals = liquid::value::Object::new();
+
+    let filter = derive_macros_test_filters::TestStatefulFilterParser::new();
+
+    let parser = ParserBuilder::new().filter(filter).build().unwrap();
+    let rendered = parser.parse("{{ 0 | state: \"hello\" }}").unwrap().render(&globals).unwrap();
+    assert_eq!(rendered, ":-| hello :-|");
+
+    let mut filter = derive_macros_test_filters::TestStatefulFilterParser::new();
+    filter.make_happy();
+    
+    let parser = ParserBuilder::new().filter(filter).build().unwrap();
+    let rendered = parser.parse("{{ 0 | state: \"hello\" }}").unwrap().render(&globals).unwrap();
+    assert_eq!(rendered, ":-) hello :-)");
+
+    let mut filter = derive_macros_test_filters::TestStatefulFilterParser::new();
+    filter.make_sad();
+
+    let parser = ParserBuilder::new().filter(filter).build().unwrap();
+    let rendered = parser.parse("{{ 0 | state: \"hello\" }}").unwrap().render(&globals).unwrap();
+    assert_eq!(rendered, ":-( hello :-(");
+
+}
