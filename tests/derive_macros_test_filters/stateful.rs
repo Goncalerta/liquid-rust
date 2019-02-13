@@ -1,5 +1,5 @@
 extern crate liquid;
-use liquid::compiler::{Filter, FilterParameters, FilterArguments, ParseFilter};
+use liquid::compiler::{Filter, FilterArguments, FilterParameters, ParseFilter};
 use liquid::derive::*;
 use liquid::error::Result;
 use liquid::interpreter::Context;

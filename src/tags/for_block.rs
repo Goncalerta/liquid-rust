@@ -271,7 +271,7 @@ pub fn for_block(
             _ => {
                 return token
                     .raise_custom_error("\"limit\", \"offset\" or \"reversed\" expected.")
-                    .into_err()
+                    .into_err();
             }
         }
     }
@@ -466,7 +466,7 @@ pub fn tablerow_block(
             _ => {
                 return token
                     .raise_custom_error("\"cols\", \"limit\" or \"offset\" expected.")
-                    .into_err()
+                    .into_err();
             }
         }
     }

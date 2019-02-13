@@ -251,21 +251,32 @@ pub fn test_derive_stateful_filter() {
     let filter = derive_macros_test_filters::TestStatefulFilterParser::new();
 
     let parser = ParserBuilder::new().filter(filter).build().unwrap();
-    let rendered = parser.parse("{{ 0 | state: \"hello\" }}").unwrap().render(&globals).unwrap();
+    let rendered = parser
+        .parse("{{ 0 | state: \"hello\" }}")
+        .unwrap()
+        .render(&globals)
+        .unwrap();
     assert_eq!(rendered, ":-| hello :-|");
 
     let mut filter = derive_macros_test_filters::TestStatefulFilterParser::new();
     filter.make_happy();
-    
+
     let parser = ParserBuilder::new().filter(filter).build().unwrap();
-    let rendered = parser.parse("{{ 0 | state: \"hello\" }}").unwrap().render(&globals).unwrap();
+    let rendered = parser
+        .parse("{{ 0 | state: \"hello\" }}")
+        .unwrap()
+        .render(&globals)
+        .unwrap();
     assert_eq!(rendered, ":-) hello :-)");
 
     let mut filter = derive_macros_test_filters::TestStatefulFilterParser::new();
     filter.make_sad();
 
     let parser = ParserBuilder::new().filter(filter).build().unwrap();
-    let rendered = parser.parse("{{ 0 | state: \"hello\" }}").unwrap().render(&globals).unwrap();
+    let rendered = parser
+        .parse("{{ 0 | state: \"hello\" }}")
+        .unwrap()
+        .render(&globals)
+        .unwrap();
     assert_eq!(rendered, ":-( hello :-(");
-
 }
