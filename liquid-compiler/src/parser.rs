@@ -228,13 +228,6 @@ fn parse_filter(filter: Pair, options: &Language) -> Result<Box<Filter>> {
     Ok(f)
 }
 
-/// Structure that holds both the positional and the keyword arguments of
-/// a filter.
-pub struct FilterArguments<'a> {
-    pub positional: Box<Iterator<Item = Expression>>,
-    pub keyword: Box<Iterator<Item = (&'a str, Expression)> + 'a>,
-}
-
 /// Parses a `FilterChain` from a `Pair` with a filter chain.
 /// This `Pair` must be `Rule::FilterChain`.
 fn parse_filter_chain(chain: Pair, options: &Language) -> Result<FilterChain> {

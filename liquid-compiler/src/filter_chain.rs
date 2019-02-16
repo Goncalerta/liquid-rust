@@ -3,13 +3,12 @@ use std::io::Write;
 
 use itertools;
 
+use super::Filter;
 use liquid_error::{Result, ResultLiquidExt, ResultLiquidReplaceExt};
 use liquid_interpreter::Context;
 use liquid_interpreter::Expression;
 use liquid_interpreter::Renderable;
 use liquid_value::Value;
-
-use super::Filter;
 
 /// A `Value` expression.
 #[derive(Debug)]

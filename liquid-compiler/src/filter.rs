@@ -30,6 +30,13 @@ pub trait FilterParameters<'a>: Sized + FilterParametersReflection + Debug + Dis
     fn evaluate(&'a self, context: &'a Context) -> Result<Self::EvaluatedFilterParameters>;
 }
 
+/// Structure that holds both the positional and the keyword arguments of
+/// a filter.
+pub struct FilterArguments<'a> {
+    pub positional: Box<Iterator<Item = Expression>>,
+    pub keyword: Box<Iterator<Item = (&'a str, Expression)> + 'a>,
+}
+
 pub trait Filter: Send + Sync + Debug + Display {
     // This will evaluate the expressions and evaluate the filter.
     fn evaluate(&self, input: &Value, context: &Context) -> Result<Value>;
