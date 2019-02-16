@@ -189,121 +189,151 @@ impl Filter for ArrayToSentenceStringFilter {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
+#[cfg(test)]
+mod tests {
 
-//     use super::*;
+    use super::*;
 
-//     macro_rules! unit {
-//         ($a:ident, $b:expr) => {{
-//             unit!($a, $b, &[])
-//         }};
-//         ($a:ident, $b:expr, $c:expr) => {{
-//             $a(&$b, $c).unwrap()
-//         }};
-//     }
+    macro_rules! unit {
+        ($a:ident, $b:expr) => {{
+            unit!($a, $b, )
+        }};
+        ($a:ident, $b:expr, $($c:expr),*) => {{
+            let positional = Box::new(vec![$(::liquid::interpreter::Expression::Literal($c)),*].into_iter());
+            let keyword = Box::new(Vec::new().into_iter());
+            let args = ::liquid::compiler::FilterArguments { positional, keyword };
 
-//     #[test]
-//     fn unit_push() {
-//         let input = Value::Array(vec![Value::scalar("Seattle"), Value::scalar("Tacoma")]);
-//         let args = &[Value::scalar("Spokane")];
-//         let desired_result = Value::Array(vec![
-//             Value::scalar("Seattle"),
-//             Value::scalar("Tacoma"),
-//             Value::scalar("Spokane"),
-//         ]);
-//         assert_eq!(unit!(push, input, args), desired_result);
-//     }
+            let context = ::liquid::interpreter::Context::default();
 
-//     #[test]
-//     fn unit_pop() {
-//         let input = Value::Array(vec![Value::scalar("Seattle"), Value::scalar("Tacoma")]);
-//         let args = &[];
-//         let desired_result = Value::Array(vec![Value::scalar("Seattle")]);
-//         assert_eq!(unit!(pop, input, args), desired_result);
-//     }
+            let filter = ::liquid::compiler::ParseFilter::parse(&$a, args).unwrap();
+            ::liquid::compiler::Filter::evaluate(&*filter, &$b, &context).unwrap()
+        }};
+    }
 
-//     #[test]
-//     fn unit_pop_empty() {
-//         let input = Value::Array(vec![]);
-//         let args = &[];
-//         let desired_result = Value::Array(vec![]);
-//         assert_eq!(unit!(pop, input, args), desired_result);
-//     }
+    macro_rules! failed {
+        ($a:ident, $b:expr) => {{
+            failed!($a, $b, )
+        }};
+        ($a:ident, $b:expr, $($c:expr),*) => {{
+            let positional = Box::new(vec![$(::liquid::interpreter::Expression::Literal($c)),*].into_iter());
+            let keyword = Box::new(Vec::new().into_iter());
+            let args = ::liquid::compiler::FilterArguments { positional, keyword };
 
-//     #[test]
-//     fn unit_unshift() {
-//         let input = Value::Array(vec![Value::scalar("Seattle"), Value::scalar("Tacoma")]);
-//         let args = &[Value::scalar("Olympia")];
-//         let desired_result = Value::Array(vec![
-//             Value::scalar("Olympia"),
-//             Value::scalar("Seattle"),
-//             Value::scalar("Tacoma"),
-//         ]);
-//         assert_eq!(unit!(unshift, input, args), desired_result);
-//     }
+            let context = ::liquid::interpreter::Context::default();
 
-//     #[test]
-//     fn unit_shift() {
-//         let input = Value::Array(vec![Value::scalar("Seattle"), Value::scalar("Tacoma")]);
-//         let args = &[];
-//         let desired_result = Value::Array(vec![Value::scalar("Tacoma")]);
-//         assert_eq!(unit!(shift, input, args), desired_result);
-//     }
+            ::liquid::compiler::ParseFilter::parse(&$a, args)
+                .and_then(|filter| ::liquid::compiler::Filter::evaluate(&*filter, &$b, &context))
+                .unwrap_err()
+        }};
+    }
 
-//     #[test]
-//     fn unit_shift_empty() {
-//         let input = Value::Array(vec![]);
-//         let args = &[];
-//         let desired_result = Value::Array(vec![]);
-//         assert_eq!(unit!(shift, input, args), desired_result);
-//     }
+    macro_rules! tos {
+        ($a:expr) => {{
+            Value::scalar($a.to_owned())
+        }};
+    }
 
-//     #[test]
-//     fn unit_array_to_sentence_string() {
-//         let input = Value::Array(vec![
-//             Value::scalar("foo"),
-//             Value::scalar("bar"),
-//             Value::scalar("baz"),
-//         ]);
-//         let args = &[];
-//         let desired_result = Value::scalar("foo, bar, and baz");
-//         assert_eq!(unit!(array_to_sentence_string, input, args), desired_result);
-//     }
+    #[test]
+    fn unit_push() {
+        let input = Value::Array(vec![Value::scalar("Seattle"), Value::scalar("Tacoma")]);
+        let unit_result = unit!(Push, input, Value::scalar("Spokane"));
+        let desired_result = Value::Array(vec![
+            Value::scalar("Seattle"),
+            Value::scalar("Tacoma"),
+            Value::scalar("Spokane"),
+        ]);
+        assert_eq!(unit_result, desired_result);
+    }
 
-//     #[test]
-//     fn unit_array_to_sentence_string_two_elements() {
-//         let input = Value::Array(vec![Value::scalar("foo"), Value::scalar("bar")]);
-//         let args = &[];
-//         let desired_result = Value::scalar("foo, and bar");
-//         assert_eq!(unit!(array_to_sentence_string, input, args), desired_result);
-//     }
+    #[test]
+    fn unit_pop() {
+        let input = Value::Array(vec![Value::scalar("Seattle"), Value::scalar("Tacoma")]);
+        let unit_result = unit!(Pop, input);
+        let desired_result = Value::Array(vec![Value::scalar("Seattle")]);
+        assert_eq!(unit_result, desired_result);
+    }
 
-//     #[test]
-//     fn unit_array_to_sentence_string_one_element() {
-//         let input = Value::Array(vec![Value::scalar("foo")]);
-//         let args = &[];
-//         let desired_result = Value::scalar("foo");
-//         assert_eq!(unit!(array_to_sentence_string, input, args), desired_result);
-//     }
+    #[test]
+    fn unit_pop_empty() {
+        let input = Value::Array(vec![]);
+        let unit_result = unit!(Pop, input);
+        let desired_result = Value::Array(vec![]);
+        assert_eq!(unit_result, desired_result);
+    }
 
-//     #[test]
-//     fn unit_array_to_sentence_string_no_elements() {
-//         let input = Value::Array(vec![]);
-//         let args = &[];
-//         let desired_result = Value::scalar("");
-//         assert_eq!(unit!(array_to_sentence_string, input, args), desired_result);
-//     }
+    #[test]
+    fn unit_unshift() {
+        let input = Value::Array(vec![Value::scalar("Seattle"), Value::scalar("Tacoma")]);
+        let unit_result = unit!(Unshift, input, Value::scalar("Olympia"));
+        let desired_result = Value::Array(vec![
+            Value::scalar("Olympia"),
+            Value::scalar("Seattle"),
+            Value::scalar("Tacoma"),
+        ]);
+        assert_eq!(unit_result, desired_result);
+    }
 
-//     #[test]
-//     fn unit_array_to_sentence_string_custom_connector() {
-//         let input = Value::Array(vec![
-//             Value::scalar("foo"),
-//             Value::scalar("bar"),
-//             Value::scalar("baz"),
-//         ]);
-//         let args = &[Value::scalar("or")];
-//         let desired_result = Value::scalar("foo, bar, or baz");
-//         assert_eq!(unit!(array_to_sentence_string, input, args), desired_result);
-//     }
-// }
+    #[test]
+    fn unit_shift() {
+        let input = Value::Array(vec![Value::scalar("Seattle"), Value::scalar("Tacoma")]);
+        let unit_result = unit!(Shift, input);
+        let desired_result = Value::Array(vec![Value::scalar("Tacoma")]);
+        assert_eq!(unit_result, desired_result);
+    }
+
+    #[test]
+    fn unit_shift_empty() {
+        let input = Value::Array(vec![]);
+        let unit_result = unit!(Shift, input);
+        let desired_result = Value::Array(vec![]);
+        assert_eq!(unit_result, desired_result);
+    }
+
+    #[test]
+    fn unit_array_to_sentence_string() {
+        let input = Value::Array(vec![
+            Value::scalar("foo"),
+            Value::scalar("bar"),
+            Value::scalar("baz"),
+        ]);
+        let unit_result = unit!(ArrayToSentenceString, input);
+        let desired_result = Value::scalar("foo, bar, and baz");
+        assert_eq!(unit_result, desired_result);
+    }
+
+    #[test]
+    fn unit_array_to_sentence_string_two_elements() {
+        let input = Value::Array(vec![Value::scalar("foo"), Value::scalar("bar")]);
+        let unit_result = unit!(ArrayToSentenceString, input);
+        let desired_result = Value::scalar("foo, and bar");
+        assert_eq!(unit_result, desired_result);
+    }
+
+    #[test]
+    fn unit_array_to_sentence_string_one_element() {
+        let input = Value::Array(vec![Value::scalar("foo")]);
+        let unit_result = unit!(ArrayToSentenceString, input);
+        let desired_result = Value::scalar("foo");
+        assert_eq!(unit_result, desired_result);
+    }
+
+    #[test]
+    fn unit_array_to_sentence_string_no_elements() {
+        let input = Value::Array(vec![]);
+        let unit_result = unit!(ArrayToSentenceString, input);
+        let desired_result = Value::scalar("");
+        assert_eq!(unit_result, desired_result);
+    }
+
+    #[test]
+    fn unit_array_to_sentence_string_custom_connector() {
+        let input = Value::Array(vec![
+            Value::scalar("foo"),
+            Value::scalar("bar"),
+            Value::scalar("baz"),
+        ]);
+        let unit_result = unit!(ArrayToSentenceString, input, Value::scalar("or"));
+        let desired_result = Value::scalar("foo, bar, or baz");
+        assert_eq!(unit_result, desired_result);
+    }
+}

@@ -48,3 +48,44 @@ impl Filter for PluralizeFilter {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    macro_rules! unit {
+        ($a:ident, $b:expr) => {{
+            unit!($a, $b, )
+        }};
+        ($a:ident, $b:expr, $($c:expr),*) => {{
+            let positional = Box::new(vec![$(::liquid::interpreter::Expression::Literal($c)),*].into_iter());
+            let keyword = Box::new(Vec::new().into_iter());
+            let args = ::liquid::compiler::FilterArguments { positional, keyword };
+
+            let context = ::liquid::interpreter::Context::default();
+
+            let filter = ::liquid::compiler::ParseFilter::parse(&$a, args).unwrap();
+            ::liquid::compiler::Filter::evaluate(&*filter, &$b, &context).unwrap()
+        }};
+    }
+
+    macro_rules! tos {
+        ($a:expr) => {{
+            Value::scalar($a.to_owned())
+        }};
+    }
+
+    #[test]
+    fn unit_pluralize() {
+        assert_eq!(
+            unit!(Pluralize, Value::scalar(1i32), tos!("one"), tos!("many")),
+            tos!("one")
+        );
+
+        assert_eq!(
+            unit!(Pluralize, Value::scalar(2i32), tos!("one"), tos!("many")),
+            tos!("many")
+        );
+    }
+}

@@ -374,20 +374,6 @@ impl Filter for DefaultFilter {
 //     }
 
 //     #[test]
-//     #[cfg(feature = "extra-filters")]
-//     fn unit_pluralize() {
-//         assert_eq!(
-//             unit!(pluralize, Value::scalar(1i32), &[tos!("one"), tos!("many")]),
-//             tos!("one")
-//         );
-
-//         assert_eq!(
-//             unit!(pluralize, Value::scalar(2i32), &[tos!("one"), tos!("many")]),
-//             tos!("many")
-//         );
-//     }
-
-//     #[test]
 //     fn unit_prepend() {
 //         assert_eq!(
 //             unit!(prepend, tos!("barbar"), &[tos!("foo")]),

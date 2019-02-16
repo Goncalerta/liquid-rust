@@ -100,7 +100,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "extra-filters")]
     fn unit_date_in_tz_same_day() {
         let input = tos!("13 Jun 2016 12:00:00 +0000");
         let unit_result = unit!(
@@ -114,7 +113,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "extra-filters")]
     fn unit_date_in_tz_previous_day() {
         let input = tos!("13 Jun 2016 12:00:00 +0000");
         let unit_result = unit!(
@@ -128,7 +126,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "extra-filters")]
     fn unit_date_in_tz_next_day() {
         let input = tos!("13 Jun 2016 12:00:00 +0000");
         let unit_result = unit!(
@@ -142,7 +139,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "extra-filters")]
     fn unit_date_in_tz_input_not_a_string() {
         let input = &Value::scalar(0f64);
         failed!(
@@ -154,7 +150,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "extra-filters")]
     fn unit_date_in_tz_input_not_a_date_string() {
         let input = &tos!("blah blah blah");
         failed!(
@@ -166,28 +161,24 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "extra-filters")]
     fn unit_date_in_tz_offset_not_a_num() {
         let input = &tos!("13 Jun 2016 12:00:00 +0000");
         failed!(DateInTz, input, tos!("%Y-%m-%d %H:%M:%S %z"), tos!("Hello"));
     }
 
     #[test]
-    #[cfg(feature = "extra-filters")]
     fn unit_date_in_tz_zero_arguments() {
         let input = &tos!("13 Jun 2016 12:00:00 +0000");
         failed!(DateInTz, input);
     }
 
     #[test]
-    #[cfg(feature = "extra-filters")]
     fn unit_date_in_tz_one_argument() {
         let input = &tos!("13 Jun 2016 12:00:00 +0000");
         failed!(DateInTz, input, tos!("%Y-%m-%d %H:%M:%S %z"));
     }
 
     #[test]
-    #[cfg(feature = "extra-filters")]
     fn unit_date_in_tz_three_arguments() {
         let input = &tos!("13 Jun 2016 12:00:00 +0000");
         failed!(
