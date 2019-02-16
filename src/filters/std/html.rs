@@ -246,10 +246,7 @@ mod tests {
             tos!("")
         );
         assert_eq!(unit!(StripHtml, tos!("<p>test</p>")), tos!("test"));
-        assert_eq!(
-            unit!(StripHtml, tos!("<p id='xxx'>test</p>")),
-            tos!("test")
-        );
+        assert_eq!(unit!(StripHtml, tos!("<p id='xxx'>test</p>")), tos!("test"));
         assert_eq!(
             unit!(
                 StripHtml,

@@ -88,11 +88,7 @@ mod tests {
     #[test]
     fn unit_date() {
         assert_eq!(
-            unit!(
-                Date,
-                tos!("13 Jun 2016 02:30:00 +0300"),
-                tos!("%Y-%m-%d")
-            ),
+            unit!(Date, tos!("13 Jun 2016 02:30:00 +0300"), tos!("%Y-%m-%d")),
             tos!("2016-06-13")
         );
     }
@@ -155,7 +151,8 @@ mod tests {
         failed!(
             Date,
             tos!("13 Jun 2016 02:30:00 +0300"),
-            Value::scalar(0f64), Value::scalar(1f64)
+            Value::scalar(0f64),
+            Value::scalar(1f64)
         );
     }
 }

@@ -145,19 +145,11 @@ mod tests {
             Value::scalar(1_f64)
         );
         assert_eq!(
-            unit!(
-                Default,
-                Value::Array(vec![tos!("")]),
-                Value::scalar(1_f64)
-            ),
+            unit!(Default, Value::Array(vec![tos!("")]), Value::scalar(1_f64)),
             Value::Array(vec![tos!("")])
         );
         assert_eq!(
-            unit!(
-                Default,
-                Value::Object(Object::new()),
-                Value::scalar(1_f64)
-            ),
+            unit!(Default, Value::Object(Object::new()), Value::scalar(1_f64)),
             Value::scalar(1_f64)
         );
         assert_eq!(

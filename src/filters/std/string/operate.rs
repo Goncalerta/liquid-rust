@@ -276,22 +276,10 @@ mod tests {
 
     #[test]
     fn unit_remove_first() {
-        assert_eq!(
-            unit!(RemoveFirst, tos!("barbar"), tos!("bar")),
-            tos!("bar")
-        );
-        assert_eq!(
-            unit!(RemoveFirst, tos!("barbar"), tos!("")),
-            tos!("barbar")
-        );
-        assert_eq!(
-            unit!(RemoveFirst, tos!("barbar"), tos!("barbar")),
-            tos!("")
-        );
-        assert_eq!(
-            unit!(RemoveFirst, tos!("barbar"), tos!("a")),
-            tos!("brbar")
-        );
+        assert_eq!(unit!(RemoveFirst, tos!("barbar"), tos!("bar")), tos!("bar"));
+        assert_eq!(unit!(RemoveFirst, tos!("barbar"), tos!("")), tos!("barbar"));
+        assert_eq!(unit!(RemoveFirst, tos!("barbar"), tos!("barbar")), tos!(""));
+        assert_eq!(unit!(RemoveFirst, tos!("barbar"), tos!("a")), tos!("brbar"));
     }
 
     #[test]

@@ -224,7 +224,6 @@ impl Filter for TruncateWordsFilter {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
 
@@ -269,7 +268,6 @@ mod tests {
         }};
     }
 
-
     #[test]
     fn unit_truncate() {
         let input = &tos!("I often quote myself.  It adds spice to my conversation.");
@@ -281,7 +279,10 @@ mod tests {
     fn unit_truncate_negative_length() {
         let input = &tos!("I often quote myself.  It adds spice to my conversation.");
         let desired_result = tos!("I often quote myself.  It adds spice to my conversation.");
-        assert_eq!(unit!(Truncate, input, Value::scalar(-17i32)), desired_result);
+        assert_eq!(
+            unit!(Truncate, input, Value::scalar(-17i32)),
+            desired_result
+        );
     }
 
     #[test]
@@ -300,16 +301,28 @@ mod tests {
         assert_eq!(unit!(Truncate, input, Value::scalar(20i32)), desired_result);
 
         let desired_result = tos!("Ground control, and so on");
-        assert_eq!(unit!(Truncate, input, Value::scalar(25i32), tos!(", and so on")), desired_result);
+        assert_eq!(
+            unit!(Truncate, input, Value::scalar(25i32), tos!(", and so on")),
+            desired_result
+        );
 
         let desired_result = tos!("Ground control to Ma");
-        assert_eq!(unit!(Truncate, input, Value::scalar(20i32), tos!("")), desired_result);
+        assert_eq!(
+            unit!(Truncate, input, Value::scalar(20i32), tos!("")),
+            desired_result
+        );
     }
 
     #[test]
     fn unit_truncate_three_arguments() {
         let input = &tos!("I often quote myself.  It adds spice to my conversation.");
-        failed!(Truncate, input, Value::scalar(17i32), tos!("..."), Value::scalar(0i32));
+        failed!(
+            Truncate,
+            input,
+            Value::scalar(17i32),
+            tos!("..."),
+            Value::scalar(0i32)
+        );
     }
 
     #[test]
@@ -341,11 +354,7 @@ mod tests {
     #[test]
     fn unit_truncatewords_negative_length() {
         assert_eq!(
-            unit!(
-                TruncateWords,
-                tos!("one two three"),
-                Value::scalar(-1_i32)
-            ),
+            unit!(TruncateWords, tos!("one two three"), Value::scalar(-1_i32)),
             tos!("one two three")
         );
     }
@@ -353,11 +362,7 @@ mod tests {
     #[test]
     fn unit_truncatewords_zero_length() {
         assert_eq!(
-            unit!(
-                TruncateWords,
-                tos!("one two three"),
-                Value::scalar(0_i32)
-            ),
+            unit!(TruncateWords, tos!("one two three"), Value::scalar(0_i32)),
             tos!("...")
         );
     }
@@ -365,11 +370,7 @@ mod tests {
     #[test]
     fn unit_truncatewords_no_truncation() {
         assert_eq!(
-            unit!(
-                TruncateWords,
-                tos!("one two three"),
-                Value::scalar(4_i32)
-            ),
+            unit!(TruncateWords, tos!("one two three"), Value::scalar(4_i32)),
             tos!("one two three")
         );
     }
@@ -377,18 +378,15 @@ mod tests {
     #[test]
     fn unit_truncatewords_truncate() {
         assert_eq!(
-            unit!(
-                TruncateWords,
-                tos!("one two three"),
-                Value::scalar(2_i32)
-            ),
+            unit!(TruncateWords, tos!("one two three"), Value::scalar(2_i32)),
             tos!("one two...")
         );
         assert_eq!(
             unit!(
                 TruncateWords,
                 tos!("one two three"),
-                Value::scalar(2_i32), Value::scalar(1_i32)
+                Value::scalar(2_i32),
+                Value::scalar(1_i32)
             ),
             tos!("one two1")
         );

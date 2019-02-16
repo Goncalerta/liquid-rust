@@ -127,7 +127,6 @@ mod tests {
         );
     }
 
-
     #[test]
     fn unit_upcase() {
         assert_eq!(unit!(Upcase, tos!("abc")), tos!("ABC"));

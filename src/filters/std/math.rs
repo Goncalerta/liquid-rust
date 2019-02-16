@@ -666,24 +666,15 @@ mod tests {
 
     #[test]
     fn unit_floor() {
-        assert_eq!(
-            unit!(Floor, Value::scalar(1.1f64)),
-            Value::scalar(1f64)
-        );
+        assert_eq!(unit!(Floor, Value::scalar(1.1f64)), Value::scalar(1f64));
         assert_eq!(unit!(Floor, Value::scalar(1f64)), Value::scalar(1f64));
         failed!(Floor, Value::scalar(true));
     }
 
     #[test]
     fn unit_round() {
-        assert_eq!(
-            unit!(Round, Value::scalar(1.1f64)),
-            Value::scalar(1i32)
-        );
-        assert_eq!(
-            unit!(Round, Value::scalar(1.5f64)),
-            Value::scalar(2i32)
-        );
+        assert_eq!(unit!(Round, Value::scalar(1.1f64)), Value::scalar(1i32));
+        assert_eq!(unit!(Round, Value::scalar(1.5f64)), Value::scalar(2i32));
         assert_eq!(unit!(Round, Value::scalar(2f64)), Value::scalar(2i32));
         failed!(Round, Value::scalar(true));
     }

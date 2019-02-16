@@ -372,7 +372,6 @@ mod tests {
         }};
     }
 
-
     #[test]
     fn unit_concat_nothing() {
         let input = Value::Array(vec![Value::scalar(1f64), Value::scalar(2f64)]);
@@ -389,7 +388,14 @@ mod tests {
             Value::scalar(3f64),
             Value::scalar(4f64),
         ]);
-        assert_eq!(unit!(Concat, input, Value::Array(vec![Value::scalar(3f64), Value::scalar(4f64)])), result);
+        assert_eq!(
+            unit!(
+                Concat,
+                input,
+                Value::Array(vec![Value::scalar(3f64), Value::scalar(4f64)])
+            ),
+            result
+        );
     }
 
     #[test]
@@ -401,7 +407,14 @@ mod tests {
             Value::scalar(3f64),
             Value::scalar("a"),
         ]);
-        assert_eq!(unit!(Concat, input, Value::Array(vec![Value::scalar(3f64), Value::scalar("a")])), result);
+        assert_eq!(
+            unit!(
+                Concat,
+                input,
+                Value::Array(vec![Value::scalar(3f64), Value::scalar("a")])
+            ),
+            result
+        );
     }
 
     #[test]
@@ -419,9 +432,13 @@ mod tests {
     #[test]
     fn unit_concat_extra_args() {
         let input = Value::Array(vec![Value::scalar(1f64), Value::scalar(2f64)]);
-        failed!(Concat, input, Value::Array(vec![Value::scalar(3f64), Value::scalar("a")]), Value::scalar(2f64));
+        failed!(
+            Concat,
+            input,
+            Value::Array(vec![Value::scalar(3f64), Value::scalar("a")]),
+            Value::scalar(2f64)
+        );
     }
-
 
     #[test]
     fn unit_first() {
@@ -444,7 +461,6 @@ mod tests {
         );
         assert_eq!(unit!(First, Value::Array(vec![])), tos!(""));
     }
-
 
     #[test]
     fn unit_join() {
@@ -489,7 +505,6 @@ mod tests {
         let desired_result = Value::Array(vec![tos!("a"), tos!("b"), tos!("c"), tos!("Z")]);
         assert_eq!(unit!(SortNatural, input), desired_result);
     }
-
 
     #[test]
     fn unit_last() {
