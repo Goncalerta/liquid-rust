@@ -142,11 +142,11 @@ impl<'a> FilterStructField<'a> {
                 let FilterField { ident, ty } = field;
                 if let Some(ident) = ident {
                     quote! {
-                        #ident: <#ty as Default>::default(),
+                        #ident: <#ty as ::std::default::Default>::default(),
                     }
                 } else {
                     quote! {
-                        <#ty as Default>::default(),
+                        <#ty as ::std::default::Default>::default(),
                     }
                 }
             }
@@ -178,7 +178,7 @@ fn generate_from_filter_parameters(filter: &FilterStruct) -> TokenStream {
     } = &filter;
     let fields = fields.iter().map(|field| field.generate_field_value());
 
-    let impl_from = filter.generate_impl(quote! { From<#parameters_struct_name> });
+    let impl_from = filter.generate_impl(quote! { ::std::convert::From<#parameters_struct_name> });
 
     match ty {
         StructFieldsType::Named => quote! {

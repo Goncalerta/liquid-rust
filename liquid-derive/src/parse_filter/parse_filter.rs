@@ -18,12 +18,12 @@ fn generate_parse_filter(filter_parser: &ParseFilter) -> Result<TokenStream> {
         };
 
         let return_expr = quote_spanned! {filter_struct_name.span()=>
-            Ok(Box::new(<#filter_struct_name as From<#parameters_struct_name>>::from(args)))
+            Ok(::std::boxed::Box::new(<#filter_struct_name as ::std::convert::From<#parameters_struct_name>>::from(args)))
         };
 
         Ok(quote! {
             #impl_parse_filter {
-                fn parse(&self, args: ::liquid::compiler::FilterArguments) -> ::liquid::error::Result<Box<::liquid::compiler::Filter>> {
+                fn parse(&self, args: ::liquid::compiler::FilterArguments) -> ::liquid::error::Result<::std::boxed::Box<::liquid::compiler::Filter>> {
                     #build_filter_parameters
                     #return_expr
                 }
@@ -31,18 +31,18 @@ fn generate_parse_filter(filter_parser: &ParseFilter) -> Result<TokenStream> {
         })
     } else {
         let return_expr = quote_spanned! {filter_struct_name.span()=>
-            Ok(Box::new(<#filter_struct_name as Default>::default()))
+            ::std::result::Result::Ok(::std::boxed::Box::new(<#filter_struct_name as ::std::default::Default>::default()))
         };
         Ok(quote! {
             #impl_parse_filter {
-                fn parse(&self, mut args: ::liquid::compiler::FilterArguments) -> ::liquid::error::Result<Box<::liquid::compiler::Filter>> {
-                    if let Some(arg) = args.positional.next() {
-                        return Err(::liquid::error::Error::with_msg("Invalid number of positional arguments")
+                fn parse(&self, mut args: ::liquid::compiler::FilterArguments) -> ::liquid::error::Result<::std::boxed::Box<::liquid::compiler::Filter>> {
+                    if let ::std::option::Option::Some(arg) = args.positional.next() {
+                        return ::std::result::Result::Err(::liquid::error::Error::with_msg("Invalid number of positional arguments")
                             .context("cause", concat!("expected at most 0 positional arguments"))
                         );
                     }
-                    if let Some(arg) = args.keyword.next() {
-                        return Err(::liquid::error::Error::with_msg(format!("Unexpected named argument `{}`", arg.0)));
+                    if let ::std::option::Option::Some(arg) = args.keyword.next() {
+                        return ::std::result::Result::Err(::liquid::error::Error::with_msg(format!("Unexpected named argument `{}`", arg.0)));
                     }
 
                     #return_expr

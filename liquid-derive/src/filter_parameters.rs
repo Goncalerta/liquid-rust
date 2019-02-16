@@ -519,8 +519,8 @@ fn generate_evaluate_field(field: &FilterParameter) -> TokenStream {
     if field.is_optional() {
         quote! {
             let #name = match &self.#name {
-                Some(field) => Some(field.evaluate(context)? #to_type),
-                None => None,
+                ::std::option::Option::Some(field) => ::std::option::Option::Some(field.evaluate(context)? #to_type),
+                ::std::option::Option::None => ::std::option::Option::None,
             };
         }
     } else {
@@ -537,9 +537,9 @@ fn generate_keyword_match_arm(field: &FilterParameter) -> TokenStream {
 
     quote! {
         #liquid_name => if #rust_name.is_none() {
-            #rust_name = Some(arg.1);
+            #rust_name = ::std::option::Option::Some(arg.1);
         } else {
-            return Err(::liquid::error::Error::with_msg(concat!("Multiple definitions of `", #liquid_name, "`")));
+            return ::std::result::Result::Err(::liquid::error::Error::with_msg(concat!("Multiple definitions of `", #liquid_name, "`")));
         },
     }
 }
@@ -617,15 +617,15 @@ fn generate_impl_filter_parameters(filter_parameters: &FilterParameters) -> Toke
 
             fn from_args(mut args: ::liquid::compiler::FilterArguments) -> ::liquid::error::Result<Self> {
                 #(#construct_positional_fields)*
-                if let Some(arg) = args.positional.next() {
-                    return Err(#too_many_args);
+                if let ::std::option::Option::Some(arg) = args.positional.next() {
+                    return ::std::result::Result::Err(#too_many_args);
                 }
 
-                #(let mut #keyword_fields = None;)*
-                while let Some(arg) = args.keyword.next() {
+                #(let mut #keyword_fields = ::std::option::Option::None;)*
+                while let ::std::option::Option::Some(arg) = args.keyword.next() {
                     match arg.0 {
                         #(#match_keyword_parameters_arms)*
-                        keyword => return Err(::liquid::error::Error::with_msg(format!("Unexpected named argument `{}`", keyword))),
+                        keyword => return ::std::result::Result::Err(::liquid::error::Error::with_msg(format!("Unexpected named argument `{}`", keyword))),
                     }
                 }
                 #(#unwrap_required_keyword_fields)*
@@ -662,7 +662,7 @@ fn generate_evaluated_struct(filter_parameters: &FilterParameters) -> TokenStrea
         };
 
         if field.is_optional() {
-            quote! { Option< #ty > }
+            quote! { ::std::option::Option< #ty > }
         } else {
             quote! { #ty }
         }
@@ -732,7 +732,7 @@ fn generate_access_positional_field_for_display(field: &FilterParameter) -> Toke
         }
     } else {
         quote! {
-            Some(&self.#rust_name)
+            ::std::option::Option::Some(&self.#rust_name)
         }
     }
 }
@@ -748,7 +748,7 @@ fn generate_access_keyword_field_for_display(field: &FilterParameter) -> TokenSt
         }
     } else {
         quote! {
-            (#liquid_name, Some(&self.#rust_name))
+            (#liquid_name, ::std::option::Option::Some(&self.#rust_name))
         }
     }
 }
@@ -777,16 +777,16 @@ fn generate_impl_display(filter_parameters: &FilterParameters) -> TokenStream {
 
                 let positional = positional
                     .iter()
-                    .filter_map(|p: &Option<&Expression>| p.as_ref())
+                    .filter_map(|p: &::std::option::Option<&::liquid::interpreter::Expression>| p.as_ref())
                     .map(|p| p.to_string());
-                let keyword = keyword.iter().filter_map(|p: &(&str, Option<&Expression>)| match p.1 {
-                    Some(p1) => Some(format!("{}: {}", p.0, p1)),
-                    None => None,
+                let keyword = keyword.iter().filter_map(|p: &(&str, ::std::option::Option<&::liquid::interpreter::Expression>)| match p.1 {
+                    ::std::option::Option::Some(p1) => ::std::option::Option::Some(format!("{}: {}", p.0, p1)),
+                    ::std::option::Option::None => ::std::option::Option::None,
                 });
 
                 let parameters = positional
                     .chain(keyword)
-                    .collect::<Vec<String>>()
+                    .collect::<::std::vec::Vec<::std::string::String>>()
                     .join(", ");
 
                 write!(
