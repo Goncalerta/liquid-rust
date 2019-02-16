@@ -57,25 +57,26 @@ impl Filter for AtLeastFilter {
     fn evaluate(&self, input: &Value, context: &Context) -> Result<Value> {
         let args = self.args.evaluate(context)?;
 
-        if let Some(input) = input.as_scalar().and_then(Scalar::to_integer) {
-            let min = args
-                .min
-                .as_scalar()
-                .and_then(Scalar::to_integer)
-                .ok_or_else(|| invalid_argument("min", "Whole number expected"))?;
+        let input = input
+            .as_scalar()
+            .ok_or_else(|| invalid_input("Number expected"))?;
 
-            Ok(Value::scalar(input.max(min)))
-        } else if let Some(input) = input.as_scalar().and_then(Scalar::to_float) {
-            let min = args
-                .min
-                .as_scalar()
-                .and_then(Scalar::to_float)
-                .ok_or_else(|| invalid_argument("min", "Number expected"))?;
+        let min = args
+            .min
+            .as_scalar()
+            .ok_or_else(|| invalid_argument("operand", "Number expected"))?;
 
-            Ok(Value::scalar(input.max(min)))
-        } else {
-            invalid_input("Number expected").into_err()
-        }
+        let result = input
+            .to_integer()
+            .and_then(|i| min.to_integer().map(|min| Value::scalar(i.max(min))))
+            .or_else(|| {
+                input
+                    .to_float()
+                    .and_then(|i| min.to_float().map(|min| Value::scalar(i.max(min))))
+            })
+            .ok_or_else(|| invalid_argument("operand", "Number expected"))?;
+
+        Ok(result)
     }
 }
 
@@ -105,25 +106,26 @@ impl Filter for AtMostFilter {
     fn evaluate(&self, input: &Value, context: &Context) -> Result<Value> {
         let args = self.args.evaluate(context)?;
 
-        if let Some(input) = input.as_scalar().and_then(Scalar::to_integer) {
-            let max = args
-                .max
-                .as_scalar()
-                .and_then(Scalar::to_integer)
-                .ok_or_else(|| invalid_argument("max", "Whole number expected"))?;
+        let input = input
+            .as_scalar()
+            .ok_or_else(|| invalid_input("Number expected"))?;
 
-            Ok(Value::scalar(input.min(max)))
-        } else if let Some(input) = input.as_scalar().and_then(Scalar::to_float) {
-            let max = args
-                .max
-                .as_scalar()
-                .and_then(Scalar::to_float)
-                .ok_or_else(|| invalid_argument("max", "Number expected"))?;
+        let max = args
+            .max
+            .as_scalar()
+            .ok_or_else(|| invalid_argument("operand", "Number expected"))?;
 
-            Ok(Value::scalar(input.min(max)))
-        } else {
-            invalid_input("Number expected").into_err()
-        }
+        let result = input
+            .to_integer()
+            .and_then(|i| max.to_integer().map(|max| Value::scalar(i.min(max))))
+            .or_else(|| {
+                input
+                    .to_float()
+                    .and_then(|i| max.to_float().map(|max| Value::scalar(i.min(max))))
+            })
+            .ok_or_else(|| invalid_argument("operand", "Number expected"))?;
+
+        Ok(result)
     }
 }
 
@@ -153,25 +155,26 @@ impl Filter for PlusFilter {
     fn evaluate(&self, input: &Value, context: &Context) -> Result<Value> {
         let args = self.args.evaluate(context)?;
 
-        if let Some(input) = input.as_scalar().and_then(Scalar::to_integer) {
-            let op = args
-                .operand
-                .as_scalar()
-                .and_then(Scalar::to_integer)
-                .ok_or_else(|| invalid_argument("operand", "Whole number expected"))?;
+        let input = input
+            .as_scalar()
+            .ok_or_else(|| invalid_input("Number expected"))?;
 
-            Ok(Value::scalar(input + op))
-        } else if let Some(input) = input.as_scalar().and_then(Scalar::to_float) {
-            let op = args
-                .operand
-                .as_scalar()
-                .and_then(Scalar::to_float)
-                .ok_or_else(|| invalid_argument("operand", "Number expected"))?;
+        let operand = args
+            .operand
+            .as_scalar()
+            .ok_or_else(|| invalid_argument("operand", "Number expected"))?;
 
-            Ok(Value::scalar(input + op))
-        } else {
-            invalid_input("Number expected").into_err()
-        }
+        let result = input
+            .to_integer()
+            .and_then(|i| operand.to_integer().map(|o| Value::scalar(i + o)))
+            .or_else(|| {
+                input
+                    .to_float()
+                    .and_then(|i| operand.to_float().map(|o| Value::scalar(i + o)))
+            })
+            .ok_or_else(|| invalid_argument("operand", "Number expected"))?;
+
+        Ok(result)
     }
 }
 
@@ -201,25 +204,26 @@ impl Filter for MinusFilter {
     fn evaluate(&self, input: &Value, context: &Context) -> Result<Value> {
         let args = self.args.evaluate(context)?;
 
-        if let Some(input) = input.as_scalar().and_then(Scalar::to_integer) {
-            let op = args
-                .operand
-                .as_scalar()
-                .and_then(Scalar::to_integer)
-                .ok_or_else(|| invalid_argument("operand", "Whole number expected"))?;
+        let input = input
+            .as_scalar()
+            .ok_or_else(|| invalid_input("Number expected"))?;
 
-            Ok(Value::scalar(input - op))
-        } else if let Some(input) = input.as_scalar().and_then(Scalar::to_float) {
-            let op = args
-                .operand
-                .as_scalar()
-                .and_then(Scalar::to_float)
-                .ok_or_else(|| invalid_argument("operand", "Number expected"))?;
+        let operand = args
+            .operand
+            .as_scalar()
+            .ok_or_else(|| invalid_argument("operand", "Number expected"))?;
 
-            Ok(Value::scalar(input - op))
-        } else {
-            invalid_input("Number expected").into_err()
-        }
+        let result = input
+            .to_integer()
+            .and_then(|i| operand.to_integer().map(|o| Value::scalar(i - o)))
+            .or_else(|| {
+                input
+                    .to_float()
+                    .and_then(|i| operand.to_float().map(|o| Value::scalar(i - o)))
+            })
+            .ok_or_else(|| invalid_argument("operand", "Number expected"))?;
+
+        Ok(result)
     }
 }
 
@@ -249,25 +253,26 @@ impl Filter for TimesFilter {
     fn evaluate(&self, input: &Value, context: &Context) -> Result<Value> {
         let args = self.args.evaluate(context)?;
 
-        if let Some(input) = input.as_scalar().and_then(Scalar::to_integer) {
-            let op = args
-                .operand
-                .as_scalar()
-                .and_then(Scalar::to_integer)
-                .ok_or_else(|| invalid_argument("operand", "Whole number expected"))?;
+        let input = input
+            .as_scalar()
+            .ok_or_else(|| invalid_input("Number expected"))?;
 
-            Ok(Value::scalar(input * op))
-        } else if let Some(input) = input.as_scalar().and_then(Scalar::to_float) {
-            let op = args
-                .operand
-                .as_scalar()
-                .and_then(Scalar::to_float)
-                .ok_or_else(|| invalid_argument("operand", "Number expected"))?;
+        let operand = args
+            .operand
+            .as_scalar()
+            .ok_or_else(|| invalid_argument("operand", "Number expected"))?;
 
-            Ok(Value::scalar(input * op))
-        } else {
-            invalid_input("Number expected").into_err()
-        }
+        let result = input
+            .to_integer()
+            .and_then(|i| operand.to_integer().map(|o| Value::scalar(i * o)))
+            .or_else(|| {
+                input
+                    .to_float()
+                    .and_then(|i| operand.to_float().map(|o| Value::scalar(i * o)))
+            })
+            .ok_or_else(|| invalid_argument("operand", "Number expected"))?;
+
+        Ok(result)
     }
 }
 
@@ -297,25 +302,26 @@ impl Filter for DividedByFilter {
     fn evaluate(&self, input: &Value, context: &Context) -> Result<Value> {
         let args = self.args.evaluate(context)?;
 
-        if let Some(input) = input.as_scalar().and_then(Scalar::to_integer) {
-            let op = args
-                .operand
-                .as_scalar()
-                .and_then(Scalar::to_integer)
-                .ok_or_else(|| invalid_argument("operand", "Whole number expected"))?;
+        let input = input
+            .as_scalar()
+            .ok_or_else(|| invalid_input("Number expected"))?;
 
-            Ok(Value::scalar(input / op))
-        } else if let Some(input) = input.as_scalar().and_then(Scalar::to_float) {
-            let op = args
-                .operand
-                .as_scalar()
-                .and_then(Scalar::to_float)
-                .ok_or_else(|| invalid_argument("operand", "Number expected"))?;
+        let operand = args
+            .operand
+            .as_scalar()
+            .ok_or_else(|| invalid_argument("operand", "Number expected"))?;
 
-            Ok(Value::scalar(input / op))
-        } else {
-            invalid_input("Number expected").into_err()
-        }
+        let result = input
+            .to_integer()
+            .and_then(|i| operand.to_integer().map(|o| Value::scalar(i / o)))
+            .or_else(|| {
+                input
+                    .to_float()
+                    .and_then(|i| operand.to_float().map(|o| Value::scalar(i / o)))
+            })
+            .ok_or_else(|| invalid_argument("operand", "Number expected"))?;
+
+        Ok(result)
     }
 }
 
@@ -345,25 +351,26 @@ impl Filter for ModuloFilter {
     fn evaluate(&self, input: &Value, context: &Context) -> Result<Value> {
         let args = self.args.evaluate(context)?;
 
-        if let Some(input) = input.as_scalar().and_then(Scalar::to_integer) {
-            let op = args
-                .operand
-                .as_scalar()
-                .and_then(Scalar::to_integer)
-                .ok_or_else(|| invalid_argument("operand", "Whole number expected"))?;
+        let input = input
+            .as_scalar()
+            .ok_or_else(|| invalid_input("Number expected"))?;
 
-            Ok(Value::scalar(input % op))
-        } else if let Some(input) = input.as_scalar().and_then(Scalar::to_float) {
-            let op = args
-                .operand
-                .as_scalar()
-                .and_then(Scalar::to_float)
-                .ok_or_else(|| invalid_argument("operand", "Number expected"))?;
+        let operand = args
+            .operand
+            .as_scalar()
+            .ok_or_else(|| invalid_argument("operand", "Number expected"))?;
 
-            Ok(Value::scalar(input % op))
-        } else {
-            invalid_input("Number expected").into_err()
-        }
+        let result = input
+            .to_integer()
+            .and_then(|i| operand.to_integer().map(|o| Value::scalar(i % o)))
+            .or_else(|| {
+                input
+                    .to_float()
+                    .and_then(|i| operand.to_float().map(|o| Value::scalar(i % o)))
+            })
+            .ok_or_else(|| invalid_argument("operand", "Number expected"))?;
+
+        Ok(result)
     }
 }
 
