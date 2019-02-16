@@ -65,7 +65,7 @@ impl Filter for LstripFilter {
 #[filter(
     name = "rstrip",
     description = "Removes all whitespace (tabs, spaces, and newlines) from the right side of a string.",
-    parsed(LstripFilter)
+    parsed(RstripFilter)
 )]
 pub struct Rstrip;
 
@@ -84,7 +84,7 @@ impl Filter for RstripFilter {
 #[filter(
     name = "strip_newlines",
     description = "Removes any newline characters (line breaks) from a string.",
-    parsed(LstripFilter)
+    parsed(StripNewlinesFilter)
 )]
 pub struct StripNewlines;
 
