@@ -327,3 +327,337 @@ impl Filter for LastFilter {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    macro_rules! unit {
+        ($a:ident, $b:expr) => {{
+            unit!($a, $b, )
+        }};
+        ($a:ident, $b:expr, $($c:expr),*) => {{
+            let positional = Box::new(vec![$(::liquid::interpreter::Expression::Literal($c)),*].into_iter());
+            let keyword = Box::new(Vec::new().into_iter());
+            let args = ::liquid::compiler::FilterArguments { positional, keyword };
+
+            let context = ::liquid::interpreter::Context::default();
+
+            let filter = ::liquid::compiler::ParseFilter::parse(&$a, args).unwrap();
+            ::liquid::compiler::Filter::evaluate(&*filter, &$b, &context).unwrap()
+        }};
+    }
+
+    macro_rules! failed {
+        ($a:ident, $b:expr) => {{
+            failed!($a, $b, )
+        }};
+        ($a:ident, $b:expr, $($c:expr),*) => {{
+            let positional = Box::new(vec![$(::liquid::interpreter::Expression::Literal($c)),*].into_iter());
+            let keyword = Box::new(Vec::new().into_iter());
+            let args = ::liquid::compiler::FilterArguments { positional, keyword };
+
+            let context = ::liquid::interpreter::Context::default();
+
+            ::liquid::compiler::ParseFilter::parse(&$a, args)
+                .and_then(|filter| ::liquid::compiler::Filter::evaluate(&*filter, &$b, &context))
+                .unwrap_err()
+        }};
+    }
+
+    macro_rules! tos {
+        ($a:expr) => {{
+            Value::scalar($a.to_owned())
+        }};
+    }
+
+
+    #[test]
+    fn unit_concat_nothing() {
+        let input = Value::Array(vec![Value::scalar(1f64), Value::scalar(2f64)]);
+        let result = Value::Array(vec![Value::scalar(1f64), Value::scalar(2f64)]);
+        assert_eq!(unit!(Concat, input, Value::Array(vec![])), result);
+    }
+
+    #[test]
+    fn unit_concat_something() {
+        let input = Value::Array(vec![Value::scalar(1f64), Value::scalar(2f64)]);
+        let result = Value::Array(vec![
+            Value::scalar(1f64),
+            Value::scalar(2f64),
+            Value::scalar(3f64),
+            Value::scalar(4f64),
+        ]);
+        assert_eq!(unit!(Concat, input, Value::Array(vec![Value::scalar(3f64), Value::scalar(4f64)])), result);
+    }
+
+    #[test]
+    fn unit_concat_mixed() {
+        let input = Value::Array(vec![Value::scalar(1f64), Value::scalar(2f64)]);
+        let result = Value::Array(vec![
+            Value::scalar(1f64),
+            Value::scalar(2f64),
+            Value::scalar(3f64),
+            Value::scalar("a"),
+        ]);
+        assert_eq!(unit!(Concat, input, Value::Array(vec![Value::scalar(3f64), Value::scalar("a")])), result);
+    }
+
+    #[test]
+    fn unit_concat_wrong_type() {
+        let input = Value::Array(vec![Value::scalar(1f64), Value::scalar(2f64)]);
+        failed!(Concat, input, Value::scalar(1f64));
+    }
+
+    #[test]
+    fn unit_concat_no_args() {
+        let input = Value::Array(vec![Value::scalar(1f64), Value::scalar(2f64)]);
+        failed!(Concat, input);
+    }
+
+    #[test]
+    fn unit_concat_extra_args() {
+        let input = Value::Array(vec![Value::scalar(1f64), Value::scalar(2f64)]);
+        failed!(Concat, input, Value::Array(vec![Value::scalar(3f64), Value::scalar("a")]), Value::scalar(2f64));
+    }
+
+
+    #[test]
+    fn unit_first() {
+        assert_eq!(
+            unit!(
+                First,
+                Value::Array(vec![
+                    Value::scalar(0f64),
+                    Value::scalar(1f64),
+                    Value::scalar(2f64),
+                    Value::scalar(3f64),
+                    Value::scalar(4f64),
+                ])
+            ),
+            Value::scalar(0f64)
+        );
+        assert_eq!(
+            unit!(First, Value::Array(vec![tos!("test"), tos!("two")])),
+            tos!("test")
+        );
+        assert_eq!(unit!(First, Value::Array(vec![])), tos!(""));
+    }
+
+
+    #[test]
+    fn unit_join() {
+        let input = Value::Array(vec![tos!("a"), tos!("b"), tos!("c")]);
+        assert_eq!(unit!(Join, input, tos!(",")), tos!("a,b,c"));
+    }
+
+    #[test]
+    fn unit_join_bad_input() {
+        let input = tos!("a");
+        failed!(Join, input, tos!(","));
+    }
+
+    #[test]
+    fn unit_join_bad_join_string() {
+        let input = Value::Array(vec![tos!("a"), tos!("b"), tos!("c")]);
+        assert_eq!(unit!(Join, input, Value::scalar(1f64)), tos!("a1b1c"));
+    }
+
+    #[test]
+    fn unit_join_no_args() {
+        let input = Value::Array(vec![tos!("a"), tos!("b"), tos!("c")]);
+        assert_eq!(unit!(Join, input), tos!("a b c"));
+    }
+
+    #[test]
+    fn unit_join_non_string_element() {
+        let input = Value::Array(vec![tos!("a"), Value::scalar(1f64), tos!("c")]);
+        assert_eq!(unit!(Join, input, tos!(",")), tos!("a,1,c"));
+    }
+
+    #[test]
+    fn unit_sort() {
+        let input = &Value::Array(vec![tos!("Z"), tos!("b"), tos!("c"), tos!("a")]);
+        let desired_result = Value::Array(vec![tos!("Z"), tos!("a"), tos!("b"), tos!("c")]);
+        assert_eq!(unit!(Sort, input), desired_result);
+    }
+
+    #[test]
+    fn unit_sort_natural() {
+        let input = &Value::Array(vec![tos!("Z"), tos!("b"), tos!("c"), tos!("a")]);
+        let desired_result = Value::Array(vec![tos!("a"), tos!("b"), tos!("c"), tos!("Z")]);
+        assert_eq!(unit!(SortNatural, input), desired_result);
+    }
+
+
+    #[test]
+    fn unit_last() {
+        assert_eq!(
+            unit!(
+                Last,
+                Value::Array(vec![
+                    Value::scalar(0f64),
+                    Value::scalar(1f64),
+                    Value::scalar(2f64),
+                    Value::scalar(3f64),
+                    Value::scalar(4f64),
+                ])
+            ),
+            Value::scalar(4f64)
+        );
+        assert_eq!(
+            unit!(Last, Value::Array(vec![tos!("test"), tos!("last")])),
+            tos!("last")
+        );
+        assert_eq!(unit!(Last, Value::Array(vec![])), tos!(""));
+    }
+
+    #[test]
+    fn unit_reverse_apples_oranges_peaches_plums() {
+        // First example from https://shopify.github.io/liquid/filters/reverse/
+        let input = &Value::Array(vec![
+            tos!("apples"),
+            tos!("oranges"),
+            tos!("peaches"),
+            tos!("plums"),
+        ]);
+        let desired_result = Value::Array(vec![
+            tos!("plums"),
+            tos!("peaches"),
+            tos!("oranges"),
+            tos!("apples"),
+        ]);
+        assert_eq!(unit!(Reverse, input), desired_result);
+    }
+
+    #[test]
+    fn unit_reverse_array() {
+        let input = &Value::Array(vec![
+            Value::scalar(3f64),
+            Value::scalar(1f64),
+            Value::scalar(2f64),
+        ]);
+        let desired_result = Value::Array(vec![
+            Value::scalar(2f64),
+            Value::scalar(1f64),
+            Value::scalar(3f64),
+        ]);
+        assert_eq!(unit!(Reverse, input), desired_result);
+    }
+
+    #[test]
+    fn unit_reverse_array_extra_args() {
+        let input = &Value::Array(vec![
+            Value::scalar(3f64),
+            Value::scalar(1f64),
+            Value::scalar(2f64),
+        ]);
+        failed!(Reverse, input, Value::scalar(0f64));
+    }
+
+    #[test]
+    fn unit_reverse_ground_control_major_tom() {
+        // Second example from https://shopify.github.io/liquid/filters/reverse/
+        let input = &Value::Array(vec![
+            tos!("G"),
+            tos!("r"),
+            tos!("o"),
+            tos!("u"),
+            tos!("n"),
+            tos!("d"),
+            tos!(" "),
+            tos!("c"),
+            tos!("o"),
+            tos!("n"),
+            tos!("t"),
+            tos!("r"),
+            tos!("o"),
+            tos!("l"),
+            tos!(" "),
+            tos!("t"),
+            tos!("o"),
+            tos!(" "),
+            tos!("M"),
+            tos!("a"),
+            tos!("j"),
+            tos!("o"),
+            tos!("r"),
+            tos!(" "),
+            tos!("T"),
+            tos!("o"),
+            tos!("m"),
+            tos!("."),
+        ]);
+        let desired_result = Value::Array(vec![
+            tos!("."),
+            tos!("m"),
+            tos!("o"),
+            tos!("T"),
+            tos!(" "),
+            tos!("r"),
+            tos!("o"),
+            tos!("j"),
+            tos!("a"),
+            tos!("M"),
+            tos!(" "),
+            tos!("o"),
+            tos!("t"),
+            tos!(" "),
+            tos!("l"),
+            tos!("o"),
+            tos!("r"),
+            tos!("t"),
+            tos!("n"),
+            tos!("o"),
+            tos!("c"),
+            tos!(" "),
+            tos!("d"),
+            tos!("n"),
+            tos!("u"),
+            tos!("o"),
+            tos!("r"),
+            tos!("G"),
+        ]);
+        assert_eq!(unit!(Reverse, input), desired_result);
+    }
+
+    #[test]
+    fn unit_reverse_string() {
+        let input = &tos!("abc");
+        failed!(Reverse, input);
+    }
+
+    #[test]
+    fn unit_uniq() {
+        let input = &Value::Array(vec![tos!("a"), tos!("b"), tos!("a")]);
+        let desired_result = Value::Array(vec![tos!("a"), tos!("b")]);
+        assert_eq!(unit!(Uniq, input), desired_result);
+    }
+
+    #[test]
+    fn unit_uniq_non_array() {
+        let input = &Value::scalar(0f64);
+        failed!(Uniq, input);
+    }
+
+    #[test]
+    fn unit_uniq_one_argument() {
+        let input = &Value::Array(vec![tos!("a"), tos!("b"), tos!("a")]);
+        failed!(Uniq, input, Value::scalar(0f64));
+    }
+
+    #[test]
+    fn unit_uniq_shopify_liquid() {
+        // Test from https://shopify.github.io/liquid/filters/uniq/
+        let input = &Value::Array(vec![
+            tos!("ants"),
+            tos!("bugs"),
+            tos!("bees"),
+            tos!("bugs"),
+            tos!("ants"),
+        ]);
+        let desired_result = Value::Array(vec![tos!("ants"), tos!("bugs"), tos!("bees")]);
+        assert_eq!(unit!(Uniq, input), desired_result);
+    }
+}

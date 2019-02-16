@@ -225,3 +225,96 @@ impl Filter for PrependFilter {
         Ok(Value::scalar(string))
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    macro_rules! unit {
+        ($a:ident, $b:expr) => {{
+            unit!($a, $b, )
+        }};
+        ($a:ident, $b:expr, $($c:expr),*) => {{
+            let positional = Box::new(vec![$(::liquid::interpreter::Expression::Literal($c)),*].into_iter());
+            let keyword = Box::new(Vec::new().into_iter());
+            let args = ::liquid::compiler::FilterArguments { positional, keyword };
+
+            let context = ::liquid::interpreter::Context::default();
+
+            let filter = ::liquid::compiler::ParseFilter::parse(&$a, args).unwrap();
+            ::liquid::compiler::Filter::evaluate(&*filter, &$b, &context).unwrap()
+        }};
+    }
+
+    macro_rules! tos {
+        ($a:expr) => {{
+            Value::scalar($a.to_owned())
+        }};
+    }
+
+    #[test]
+    fn unit_append() {
+        assert_eq!(unit!(Append, tos!("sam"), tos!("son")), tos!("samson"));
+    }
+
+    #[test]
+    fn unit_prepend() {
+        assert_eq!(
+            unit!(Prepend, tos!("barbar"), tos!("foo")),
+            tos!("foobarbar")
+        );
+    }
+
+    #[test]
+    fn unit_remove() {
+        assert_eq!(unit!(Remove, tos!("barbar"), tos!("bar")), tos!(""));
+        assert_eq!(unit!(Remove, tos!("barbar"), tos!("")), tos!("barbar"));
+        assert_eq!(unit!(Remove, tos!("barbar"), tos!("barbar")), tos!(""));
+        assert_eq!(unit!(Remove, tos!("barbar"), tos!("a")), tos!("brbr"));
+    }
+
+    #[test]
+    fn unit_remove_first() {
+        assert_eq!(
+            unit!(RemoveFirst, tos!("barbar"), tos!("bar")),
+            tos!("bar")
+        );
+        assert_eq!(
+            unit!(RemoveFirst, tos!("barbar"), tos!("")),
+            tos!("barbar")
+        );
+        assert_eq!(
+            unit!(RemoveFirst, tos!("barbar"), tos!("barbar")),
+            tos!("")
+        );
+        assert_eq!(
+            unit!(RemoveFirst, tos!("barbar"), tos!("a")),
+            tos!("brbar")
+        );
+    }
+
+    #[test]
+    fn unit_replace() {
+        assert_eq!(
+            unit!(Replace, tos!("barbar"), tos!("bar"), tos!("foo")),
+            tos!("foofoo")
+        );
+    }
+
+    #[test]
+    fn unit_replace_first() {
+        assert_eq!(
+            unit!(ReplaceFirst, tos!("barbar"), tos!("bar"), tos!("foo")),
+            tos!("foobar")
+        );
+        assert_eq!(
+            unit!(ReplaceFirst, tos!("barxoxo"), tos!("xo"), tos!("foo")),
+            tos!("barfooxo")
+        );
+        assert_eq!(
+            unit!(ReplaceFirst, tos!(""), tos!("bar"), tos!("foo")),
+            tos!("")
+        );
+    }
+}

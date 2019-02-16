@@ -149,134 +149,143 @@ impl Filter for NewlineToBrFilter {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
+#[cfg(test)]
+mod tests {
 
-//     use super::*;
+    use super::*;
 
-//     macro_rules! unit {
-//         ($a:ident, $b:expr) => {{
-//             unit!($a, $b, &[])
-//         }};
-//         ($a:ident, $b:expr, $c:expr) => {{
-//             $a(&$b, $c).unwrap()
-//         }};
-//     }
+    macro_rules! unit {
+        ($a:ident, $b:expr) => {{
+            unit!($a, $b, )
+        }};
+        ($a:ident, $b:expr, $($c:expr),*) => {{
+            let positional = Box::new(vec![$(::liquid::interpreter::Expression::Literal($c)),*].into_iter());
+            let keyword = Box::new(Vec::new().into_iter());
+            let args = ::liquid::compiler::FilterArguments { positional, keyword };
 
-//     macro_rules! failed {
-//         ($a:ident, $b:expr) => {{
-//             failed!($a, $b, &[])
-//         }};
-//         ($a:ident, $b:expr, $c:expr) => {{
-//             $a(&$b, $c).unwrap_err()
-//         }};
-//     }
+            let context = ::liquid::interpreter::Context::default();
 
-//     macro_rules! tos {
-//         ($a:expr) => {{
-//             Value::scalar($a.to_owned())
-//         }};
-//     }
+            let filter = ::liquid::compiler::ParseFilter::parse(&$a, args).unwrap();
+            ::liquid::compiler::Filter::evaluate(&*filter, &$b, &context).unwrap()
+        }};
+    }
 
-//     #[test]
-//     fn unit_escape() {
-//         assert_eq!(
-//             unit!(escape, tos!("Have you read 'James & the Giant Peach'?")),
-//             tos!("Have you read &#39;James &amp; the Giant Peach&#39;?")
-//         );
-//         assert_eq!(
-//             unit!(escape, tos!("Tetsuro Takara")),
-//             tos!("Tetsuro Takara")
-//         );
-//     }
+    macro_rules! failed {
+        ($a:ident, $b:expr) => {{
+            failed!($a, $b, )
+        }};
+        ($a:ident, $b:expr, $($c:expr),*) => {{
+            let positional = Box::new(vec![$(::liquid::interpreter::Expression::Literal($c)),*].into_iter());
+            let keyword = Box::new(Vec::new().into_iter());
+            let args = ::liquid::compiler::FilterArguments { positional, keyword };
 
-//     #[test]
-//     fn unit_escape_non_ascii() {
-//         assert_eq!(
-//             unit!(escape, tos!("word¹ <br> word¹")),
-//             tos!("word¹ &lt;br&gt; word¹")
-//         );
-//     }
+            let context = ::liquid::interpreter::Context::default();
 
-//     #[test]
-//     fn unit_escape_once() {
-//         assert_eq!(
-//             unit!(escape_once, tos!("1 < 2 & 3")),
-//             tos!("1 &lt; 2 &amp; 3")
-//         );
-//         assert_eq!(
-//             unit!(escape_once, tos!("1 &lt; 2 &amp; 3")),
-//             tos!("1 &lt; 2 &amp; 3")
-//         );
-//         assert_eq!(
-//             unit!(escape_once, tos!("&lt;&gt;&amp;&#39;&quot;&xyz;")),
-//             tos!("&lt;&gt;&amp;&#39;&quot;&amp;xyz;")
-//         );
-//     }
+            ::liquid::compiler::ParseFilter::parse(&$a, args)
+                .and_then(|filter| ::liquid::compiler::Filter::evaluate(&*filter, &$b, &context))
+                .unwrap_err()
+        }};
+    }
 
-//     #[test]
-//     fn unit_strip_html() {
-//         assert_eq!(
-//             unit!(
-//                 strip_html,
-//                 tos!("<script type=\"text/javascript\">alert('Hi!');</script>"),
-//                 &[]
-//             ),
-//             tos!("")
-//         );
-//         assert_eq!(
-//             unit!(
-//                 strip_html,
-//                 tos!("<SCRIPT type=\"text/javascript\">alert('Hi!');</SCRIPT>"),
-//                 &[]
-//             ),
-//             tos!("")
-//         );
-//         assert_eq!(unit!(strip_html, tos!("<p>test</p>"), &[]), tos!("test"));
-//         assert_eq!(
-//             unit!(strip_html, tos!("<p id='xxx'>test</p>"), &[]),
-//             tos!("test")
-//         );
-//         assert_eq!(
-//             unit!(
-//                 strip_html,
-//                 tos!("<style type=\"text/css\">cool style</style>"),
-//                 &[]
-//             ),
-//             tos!("")
-//         );
-//         assert_eq!(
-//             unit!(strip_html, tos!("<p\nclass='loooong'>test</p>"), &[]),
-//             tos!("test")
-//         );
-//         assert_eq!(
-//             unit!(strip_html, tos!("<!--\n\tcomment\n-->test"), &[]),
-//             tos!("test")
-//         );
-//         assert_eq!(unit!(strip_html, tos!(""), &[]), tos!(""));
-//     }
+    macro_rules! tos {
+        ($a:expr) => {{
+            Value::scalar($a.to_owned())
+        }};
+    }
 
-//     #[test]
-//     fn unit_newline_to_br() {
-//         let input = &tos!("a\nb");
-//         let args = &[];
-//         let desired_result = tos!("a<br />\nb");
-//         assert_eq!(unit!(newline_to_br, input, args), desired_result);
-//     }
+    #[test]
+    fn unit_escape() {
+        assert_eq!(
+            unit!(Escape, tos!("Have you read 'James & the Giant Peach'?")),
+            tos!("Have you read &#39;James &amp; the Giant Peach&#39;?")
+        );
+        assert_eq!(
+            unit!(Escape, tos!("Tetsuro Takara")),
+            tos!("Tetsuro Takara")
+        );
+    }
 
-//     #[test]
-//     fn unit_newline_to_br_hello_world() {
-//         // First example from https://shopify.github.io/liquid/filters/newline_to_br/
-//         let input = &tos!("\nHello\nWorld\n");
-//         let args = &[];
-//         let desired_result = tos!("<br />\nHello<br />\nWorld<br />\n");
-//         assert_eq!(unit!(newline_to_br, input, args), desired_result);
-//     }
+    #[test]
+    fn unit_escape_non_ascii() {
+        assert_eq!(
+            unit!(Escape, tos!("word¹ <br> word¹")),
+            tos!("word¹ &lt;br&gt; word¹")
+        );
+    }
 
-//     #[test]
-//     fn unit_newline_to_br_one_argument() {
-//         let input = &tos!("a\nb");
-//         let args = &[Value::scalar(0f64)];
-//         failed!(newline_to_br, input, args);
-//     }
-// }
+    #[test]
+    fn unit_escape_once() {
+        assert_eq!(
+            unit!(EscapeOnce, tos!("1 < 2 & 3")),
+            tos!("1 &lt; 2 &amp; 3")
+        );
+        assert_eq!(
+            unit!(EscapeOnce, tos!("1 &lt; 2 &amp; 3")),
+            tos!("1 &lt; 2 &amp; 3")
+        );
+        assert_eq!(
+            unit!(EscapeOnce, tos!("&lt;&gt;&amp;&#39;&quot;&xyz;")),
+            tos!("&lt;&gt;&amp;&#39;&quot;&amp;xyz;")
+        );
+    }
+
+    #[test]
+    fn unit_strip_html() {
+        assert_eq!(
+            unit!(
+                StripHtml,
+                tos!("<script type=\"text/javascript\">alert('Hi!');</script>"),
+            ),
+            tos!("")
+        );
+        assert_eq!(
+            unit!(
+                StripHtml,
+                tos!("<SCRIPT type=\"text/javascript\">alert('Hi!');</SCRIPT>"),
+            ),
+            tos!("")
+        );
+        assert_eq!(unit!(StripHtml, tos!("<p>test</p>")), tos!("test"));
+        assert_eq!(
+            unit!(StripHtml, tos!("<p id='xxx'>test</p>")),
+            tos!("test")
+        );
+        assert_eq!(
+            unit!(
+                StripHtml,
+                tos!("<style type=\"text/css\">cool style</style>"),
+            ),
+            tos!("")
+        );
+        assert_eq!(
+            unit!(StripHtml, tos!("<p\nclass='loooong'>test</p>")),
+            tos!("test")
+        );
+        assert_eq!(
+            unit!(StripHtml, tos!("<!--\n\tcomment\n-->test")),
+            tos!("test")
+        );
+        assert_eq!(unit!(StripHtml, tos!("")), tos!(""));
+    }
+
+    #[test]
+    fn unit_newline_to_br() {
+        let input = &tos!("a\nb");
+        let desired_result = tos!("a<br />\nb");
+        assert_eq!(unit!(NewlineToBr, input), desired_result);
+    }
+
+    #[test]
+    fn unit_newline_to_br_hello_world() {
+        // First example from https://shopify.github.io/liquid/filters/newline_to_br/
+        let input = &tos!("\nHello\nWorld\n");
+        let desired_result = tos!("<br />\nHello<br />\nWorld<br />\n");
+        assert_eq!(unit!(NewlineToBr, input), desired_result);
+    }
+
+    #[test]
+    fn unit_newline_to_br_one_argument() {
+        let input = &tos!("a\nb");
+        failed!(NewlineToBr, input, Value::scalar(0f64));
+    }
+}

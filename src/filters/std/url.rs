@@ -82,43 +82,50 @@ impl Filter for UrlDecodeFilter {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
+#[cfg(test)]
+mod tests {
 
-//     use super::*;
+    use super::*;
 
-//     macro_rules! unit {
-//         ($a:ident, $b:expr) => {{
-//             unit!($a, $b, &[])
-//         }};
-//         ($a:ident, $b:expr, $c:expr) => {{
-//             $a(&$b, $c).unwrap()
-//         }};
-//     }
+    macro_rules! unit {
+        ($a:ident, $b:expr) => {{
+            unit!($a, $b, )
+        }};
+        ($a:ident, $b:expr, $($c:expr),*) => {{
+            let positional = Box::new(vec![$(::liquid::interpreter::Expression::Literal($c)),*].into_iter());
+            let keyword = Box::new(Vec::new().into_iter());
+            let args = ::liquid::compiler::FilterArguments { positional, keyword };
 
-//     macro_rules! tos {
-//         ($a:expr) => {{
-//             Value::scalar($a.to_owned())
-//         }};
-//     }
+            let context = ::liquid::interpreter::Context::default();
 
-//     #[test]
-//     fn unit_url_encode() {
-//         assert_eq!(unit!(url_encode, tos!("foo bar")), tos!("foo%20bar"));
-//         assert_eq!(
-//             unit!(url_encode, tos!("foo+1@example.com")),
-//             tos!("foo%2B1%40example.com")
-//         );
-//     }
+            let filter = ::liquid::compiler::ParseFilter::parse(&$a, args).unwrap();
+            ::liquid::compiler::Filter::evaluate(&*filter, &$b, &context).unwrap()
+        }};
+    }
 
-//     #[test]
-//     fn unit_url_decode() {
-//         // TODO Test case from shopify/liquid that we aren't handling:
-//         // - assert_eq!(unit!(url_decode, tos!("foo+bar")), tos!("foo bar"));
-//         assert_eq!(unit!(url_decode, tos!("foo%20bar")), tos!("foo bar"));
-//         assert_eq!(
-//             unit!(url_decode, tos!("foo%2B1%40example.com")),
-//             tos!("foo+1@example.com")
-//         );
-//     }
-// }
+    macro_rules! tos {
+        ($a:expr) => {{
+            Value::scalar($a.to_owned())
+        }};
+    }
+
+    #[test]
+    fn unit_url_encode() {
+        assert_eq!(unit!(UrlEncode, tos!("foo bar")), tos!("foo%20bar"));
+        assert_eq!(
+            unit!(UrlEncode, tos!("foo+1@example.com")),
+            tos!("foo%2B1%40example.com")
+        );
+    }
+
+    #[test]
+    fn unit_url_decode() {
+        // TODO Test case from shopify/liquid that we aren't handling:
+        // - assert_eq!(unit!(url_decode, tos!("foo+bar")), tos!("foo bar"));
+        assert_eq!(unit!(UrlDecode, tos!("foo%20bar")), tos!("foo bar"));
+        assert_eq!(
+            unit!(UrlDecode, tos!("foo%2B1%40example.com")),
+            tos!("foo+1@example.com")
+        );
+    }
+}

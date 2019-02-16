@@ -50,3 +50,73 @@ impl Filter for SplitFilter {
         ))
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    macro_rules! unit {
+        ($a:ident, $b:expr) => {{
+            unit!($a, $b, )
+        }};
+        ($a:ident, $b:expr, $($c:expr),*) => {{
+            let positional = Box::new(vec![$(::liquid::interpreter::Expression::Literal($c)),*].into_iter());
+            let keyword = Box::new(Vec::new().into_iter());
+            let args = ::liquid::compiler::FilterArguments { positional, keyword };
+
+            let context = ::liquid::interpreter::Context::default();
+
+            let filter = ::liquid::compiler::ParseFilter::parse(&$a, args).unwrap();
+            ::liquid::compiler::Filter::evaluate(&*filter, &$b, &context).unwrap()
+        }};
+    }
+
+    macro_rules! failed {
+        ($a:ident, $b:expr) => {{
+            failed!($a, $b, )
+        }};
+        ($a:ident, $b:expr, $($c:expr),*) => {{
+            let positional = Box::new(vec![$(::liquid::interpreter::Expression::Literal($c)),*].into_iter());
+            let keyword = Box::new(Vec::new().into_iter());
+            let args = ::liquid::compiler::FilterArguments { positional, keyword };
+
+            let context = ::liquid::interpreter::Context::default();
+
+            ::liquid::compiler::ParseFilter::parse(&$a, args)
+                .and_then(|filter| ::liquid::compiler::Filter::evaluate(&*filter, &$b, &context))
+                .unwrap_err()
+        }};
+    }
+
+    macro_rules! tos {
+        ($a:expr) => {{
+            Value::scalar($a.to_owned())
+        }};
+    }
+
+    #[test]
+    fn unit_split() {
+        assert_eq!(
+            unit!(Split, tos!("a, b, c"), tos!(", ")),
+            Value::Array(vec![tos!("a"), tos!("b"), tos!("c")])
+        );
+        assert_eq!(
+            unit!(Split, tos!("a~b"), tos!("~")),
+            Value::Array(vec![tos!("a"), tos!("b")])
+        );
+    }
+
+    #[test]
+    fn unit_split_bad_split_string() {
+        let input = tos!("a,b,c");
+        let desired_result = Value::Array(vec![tos!("a,b,c")]);
+        assert_eq!(unit!(Split, input, Value::scalar(1f64)), desired_result);
+    }
+
+    #[test]
+    fn unit_split_no_args() {
+        let input = tos!("a,b,c");
+        failed!(Split, input);
+    }
+}
