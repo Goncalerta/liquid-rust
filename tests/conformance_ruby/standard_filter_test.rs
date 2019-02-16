@@ -1,5 +1,3 @@
-use liquid;
-
 use test_helper::*;
 
 #[test]

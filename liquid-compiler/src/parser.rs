@@ -4,7 +4,6 @@
 //! but should be ignored for simple usage.
 
 use std;
-use std::collections::HashMap;
 
 use itertools;
 use liquid_error::{Error, Result, ResultLiquidExt};

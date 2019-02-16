@@ -135,8 +135,8 @@ macro_rules! filters {
         let positional = Box::new(vec![$(::liquid::interpreter::Expression::Literal($c)),*].into_iter());
         let keyword = Box::new(Vec::new().into_iter());
         let args = ::liquid::compiler::FilterArguments { positional, keyword };
-        
-        let context = liquid::interpreter::Context::default();
+
+        let context = ::liquid::interpreter::Context::default();
 
         let filter = ::liquid::compiler::ParseFilter::parse(&::liquid::filters::std::$a, args).unwrap();
         ::liquid::compiler::Filter::evaluate(&*filter, &$b, &context).unwrap()
@@ -153,8 +153,8 @@ macro_rules! filters_fail {
         let positional = Box::new(vec![$(::liquid::interpreter::Expression::Literal($c)),*].into_iter());
         let keyword = Box::new(Vec::new().into_iter());
         let args = ::liquid::compiler::FilterArguments { positional, keyword };
-        
-        let context = liquid::interpreter::Context::default();
+
+        let context = ::liquid::interpreter::Context::default();
 
         ::liquid::compiler::ParseFilter::parse(&::liquid::filters::std::$a, args)
             .and_then(|filter| ::liquid::compiler::Filter::evaluate(&*filter, &$b, &context))

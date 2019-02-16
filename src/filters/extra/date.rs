@@ -55,111 +55,147 @@ impl Filter for DateInTzFilter {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
+#[cfg(test)]
+mod tests {
 
-//     use super::*;
+    use super::*;
 
-//     macro_rules! unit {
-//         ($a:ident, $b:expr) => {{
-//             unit!($a, $b, &[])
-//         }};
-//         ($a:ident, $b:expr, $c:expr) => {{
-//             $a(&$b, $c).unwrap()
-//         }};
-//     }
+    macro_rules! unit {
+        ($a:ident, $b:expr) => {{
+            unit!($a, $b, )
+        }};
+        ($a:ident, $b:expr, $($c:expr),*) => {{
+            let positional = Box::new(vec![$(::liquid::interpreter::Expression::Literal($c)),*].into_iter());
+            let keyword = Box::new(Vec::new().into_iter());
+            let args = ::liquid::compiler::FilterArguments { positional, keyword };
 
-//     macro_rules! failed {
-//         ($a:ident, $b:expr) => {{
-//             failed!($a, $b, &[])
-//         }};
-//         ($a:ident, $b:expr, $c:expr) => {{
-//             $a(&$b, $c).unwrap_err()
-//         }};
-//     }
+            let context = ::liquid::interpreter::Context::default();
 
-//     macro_rules! tos {
-//         ($a:expr) => {{
-//             Value::scalar($a.to_owned())
-//         }};
-//     }
+            let filter = ::liquid::compiler::ParseFilter::parse(&$a, args).unwrap();
+            ::liquid::compiler::Filter::evaluate(&*filter, &$b, &context).unwrap()
+        }};
+    }
 
-//     #[test]
-//     #[cfg(feature = "extra-filters")]
-//     fn unit_date_in_tz_same_day() {
-//         let input = &tos!("13 Jun 2016 12:00:00 +0000");
-//         let args = &[tos!("%Y-%m-%d %H:%M:%S %z"), Value::scalar(3i32)];
-//         let desired_result = tos!("2016-06-13 15:00:00 +0300");
-//         assert_eq!(unit!(date_in_tz, input, args), desired_result);
-//     }
+    macro_rules! failed {
+        ($a:ident, $b:expr) => {{
+            failed!($a, $b, )
+        }};
+        ($a:ident, $b:expr, $($c:expr),*) => {{
+            let positional = Box::new(vec![$(::liquid::interpreter::Expression::Literal($c)),*].into_iter());
+            let keyword = Box::new(Vec::new().into_iter());
+            let args = ::liquid::compiler::FilterArguments { positional, keyword };
 
-//     #[test]
-//     #[cfg(feature = "extra-filters")]
-//     fn unit_date_in_tz_previous_day() {
-//         let input = &tos!("13 Jun 2016 12:00:00 +0000");
-//         let args = &[tos!("%Y-%m-%d %H:%M:%S %z"), Value::scalar(-13i32)];
-//         let desired_result = tos!("2016-06-12 23:00:00 -1300");
-//         assert_eq!(unit!(date_in_tz, input, args), desired_result);
-//     }
+            let context = ::liquid::interpreter::Context::default();
 
-//     #[test]
-//     #[cfg(feature = "extra-filters")]
-//     fn unit_date_in_tz_next_day() {
-//         let input = &tos!("13 Jun 2016 12:00:00 +0000");
-//         let args = &[tos!("%Y-%m-%d %H:%M:%S %z"), Value::scalar(13i32)];
-//         let desired_result = tos!("2016-06-14 01:00:00 +1300");
-//         assert_eq!(unit!(date_in_tz, input, args), desired_result);
-//     }
+            ::liquid::compiler::ParseFilter::parse(&$a, args)
+                .and_then(|filter| ::liquid::compiler::Filter::evaluate(&*filter, &$b, &context))
+                .unwrap_err()
+        }};
+    }
 
-//     #[test]
-//     #[cfg(feature = "extra-filters")]
-//     fn unit_date_in_tz_input_not_a_string() {
-//         let input = &Value::scalar(0f64);
-//         let args = &[tos!("%Y-%m-%d %H:%M:%S %z"), Value::scalar(0i32)];
-//         failed!(date_in_tz, input, args);
-//     }
+    macro_rules! tos {
+        ($a:expr) => {{
+            Value::scalar($a.to_owned())
+        }};
+    }
 
-//     #[test]
-//     #[cfg(feature = "extra-filters")]
-//     fn unit_date_in_tz_input_not_a_date_string() {
-//         let input = &tos!("blah blah blah");
-//         let args = &[tos!("%Y-%m-%d %H:%M:%S %z"), Value::scalar(0i32)];
-//         failed!(date_in_tz, input, args);
-//     }
+    #[test]
+    #[cfg(feature = "extra-filters")]
+    fn unit_date_in_tz_same_day() {
+        let input = tos!("13 Jun 2016 12:00:00 +0000");
+        let unit_result = unit!(
+            DateInTz,
+            input,
+            tos!("%Y-%m-%d %H:%M:%S %z"),
+            Value::scalar(3i32)
+        );
+        let desired_result = tos!("2016-06-13 15:00:00 +0300");
+        assert_eq!(unit_result, desired_result);
+    }
 
-//     #[test]
-//     #[cfg(feature = "extra-filters")]
-//     fn unit_date_in_tz_offset_not_a_num() {
-//         let input = &tos!("13 Jun 2016 12:00:00 +0000");
-//         let args = &[tos!("%Y-%m-%d %H:%M:%S %z"), tos!("Hello")];
-//         failed!(date_in_tz, input, args);
-//     }
+    #[test]
+    #[cfg(feature = "extra-filters")]
+    fn unit_date_in_tz_previous_day() {
+        let input = tos!("13 Jun 2016 12:00:00 +0000");
+        let unit_result = unit!(
+            DateInTz,
+            input,
+            tos!("%Y-%m-%d %H:%M:%S %z"),
+            Value::scalar(-13i32)
+        );
+        let desired_result = tos!("2016-06-12 23:00:00 -1300");
+        assert_eq!(unit_result, desired_result);
+    }
 
-//     #[test]
-//     #[cfg(feature = "extra-filters")]
-//     fn unit_date_in_tz_zero_arguments() {
-//         let input = &tos!("13 Jun 2016 12:00:00 +0000");
-//         let args = &[];
-//         failed!(date_in_tz, input, args);
-//     }
+    #[test]
+    #[cfg(feature = "extra-filters")]
+    fn unit_date_in_tz_next_day() {
+        let input = tos!("13 Jun 2016 12:00:00 +0000");
+        let unit_result = unit!(
+            DateInTz,
+            input,
+            tos!("%Y-%m-%d %H:%M:%S %z"),
+            Value::scalar(13i32)
+        );
+        let desired_result = tos!("2016-06-14 01:00:00 +1300");
+        assert_eq!(unit_result, desired_result);
+    }
 
-//     #[test]
-//     #[cfg(feature = "extra-filters")]
-//     fn unit_date_in_tz_one_argument() {
-//         let input = &tos!("13 Jun 2016 12:00:00 +0000");
-//         let args = &[tos!("%Y-%m-%d %H:%M:%S %z")];
-//         failed!(date_in_tz, input, args);
-//     }
+    #[test]
+    #[cfg(feature = "extra-filters")]
+    fn unit_date_in_tz_input_not_a_string() {
+        let input = &Value::scalar(0f64);
+        failed!(
+            DateInTz,
+            input,
+            tos!("%Y-%m-%d %H:%M:%S %z"),
+            Value::scalar(0i32)
+        );
+    }
 
-//     #[test]
-//     #[cfg(feature = "extra-filters")]
-//     fn unit_date_in_tz_three_arguments() {
-//         let input = &tos!("13 Jun 2016 12:00:00 +0000");
-//         let args = &[
-//             tos!("%Y-%m-%d %H:%M:%S %z"),
-//             Value::scalar(0f64),
-//             Value::scalar(1f64),
-//         ];
-//         failed!(date_in_tz, input, args);
-//     }
-// }
+    #[test]
+    #[cfg(feature = "extra-filters")]
+    fn unit_date_in_tz_input_not_a_date_string() {
+        let input = &tos!("blah blah blah");
+        failed!(
+            DateInTz,
+            input,
+            tos!("%Y-%m-%d %H:%M:%S %z"),
+            Value::scalar(0i32)
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "extra-filters")]
+    fn unit_date_in_tz_offset_not_a_num() {
+        let input = &tos!("13 Jun 2016 12:00:00 +0000");
+        failed!(DateInTz, input, tos!("%Y-%m-%d %H:%M:%S %z"), tos!("Hello"));
+    }
+
+    #[test]
+    #[cfg(feature = "extra-filters")]
+    fn unit_date_in_tz_zero_arguments() {
+        let input = &tos!("13 Jun 2016 12:00:00 +0000");
+        failed!(DateInTz, input);
+    }
+
+    #[test]
+    #[cfg(feature = "extra-filters")]
+    fn unit_date_in_tz_one_argument() {
+        let input = &tos!("13 Jun 2016 12:00:00 +0000");
+        failed!(DateInTz, input, tos!("%Y-%m-%d %H:%M:%S %z"));
+    }
+
+    #[test]
+    #[cfg(feature = "extra-filters")]
+    fn unit_date_in_tz_three_arguments() {
+        let input = &tos!("13 Jun 2016 12:00:00 +0000");
+        failed!(
+            DateInTz,
+            input,
+            tos!("%Y-%m-%d %H:%M:%S %z"),
+            Value::scalar(0f64),
+            Value::scalar(1f64)
+        );
+    }
+}
