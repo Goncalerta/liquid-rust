@@ -131,17 +131,8 @@ where
     /// Register non-standard filters
     #[cfg(feature = "extra-filters")]
     pub fn extra_filters(self) -> Self {
-        self
-        // self.filter("pluralize", filters::pluralize as compiler::FnFilterValue)
-        //     .filter("date_in_tz", filters::date_in_tz as compiler::FnFilterValue)
-        //     .filter("push", filters::push as compiler::FnFilterValue)
-        //     .filter("pop", filters::pop as compiler::FnFilterValue)
-        //     .filter("unshift", filters::unshift as compiler::FnFilterValue)
-        //     .filter("shift", filters::shift as compiler::FnFilterValue)
-        //     .filter(
-        //         "array_to_sentence_string",
-        //         filters::array_to_sentence_string as compiler::FnFilterValue,
-        //     )
+        self.filter(filters::extra::DateInTz)
+            .filter(filters::extra::Pluralize)
     }
 
     /// Register non-standard filters
@@ -153,7 +144,12 @@ where
     /// Register non-standard filters
     #[cfg(feature = "jekyll-filters")]
     pub fn jekyll_filters(self) -> Self {
-        self.filter("slugify", filters::slugify as compiler::FnFilterValue)
+        self.filter(filters::jekyll::Slugify)
+            .filter(filters::jekyll::Pop)
+            .filter(filters::jekyll::Push)
+            .filter(filters::jekyll::Shift)
+            .filter(filters::jekyll::Unshift)
+            .filter(filters::jekyll::ArrayToSentenceString)
     }
 
     /// Inserts a new custom block into the parser
