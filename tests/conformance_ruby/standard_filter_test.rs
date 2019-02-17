@@ -401,7 +401,7 @@ fn test_uniq_empty_array() {
 }
 
 #[test]
-#[should_panic] // liquid-rust#267
+#[should_panic] // liquid-rust#335
 fn test_compact_empty_array() {
     assert_eq!(v!([]), filters!(Compact, v!([]), v!("a")));
 }

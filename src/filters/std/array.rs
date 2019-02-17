@@ -61,7 +61,7 @@ struct SortFilter;
 
 impl Filter for SortFilter {
     fn evaluate(&self, input: &Value, _context: &Context) -> Result<Value> {
-        // TODO optional property parameter
+        // TODO(#333) optional property parameter
 
         let array = input
             .as_array()
@@ -86,7 +86,7 @@ struct SortNaturalFilter;
 
 impl Filter for SortNaturalFilter {
     fn evaluate(&self, input: &Value, _context: &Context) -> Result<Value> {
-        // TODO optional property parameter
+        // TODO(#334) optional property parameter
 
         let array = input
             .as_array()
@@ -118,7 +118,7 @@ struct UniqFilter;
 
 impl Filter for UniqFilter {
     fn evaluate(&self, input: &Value, _context: &Context) -> Result<Value> {
-        // TODO optional property parameter
+        // TODO(#267) optional property parameter
 
         let array = input
             .as_array()
@@ -217,7 +217,7 @@ impl Filter for CompactFilter {
             .as_array()
             .ok_or_else(|| invalid_input("Array expected"))?;
 
-        // TODO optional property parameter
+        // TODO(#335) optional property parameter
 
         let result: Vec<_> = array.iter().filter(|v| !v.is_nil()).cloned().collect();
 
