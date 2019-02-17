@@ -16,7 +16,7 @@ use super::Language;
 use super::ParseBlock;
 use super::ParseTag;
 use super::Text;
-use super::{Filter, FilterChain};
+use super::{Filter, FilterArguments, FilterChain};
 
 use pest::Parser;
 

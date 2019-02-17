@@ -1,8 +1,7 @@
 use std::fmt::{Debug, Display};
 
-use super::FilterArguments;
 use liquid_error::Result;
-use liquid_interpreter::Context;
+use liquid_interpreter::{Context, Expression};
 use liquid_value::Value;
 
 pub struct ParameterReflection {

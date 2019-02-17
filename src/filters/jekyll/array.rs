@@ -1,10 +1,10 @@
-use filters::{invalid_argument, invalid_input};
+use filters::invalid_input;
 use liquid_compiler::{Filter, FilterParameters};
 use liquid_derive::*;
 use liquid_error::Result;
 use liquid_interpreter::Context;
 use liquid_interpreter::Expression;
-use liquid_value::{Scalar, Value};
+use liquid_value::Value;
 use std::fmt::Write;
 
 #[derive(Debug, FilterParameters)]
@@ -22,7 +22,7 @@ struct PushArgs {
 )]
 pub struct Push;
 
-#[derive(Debug, Default, Display_filter)]
+#[derive(Debug, FromFilterParameters, Display_filter)]
 #[name = "push"]
 struct PushFilter {
     #[parameters]
@@ -34,11 +34,11 @@ impl Filter for PushFilter {
         let args = self.args.evaluate(context)?;
 
         let element = args.element.clone();
-        let mut input = input
+        let mut array = input
             .as_array()
             .ok_or_else(|| invalid_input("Array expected"))?
             .clone();
-        array.push(value);
+        array.push(element);
 
         Ok(Value::array(array))
     }
@@ -58,7 +58,7 @@ struct PopFilter;
 
 impl Filter for PopFilter {
     fn evaluate(&self, input: &Value, _context: &Context) -> Result<Value> {
-        let mut input = input
+        let mut array = input
             .as_array()
             .ok_or_else(|| invalid_input("Array expected"))?
             .clone();
@@ -83,7 +83,7 @@ struct UnshiftArgs {
 )]
 pub struct Unshift;
 
-#[derive(Debug, Default, Display_filter)]
+#[derive(Debug, FromFilterParameters, Display_filter)]
 #[name = "unshift"]
 struct UnshiftFilter {
     #[parameters]
@@ -95,11 +95,11 @@ impl Filter for UnshiftFilter {
         let args = self.args.evaluate(context)?;
 
         let element = args.element.clone();
-        let mut input = input
+        let mut array = input
             .as_array()
             .ok_or_else(|| invalid_input("Array expected"))?
             .clone();
-        array.insert(0, value);
+        array.insert(0, element);
 
         Ok(Value::array(array))
     }
@@ -109,7 +109,7 @@ impl Filter for UnshiftFilter {
 #[filter(
     name = "shift",
     description = "Removes the first element of an array.",
-    parsed(PopFilter)
+    parsed(ShiftFilter)
 )]
 pub struct Shift;
 
@@ -119,7 +119,7 @@ struct ShiftFilter;
 
 impl Filter for ShiftFilter {
     fn evaluate(&self, input: &Value, _context: &Context) -> Result<Value> {
-        let mut input = input
+        let mut array = input
             .as_array()
             .ok_or_else(|| invalid_input("Array expected"))?
             .clone();
@@ -150,7 +150,7 @@ struct ArrayToSentenceStringArgs {
 )]
 pub struct ArrayToSentenceString;
 
-#[derive(Debug, Default, Display_filter)]
+#[derive(Debug, FromFilterParameters, Display_filter)]
 #[name = "array_to_sentence_string"]
 struct ArrayToSentenceStringFilter {
     #[parameters]
@@ -161,7 +161,7 @@ impl Filter for ArrayToSentenceStringFilter {
     fn evaluate(&self, input: &Value, context: &Context) -> Result<Value> {
         let args = self.args.evaluate(context)?;
 
-        let connector = args.connector.unwrap_or("and");
+        let connector = args.connector.unwrap_or("and".into());
 
         let mut array = input
             .as_array()
@@ -207,29 +207,6 @@ mod tests {
 
             let filter = ::liquid::compiler::ParseFilter::parse(&$a, args).unwrap();
             ::liquid::compiler::Filter::evaluate(&*filter, &$b, &context).unwrap()
-        }};
-    }
-
-    macro_rules! failed {
-        ($a:ident, $b:expr) => {{
-            failed!($a, $b, )
-        }};
-        ($a:ident, $b:expr, $($c:expr),*) => {{
-            let positional = Box::new(vec![$(::liquid::interpreter::Expression::Literal($c)),*].into_iter());
-            let keyword = Box::new(Vec::new().into_iter());
-            let args = ::liquid::compiler::FilterArguments { positional, keyword };
-
-            let context = ::liquid::interpreter::Context::default();
-
-            ::liquid::compiler::ParseFilter::parse(&$a, args)
-                .and_then(|filter| ::liquid::compiler::Filter::evaluate(&*filter, &$b, &context))
-                .unwrap_err()
-        }};
-    }
-
-    macro_rules! tos {
-        ($a:expr) => {{
-            Value::scalar($a.to_owned())
         }};
     }
 

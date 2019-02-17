@@ -1,11 +1,10 @@
 use deunicode;
-use filters::{invalid_argument, invalid_input};
 use liquid_compiler::{Filter, FilterParameters};
 use liquid_derive::*;
 use liquid_error::Result;
 use liquid_interpreter::Context;
 use liquid_interpreter::Expression;
-use liquid_value::{Scalar, Value};
+use liquid_value::Value;
 use regex::Regex;
 
 #[derive(PartialEq)]
@@ -69,7 +68,10 @@ impl Filter for SlugifyFilter {
         let args = self.args.evaluate(context)?;
 
         let s = input.to_str();
-        let mode = args.mode.map(SlufifyMode::new).unwrap_or(SlugifyMode::Def);
+        let mode = args
+            .mode
+            .map(|mode| SlugifyMode::new(mode.as_ref()))
+            .unwrap_or(SlugifyMode::Def);
 
         let s = if mode == SlugifyMode::Latin {
             deunicode::deunicode_with_tofu(&s.trim(), "-")
