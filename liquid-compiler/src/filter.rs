@@ -6,7 +6,7 @@ use liquid_value::Value;
 
 /// A structure that holds the information of a single parameter in a filter.
 /// This includes its name, description and whether it is optional or required.
-/// 
+///
 /// This is the return type in some `FilterReflection` functions.
 pub struct ParameterReflection {
     pub name: &'static str,
@@ -15,10 +15,10 @@ pub struct ParameterReflection {
 }
 
 /// A trait that holds the information of the parameters of a filter.
-/// 
+///
 /// All structs that implement `FilterParameters` must implement this.
 /// This is actually automatically implemented with `#[derive(FilterParameters)]`.
-/// 
+///
 /// This trait allows `FilterReflection` macro to extract the parameters information
 /// from a given `FilterParameters` structure.
 pub trait FilterParametersReflection {
@@ -28,13 +28,13 @@ pub trait FilterParametersReflection {
 
 /// A trait that holds the information of a filter about itself, such as
 /// its name, description and parameters.
-/// 
+///
 /// All structs that implement `ParseFilter` must implement this.
-/// 
+///
 /// # Deriving
-/// 
-/// This trait may be derived with `liquid-derive`'s `#[derive(FilterReflection)]`. However, 
-/// it is necessary to use the `#[filter(...)]`  helper attribute. See documentation on 
+///
+/// This trait may be derived with `liquid-derive`'s `#[derive(FilterReflection)]`. However,
+/// it is necessary to use the `#[filter(...)]`  helper attribute. See documentation on
 /// `liquid-derive` for more information.
 pub trait FilterReflection {
     fn name(&self) -> &'static str;
@@ -45,15 +45,15 @@ pub trait FilterReflection {
 }
 
 /// A trait that declares and holds the parameters of a filter.
-/// 
+///
 /// Provides `from_args`, to construct itself from `FilterArguments` (parses the arguments)
 /// and `evaluate`, to construct its evaluated counterpart (evaluates the arguments).
-/// 
+///
 /// # Deriving
-/// 
+///
 /// The whole point of this structure is to facilitate the process of deriving a filter.
 /// Thus, this trait and all traits it requires may be derived with `#[derive(Debug, FilterParameters)]`.
-/// 
+///
 /// See documentation for `FilterParameters` macro on `liquid-derive` for more information.
 pub trait FilterParameters<'a>: Sized + FilterParametersReflection + Debug + Display {
     type EvaluatedFilterParameters;
@@ -68,74 +68,74 @@ pub struct FilterArguments<'a> {
 }
 
 /// A trait that holds a filter, ready to evaluate.
-/// 
+///
 /// # Deriving
-/// 
+///
 /// You cannot derive `Filter`, as it would go against the very point of creating your own filter.
 /// You can, however, derive some other traits that are necessary in order to implement it.
-/// 
+///
 /// In order to implement this trait, the struct must also implement `Debug` and `Display`, as well
 /// as either `Default` or `From<T>` (where T is the FilterParameters struct), respectively, in a
 /// filter without or with parameters.
-/// 
+///
 /// For `Debug` and `Default`, one may use rust's `#[derive(Debug)]` and `#[derive(Default)]` macros.
-/// For `Display` and `From<T>`, one may use `liquid-derive`'s `#[derive(Display_filter)]` and 
+/// For `Display` and `From<T>`, one may use `liquid-derive`'s `#[derive(Display_filter)]` and
 /// `#[derive(FromFilterParameters)]`.
-/// 
+///
 /// Note, however, that you may need helper attributes like `#[name = "..."]` and `#[parameters]` for
 /// using liquid-derive`'s macros. See documentation on `liquid-derive` for more information.
-/// 
+///
 /// # Examples
-/// 
+///
 /// Filter for filter with no arguments:
 /// ```ignore
 /// #[derive(Debug, Default, Display_filter)]
 /// #[name = "abs"] // The name of the filter, for `Display_filter`.
 /// struct AbsFilter; // There are no parameters, so implements `Default`.
-/// 
+///
 /// impl Filter for AbsFilter {
 ///     fn evaluate(&self, input: &Value, _context: &Context) -> Result<Value> {
 ///         // Implementation of the filter here
 ///     }
 /// }
 /// ```
-/// 
+///
 /// Filter for filter with arguments:
 /// ```ignore
 /// #[derive(Debug, FromFilterParameters, Display_filter)]
 /// #[name = "at_least"] // The name of the filter for derives
-/// struct AtLeastFilter { // There are parameters, so derives `FromFilterParameters`. 
+/// struct AtLeastFilter { // There are parameters, so derives `FromFilterParameters`.
 ///     #[parameters] // Mark the FilterParameters struct for derives
 ///     args: AtLeastArgs, // A struct that implements `FilterParameters`
 /// }
-/// 
+///
 /// impl Filter for AtLeastFilter {
 ///     fn evaluate(&self, input: &Value, context: &Context) -> Result<Value> {
-///         // Evaluate the `FilterParameters` 
+///         // Evaluate the `FilterParameters`
 ///         let args = self.args.evaluate(context)?;
-/// 
+///
 ///         // Implementation of the filter here
 ///     }
 /// }
 /// ```
-/// 
+///
 /// Filter for a configurable filter:
 /// ```ignore
 /// #[derive(Debug, Display_filter)]
 /// #[name = "example"] // The name of the filter for `Display`
-/// // Because construction happens manually (without derive) in `FilterParser` 
+/// // Because construction happens manually (without derive) in `FilterParser`
 /// // no need to derive neither `Default` nor `FromFilterParameters`.
-/// struct ExampleFilter { 
+/// struct ExampleFilter {
 ///     #[parameters] // Mark the FilterParameters struct for `Display`
 ///     args: ExampleArgs, // A struct that implements `FilterParameters`
 ///     state: i32, // See `ParseFilter` example for context
 /// }
-/// 
+///
 /// impl Filter for AtLeastFilter {
 ///     fn evaluate(&self, input: &Value, context: &Context) -> Result<Value> {
-///         // Evaluate the `FilterParameters` 
+///         // Evaluate the `FilterParameters`
 ///         let args = self.args.evaluate(context)?;
-/// 
+///
 ///         // Implementation of the filter here
 ///     }
 /// }
@@ -146,27 +146,27 @@ pub trait Filter: Send + Sync + Debug + Display {
 }
 
 /// A trait to register a new filter in the `liquid::Parser`.
-/// 
+///
 /// To implement this trait, the structure must also implement `FilterReflection`, thus giving
 /// meta information about the filter (namely it's name).
-/// 
+///
 /// Every time a filter with that name is encountered, it is parsed with the `ParseFilter::parse`
 /// method, yielding a new `Filter`.
-/// 
+///
 /// # Deriving
-/// 
+///
 /// In order to implement this trait, the struct must also implement `FilterReflection` and
 /// `Clone`.
-/// 
-/// `Clone` may be derived with rust's `#[derive(Clone)]`. `FilterReflection` may be derived 
-/// with `liquid-derive`'s `#[derive(FilterReflection)]`. ParseFilter may be derived with 
+///
+/// `Clone` may be derived with rust's `#[derive(Clone)]`. `FilterReflection` may be derived
+/// with `liquid-derive`'s `#[derive(FilterReflection)]`. ParseFilter may be derived with
 /// `#[derive(FilterReflection)]`.
-/// 
+///
 /// In order to use `liquid-derive`'s macros, however, it is necessary to use the `#[filter(...)]`
 /// helper attribute. See documentation on `liquid-derive` for more information.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ParseFilter for filter with no arguments:
 /// ```ignore
 /// #[derive(Clone, ParseFilter, FilterReflection)]
@@ -177,7 +177,7 @@ pub trait Filter: Send + Sync + Debug + Display {
 /// )]
 /// pub struct Abs;
 /// ```
-/// 
+///
 /// ParseFilter for filter with arguments:
 /// ```ignore
 /// #[derive(Clone, ParseFilter, FilterReflection)]
@@ -189,7 +189,7 @@ pub trait Filter: Send + Sync + Debug + Display {
 /// )]
 /// pub struct Slice;
 /// ```
-/// 
+///
 /// ParseFilter for a configurable filter:
 /// ```ignore
 /// #[derive(Clone, FilterReflection)]
@@ -203,7 +203,7 @@ pub trait Filter: Send + Sync + Debug + Display {
 ///     // before registering it.
 ///     pub mode: i32,
 /// }
-/// 
+///
 /// // For configurable filters, there is no default implementation of `ParseFilter`
 /// impl ParseFilter for ExampleParser {
 ///     fn parse(&self, arguments: FilterArguments) -> Result<Box<Filter>> {
@@ -216,7 +216,7 @@ pub trait Filter: Send + Sync + Debug + Display {
 ///         // about the arguments and the configuration of the `ParseFilter`.
 ///         Ok(Box::new(ExampleFilter { args, state }))
 ///     }
-/// } 
+/// }
 /// ```
 pub trait ParseFilter: Send + Sync + ParseFilterClone + FilterReflection {
     /// Filter `input` based on `arguments`.
