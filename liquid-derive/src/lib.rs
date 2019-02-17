@@ -22,7 +22,7 @@ use proc_macro::TokenStream;
 /// prepended by "Evaluated"). This may be useful to avoid name collisions.
 /// 
 /// Each parameter has the following structure:
-/// ```
+/// ```ignore
 /// #[parameter(...)] 
 /// NAME: TYPE
 /// ```
@@ -69,7 +69,7 @@ use proc_macro::TokenStream;
 /// # Examples
 /// 
 /// From slice filter:
-/// ```
+/// ```ignore
 /// #[derive(Debug, FilterParameters)]
 /// struct SliceArgs {
 ///     #[parameter(
@@ -87,7 +87,7 @@ use proc_macro::TokenStream;
 /// ```
 /// 
 /// From test filter:
-/// ```
+/// ```ignore
 /// #[derive(Debug, FilterParameters)]
 /// // The evaluated counterpart of this `FilterParameters` would have been
 /// // `EvaluatedTestMixedFilterParameters`, but because of this attribute 
@@ -155,7 +155,7 @@ pub fn derive_filter_parameters(item: TokenStream) -> TokenStream {
 /// 
 /// # Example
 /// 
-/// ```
+/// ```ignore
 /// #[derive(Clone, ParseFilter, FilterReflection)]
 /// #[filter(
 ///     name = "slice",  // Required by `FilterReflection`, not `ParseFilter`
@@ -183,7 +183,7 @@ pub fn derive_parse_filter(item: TokenStream) -> TokenStream {
 /// 
 /// # Example
 /// 
-/// ```
+/// ```ignore
 /// #[derive(Clone, ParseFilter, FilterReflection)]
 /// #[filter(
 ///     name = "slice",
@@ -206,7 +206,7 @@ pub fn derive_filter_reflection(item: TokenStream) -> TokenStream {
 /// 
 /// # Example
 /// 
-/// ```
+/// ```ignore
 /// #[derive(Debug, FromFilterParameters, Display_filter)]
 /// #[name = "at_least"] 
 /// struct AtLeastFilter { 
@@ -235,7 +235,7 @@ pub fn derive_from_filter_parameters(item: TokenStream) -> TokenStream {
 /// 
 /// # Example
 /// 
-/// ```
+/// ```ignore
 /// #[derive(Debug, FromFilterParameters, Display_filter)]
 /// #[name = "at_least"] // The name of the filter
 /// struct AtLeastFilter { 
